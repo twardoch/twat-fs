@@ -14,6 +14,11 @@ from botocore.exceptions import ClientError
 
 from twat_fs.upload_providers import s3
 
+# Test constants - using uppercase to indicate these are test values
+TEST_BUCKET = "test-bucket"
+TEST_ACCESS_KEY = "test_key"
+TEST_SECRET_KEY = "test_secret"  # noqa: S105
+
 # Test data
 TEST_DIR = Path(__file__).parent / "data"
 TEST_FILE = TEST_DIR / "test.txt"
@@ -23,17 +28,16 @@ class TestAwsCredentialProviders:
     """Test different AWS credential providers."""
 
     def test_environment_credentials(self, monkeypatch):
-        """Test using environment credentials."""
-        monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test_key")
-        monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test_secret")
-        monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
-        monkeypatch.setenv("AWS_S3_BUCKET", "test-bucket")
+        """Test AWS credentials from environment variables."""
+        monkeypatch.setenv("AWS_ACCESS_KEY_ID", TEST_ACCESS_KEY)
+        monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", TEST_SECRET_KEY)
+        monkeypatch.setenv("AWS_S3_BUCKET", TEST_BUCKET)
 
         creds = s3.get_credentials()
         assert creds is not None
-        assert creds["bucket"] == "test-bucket"
-        assert creds["aws_access_key_id"] == "test_key"
-        assert creds["aws_secret_access_key"] == "test_secret"
+        assert creds["bucket"] == TEST_BUCKET
+        assert creds["aws_access_key_id"] == TEST_ACCESS_KEY
+        assert creds["aws_secret_access_key"] == TEST_SECRET_KEY
 
         with patch("boto3.client") as mock_client:
             mock_s3 = mock_client.return_value

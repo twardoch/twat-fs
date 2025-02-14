@@ -83,6 +83,7 @@ class TestProviderSetup:
 
     def test_setup_working_provider(self, mock_s3_provider):
         """Test setup check for a working provider."""
+        assert mock_s3_provider is not None  # Verify fixture is used
         success, explanation = setup_provider("s3")
         assert success is True
         assert "You can upload files to: s3" in explanation
@@ -121,6 +122,10 @@ class TestProviderSetup:
         self, mock_s3_provider, mock_dropbox_provider, mock_fal_provider
     ):
         """Test checking setup status for all providers."""
+        assert all(
+            provider is not None
+            for provider in [mock_s3_provider, mock_dropbox_provider, mock_fal_provider]
+        )
         results = setup_providers()
         assert len(results) == len(PROVIDERS_PREFERENCE)
 
