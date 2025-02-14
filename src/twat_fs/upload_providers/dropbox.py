@@ -40,6 +40,24 @@ class DropboxUploadError(Exception):
     pass
 
 
+class PathConflictError(DropboxUploadError):
+    """Raised when a path conflict occurs in safe mode."""
+
+    pass
+
+
+class FileExistsError(PathConflictError):
+    """Raised when target file already exists in safe mode."""
+
+    pass
+
+
+class FolderExistsError(PathConflictError):
+    """Raised when target path is a folder in safe mode."""
+
+    pass
+
+
 def provider_auth() -> bool:
     """
     Check if Dropbox provider is properly authenticated.
@@ -67,14 +85,37 @@ def _validate_file(local_path: Path) -> None:
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 def _get_share_url(dbx: dropbox.Dropbox, db_path: str) -> Optional[str]:
-    """Get a shareable link for the uploaded file."""
+    """Get a shareable link for the uploaded file, reusing existing if possible."""
     try:
         shared_link = dbx.sharing_create_shared_link_with_settings(db_path)
         url = shared_link.url
-        # Convert to a direct download URL
-        return url.replace("?dl=0", "?dl=1")
-    except Exception as e:
-        raise DropboxUploadError(f"Failed to create share link: {e}")
+    except dropbox.exceptions.ApiError as e:
+        if "shared_link_already_exists" in str(e):
+            existing_links = dbx.sharing_list_shared_links(db_path).links
+            if existing_links:
+                url = existing_links[0].url
+            else:
+                raise DropboxUploadError(f"Failed to get existing share link: {e}")
+        else:
+            raise DropboxUploadError(f"Failed to create share link: {e}") from e
+
+    return url.replace("?dl=0", "?dl=1") if url else None
+
+
+def _ensure_upload_directory(dbx: dropbox.Dropbox, upload_path: str) -> None:
+    """Ensure target upload directory exists and is a folder."""
+    try:
+        meta = dbx.files_get_metadata(upload_path)
+        if isinstance(meta, dropbox.files.FolderMetadata):
+            return
+        # Path exists but isn't a folder - delete and recreate
+        dbx.files_delete_v2(upload_path)
+        dbx.files_create_folder_v2(upload_path)
+    except dropbox.exceptions.ApiError as e:
+        if e.error.is_path() and e.error.get_path().is_not_found():
+            dbx.files_create_folder_v2(upload_path)
+        else:
+            raise DropboxUploadError(f"Directory validation failed: {e}") from e
 
 
 def upload_file(
@@ -117,17 +158,22 @@ def upload_file(
     token = os.getenv("DROPBOX_APP_TOKEN")
     dbx = dropbox.Dropbox(token)
 
-    # Check if file already exists when not using unique mode
+    # Add directory validation before upload
+    _ensure_upload_directory(dbx, upload_path.rstrip("/"))
+
+    # Enhanced existing file check
     if not unique:
         try:
-            dbx.files_get_metadata(target_path)
-            logger.info(f"File already exists at {target_path}")
+            meta = dbx.files_get_metadata(target_path)
+            if isinstance(meta, dropbox.files.FolderMetadata):
+                raise FolderExistsError(f"Path {target_path} is a directory")
+
+            logger.info(f"File exists at {target_path}")
             if not force:
-                logger.info("Using existing file (force=False). Skipping upload.")
                 return _get_share_url(dbx, target_path)
+
         except dropbox.exceptions.ApiError as e:
-            # Only ignore not_found errors; re-raise otherwise.
-            if "not_found" not in str(e):
+            if not (e.error.is_path() and e.error.get_path().is_not_found()):
                 raise
 
     file_size = path.stat().st_size
