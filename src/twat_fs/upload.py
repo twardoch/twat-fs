@@ -12,16 +12,17 @@ using different providers.
 """
 
 from pathlib import Path
-from typing import Union, Literal, List
+from typing import Literal
 from loguru import logger
 
 ProviderType = Literal["fal", "dropbox"]
-PROVIDERS_PREFERENCE = ["fal", "dropbox"]
+PROVIDERS_PREFERENCE = [
+    "dropbox",
+    "fal",
+]
 
 
-def _try_provider(
-    provider: str, file_path: Union[str, Path]
-) -> tuple[bool, str | None]:
+def _try_provider(provider: str, file_path: str | Path) -> tuple[bool, str | None]:
     """
     Try to use a specific provider for upload.
 
@@ -57,8 +58,8 @@ def _try_provider(
 
 
 def upload_file(
-    file_path: Union[str, Path],
-    provider: Union[ProviderType, List[ProviderType]] = PROVIDERS_PREFERENCE,
+    file_path: str | Path,
+    provider: ProviderType | list[ProviderType] | None = PROVIDERS_PREFERENCE,
 ) -> str:
     """
     Upload a file using the specified provider(s).
@@ -76,12 +77,19 @@ def upload_file(
         ImportError: If provider module cannot be imported
     """
     # Convert single provider to list for uniform handling
-    providers = [provider] if isinstance(provider, str) else provider
+    if not provider:
+        provider = PROVIDERS_PREFERENCE
+    providers = (
+        [p.strip() for p in provider.split(",")]
+        if isinstance(provider, str)
+        else provider
+    )
 
     # Validate providers
-    invalid_providers = [p for p in providers if p not in ("fal", "dropbox")]
+    invalid_providers = [p for p in providers if p not in PROVIDERS_PREFERENCE]
     if invalid_providers:
-        raise ValueError(f"Unsupported provider(s): {', '.join(invalid_providers)}")
+        msg = f"Unsupported provider(s): {', '.join(invalid_providers)}"
+        raise ValueError(msg)
 
     # Try each provider in order
     for p in providers:
@@ -91,7 +99,8 @@ def upload_file(
             return url
 
     # If we get here, all providers failed
-    raise ValueError(
+    msg = (
         f"All providers failed. Please check authentication and try again. "
         f"Tried providers: {', '.join(providers)}"
     )
+    raise ValueError(msg)

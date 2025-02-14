@@ -16,9 +16,10 @@ Supports optional force and unique upload modes, chunked uploads for large files
 """
 
 import os
+from urllib import parse
+
 from pathlib import Path
-from typing import Optional, Union
-from datetime import datetime  # Added for generating a unique timestamp in filenames
+from datetime import datetime
 
 import dropbox
 from dotenv import load_dotenv
@@ -37,25 +38,17 @@ SMALL_FILE_THRESHOLD = 4 * 1024 * 1024  # 4MB threshold for chunked upload
 class DropboxUploadError(Exception):
     """Base class for Dropbox upload errors."""
 
-    pass
-
 
 class PathConflictError(DropboxUploadError):
     """Raised when a path conflict occurs in safe mode."""
-
-    pass
 
 
 class FileExistsError(PathConflictError):
     """Raised when target file already exists in safe mode."""
 
-    pass
-
 
 class FolderExistsError(PathConflictError):
     """Raised when target path is a folder in safe mode."""
-
-    pass
 
 
 def provider_auth() -> bool:
@@ -74,17 +67,27 @@ def provider_auth() -> bool:
 def _validate_file(local_path: Path) -> None:
     """Validate file exists and size is within limits."""
     if not local_path.exists() or not local_path.is_file():
-        raise FileNotFoundError(f"File not found: {local_path}")
+        msg = f"File not found: {local_path}"
+        raise FileNotFoundError(msg)
 
     size = local_path.stat().st_size
     if size > MAX_FILE_SIZE:
-        raise ValueError(
-            f"File too large: {size / 1024 / 1024:.1f}MB > {MAX_FILE_SIZE / 1024 / 1024:.1f}MB"
-        )
+        msg = f"File too large: {size / 1024 / 1024:.1f}MB > {MAX_FILE_SIZE / 1024 / 1024:.1f}MB"
+        raise ValueError(msg)
+
+
+def _get_download_url(url: str) -> str | None:
+    """Convert a Dropbox share URL to a direct download URL."""
+    if not url:
+        return None
+    parsed = parse.urlparse(url)
+    query = dict(parse.parse_qsl(parsed.query))
+    query["dl"] = "1"
+    return parsed._replace(query=parse.urlencode(query)).geturl()
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-def _get_share_url(dbx: dropbox.Dropbox, db_path: str) -> Optional[str]:
+def _get_share_url(dbx: dropbox.Dropbox, db_path: str) -> str | None:
     """Get a shareable link for the uploaded file, reusing existing if possible."""
     try:
         shared_link = dbx.sharing_create_shared_link_with_settings(db_path)
@@ -95,11 +98,13 @@ def _get_share_url(dbx: dropbox.Dropbox, db_path: str) -> Optional[str]:
             if existing_links:
                 url = existing_links[0].url
             else:
-                raise DropboxUploadError(f"Failed to get existing share link: {e}")
+                msg = f"Failed to get existing share link: {e}"
+                raise DropboxUploadError(msg)
         else:
-            raise DropboxUploadError(f"Failed to create share link: {e}") from e
+            msg = f"Failed to create share link: {e}"
+            raise DropboxUploadError(msg) from e
 
-    return url.replace("?dl=0", "?dl=1") if url else None
+    return _get_download_url(url) if url else None
 
 
 def _ensure_upload_directory(dbx: dropbox.Dropbox, upload_path: str) -> None:
@@ -115,11 +120,12 @@ def _ensure_upload_directory(dbx: dropbox.Dropbox, upload_path: str) -> None:
         if e.error.is_path() and e.error.get_path().is_not_found():
             dbx.files_create_folder_v2(upload_path)
         else:
-            raise DropboxUploadError(f"Directory validation failed: {e}") from e
+            msg = f"Directory validation failed: {e}"
+            raise DropboxUploadError(msg) from e
 
 
 def upload_file(
-    file_path: Union[str, Path],
+    file_path: str | Path,
     force: bool = False,
     unique: bool = False,
     upload_path: str = DEFAULT_UPLOAD_PATH,
@@ -141,7 +147,8 @@ def upload_file(
         ValueError: If the file is too large or token is missing.
     """
     if not provider_auth():
-        raise ValueError("DROPBOX_APP_TOKEN environment variable must be set")
+        msg = "DROPBOX_APP_TOKEN environment variable must be set"
+        raise ValueError(msg)
 
     path = Path(file_path)
     _validate_file(path)
@@ -166,7 +173,8 @@ def upload_file(
         try:
             meta = dbx.files_get_metadata(target_path)
             if isinstance(meta, dropbox.files.FolderMetadata):
-                raise FolderExistsError(f"Path {target_path} is a directory")
+                msg = f"Path {target_path} is a directory"
+                raise FolderExistsError(msg)
 
             logger.info(f"File exists at {target_path}")
             if not force:
@@ -215,8 +223,10 @@ def upload_file(
                         last_progress = progress
         url = _get_share_url(dbx, target_path)
         if not url:
-            raise DropboxUploadError("Failed to get share URL")
+            msg = "Failed to get share URL"
+            raise DropboxUploadError(msg)
         return url
 
     except Exception as e:
-        raise DropboxUploadError(f"Upload failed: {e}")
+        msg = f"Upload failed: {e}"
+        raise DropboxUploadError(msg)

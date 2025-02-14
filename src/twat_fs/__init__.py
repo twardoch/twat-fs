@@ -9,4 +9,4 @@ from importlib import metadata
 from twat_fs.upload import upload_file, ProviderType
 
 __version__ = metadata.version(__name__)
-__all__ = ["upload_file", "ProviderType"]
+__all__ = ["ProviderType", "upload_file"]

@@ -11,20 +11,26 @@ Command-line interface for twat-fs package.
 """
 
 from pathlib import Path
-from typing import Union
 
 import fire
 
-from twat_fs.upload import upload_file as _upload_file, ProviderType
+from twat_fs.upload import (
+    upload_file as _upload_file,
+    ProviderType,
+    PROVIDERS_PREFERENCE,
+)
 
 
-def upload_file(file_path: Union[str, Path], provider: ProviderType = "fal") -> str:
+def upload_file(
+    file_path: str | Path,
+    provider: ProviderType | list[ProviderType] | None = PROVIDERS_PREFERENCE,
+) -> str:
     """
     Upload a file using the specified provider.
 
     Args:
         file_path: Path to the file to upload
-        provider: Name of the provider to use ("fal" or "dropbox", default: "fal")
+        provider: Name of the provider to use
 
     Returns:
         str: URL of the uploaded file

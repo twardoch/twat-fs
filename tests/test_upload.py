@@ -5,10 +5,9 @@
 Tests for the upload functionality.
 """
 
-import os
 from pathlib import Path
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from twat_fs.upload import upload_file, PROVIDERS_PREFERENCE
 from twat_fs.upload_providers import fal, dropbox

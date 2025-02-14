@@ -15,7 +15,6 @@ This module provides functionality to upload files to FAL's storage service.
 import os
 import fal_client
 from pathlib import Path
-from typing import Union
 from loguru import logger
 
 
@@ -32,7 +31,7 @@ def provider_auth() -> bool:
     return has_key
 
 
-def upload_file(file_path: Union[str, Path]) -> str:
+def upload_file(file_path: str | Path) -> str:
     """
     Upload a file to FAL storage and return its URL.
 
@@ -46,7 +45,8 @@ def upload_file(file_path: Union[str, Path]) -> str:
         Exception: If upload fails or FAL_KEY is not set
     """
     if not provider_auth():
-        raise ValueError("FAL_KEY environment variable must be set")
+        msg = "FAL_KEY environment variable must be set"
+        raise ValueError(msg)
 
     url = fal_client.upload_file(str(file_path))
     return url

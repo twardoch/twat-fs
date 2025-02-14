@@ -30,24 +30,21 @@
    - Added test data directory
    - Implemented tests for auth, upload, and fallback functionality
 
-## Next Steps
+## TODO: 
 
-1. Implement more tests:
+1. Add more providers:
+   - Add support for S3! 
+
+2. Implement more tests:
    - Add integration tests with real providers
    - Add more edge cases and error conditions
    - Add performance tests
 
-2. Enhance error handling:
+3. Enhance error handling:
    - Add more specific error types
    - Improve error messages and recovery
    - Add retry mechanisms for transient failures
 
-3. Add configuration management:
-   - Support for config files
-   - Better environment variable handling
-   - Provider-specific settings
-
-4. Add more providers:
-   - Consider adding support for S3, GCS, etc.
+4. Add more features:
    - Create a formal provider interface/protocol
    - Add provider discovery mechanism 
