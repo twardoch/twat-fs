@@ -47,8 +47,7 @@ def get_provider():
 
     try:
         # Create a client instance with the key
-        client = fal_client.SyncClient(key=key)
-        return client
+        return fal_client.SyncClient(key=key)
 
     except Exception as err:
         logger.warning(f"Failed to initialize FAL provider: {err}")

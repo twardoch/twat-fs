@@ -12,7 +12,6 @@ import pytest
 from unittest.mock import patch, MagicMock
 from botocore.exceptions import ClientError
 
-from twat_fs.upload import upload_file
 from twat_fs.upload_providers import s3
 
 # Test data
