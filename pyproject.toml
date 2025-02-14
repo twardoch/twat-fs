@@ -82,6 +82,8 @@ dev-all = [
 ]
 
 [project.scripts]
+twat-fs = "twat_fs.__main__:main"
+
 [project.entry-points."twat.plugins"]
 fs = "twat_fs"
 
@@ -133,7 +135,11 @@ version-file = "src/twat_fs/__version__.py"
 
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/twat_fs"]
+packages = ["src/twat_fs", "src/twat"]
+include = [
+    "src/twat_fs/**/*.py",
+    "src/twat/**/*.py",
+]
 
 
 
