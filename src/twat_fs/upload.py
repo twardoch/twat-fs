@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run
+#!/usr/bin/env python
 # /// script
 # dependencies = [
 #   "loguru",
@@ -12,73 +12,19 @@ Main upload module that provides a unified interface for uploading files
 using different providers.
 """
 
-import importlib
 from pathlib import Path
-from typing import Literal, Any
+from typing import Any, Union
 from loguru import logger
+import os
 
-ProviderType = Literal["fal", "dropbox", "s3"]
-PROVIDERS_PREFERENCE = [
-    "s3",  # S3 is most reliable, so try it first
-    "dropbox",
-    "fal",
-]
+from twat_fs.upload_providers import (
+    PROVIDERS_PREFERENCE,
+    get_provider_module,
+    get_provider_help,
+)
 
-# Provider-specific help messages
-PROVIDER_HELP = {
-    "s3": {
-        "setup": """To use AWS S3 storage:
-1. Create an AWS account if you don't have one
-2. Create an S3 bucket to store your files
-3. Set up AWS credentials by either:
-   - Creating an IAM user and setting AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
-   - Using AWS CLI: run 'aws configure'
-   - Setting up IAM roles if running on AWS infrastructure
-4. Set the following environment variables:
-   - AWS_S3_BUCKET: Name of your S3 bucket
-   - AWS_DEFAULT_REGION: AWS region (e.g. us-east-1)
-   Optional:
-   - AWS_ENDPOINT_URL: Custom S3 endpoint
-   - AWS_S3_PATH_STYLE: Set to 'true' for path-style endpoints
-   - AWS_ROLE_ARN: ARN of role to assume""",
-        "deps": """Additional setup needed:
-1. Install the AWS SDK: pip install boto3
-2. If using AWS CLI: pip install awscli
-3. Configure AWS credentials using one of the methods above
-4. Ensure your IAM user/role has necessary S3 permissions:
-   - s3:PutObject
-   - s3:GetObject
-   - s3:ListBucket""",
-    },
-    "dropbox": {
-        "setup": """To use Dropbox storage:
-1. Create a Dropbox account if you don't have one
-2. Go to https://www.dropbox.com/developers/apps
-3. Create a new app or use an existing one
-4. Generate an access token from the app console
-5. Set the following environment variables:
-   - DROPBOX_ACCESS_TOKEN: Your Dropbox access token
-   Optional:
-   - DROPBOX_REFRESH_TOKEN: OAuth2 refresh token
-   - DROPBOX_APP_KEY: Dropbox app key
-   - DROPBOX_APP_SECRET: Dropbox app secret""",
-        "deps": """Additional setup needed:
-1. Install the Dropbox SDK: pip install dropbox
-2. If using OAuth2:
-   - Set up your redirect URI in the app console
-   - Implement the OAuth2 flow to get refresh tokens""",
-    },
-    "fal": {
-        "setup": """To use FAL storage:
-1. Create a FAL account at https://fal.ai
-2. Generate an API key from your account settings
-3. Set the following environment variable:
-   - FAL_KEY: Your FAL API key""",
-        "deps": """Additional setup needed:
-1. Install the FAL client: pip install fal-client
-2. Ensure your API key has the necessary permissions""",
-    },
-}
+# Type for provider specification - can be a single provider name or a list of providers
+ProviderType = Union[str, list[str], None]
 
 
 def setup_provider(provider: str) -> tuple[bool, str]:
@@ -96,37 +42,55 @@ def setup_provider(provider: str) -> tuple[bool, str]:
     """
     try:
         # Import provider module
-        provider_module = _get_provider_module(provider)
+        provider_module = get_provider_module(provider)
         if not provider_module:
+            help_info = get_provider_help(provider)
+            if not help_info:
+                return False, f"Provider '{provider}' is not available."
             return (
                 False,
-                f"Provider '{provider}' is not available.\n\n{PROVIDER_HELP[provider]['setup']}",
+                f"Provider '{provider}' is not available.\n\n{help_info['setup']}",
             )
 
         # Check credentials
         credentials = provider_module.get_credentials()
         if not credentials:
+            help_info = get_provider_help(provider)
+            if not help_info:
+                return False, f"Provider '{provider}' is not configured."
             return False, (
                 f"Provider '{provider}' is not configured. "
-                f"Please set up the required credentials:\n\n{PROVIDER_HELP[provider]['setup']}"
+                f"Please set up the required credentials:\n\n{help_info['setup']}"
             )
 
         # Try to get provider client
         if client := provider_module.get_provider():
-            return True, f"You can upload files to: {provider}"
+            return (
+                True,
+                f"You can upload files to: {provider} (client: {type(client).__name__})",
+            )
 
         # If we have credentials but client init failed, probably missing dependencies
+        help_info = get_provider_help(provider)
+        if not help_info:
+            return (
+                False,
+                f"Provider '{provider}' has credentials but additional setup is needed.",
+            )
         return False, (
             f"Provider '{provider}' has credentials but additional setup is needed:\n\n"
-            f"{PROVIDER_HELP[provider]['deps']}"
+            f"{help_info['deps']}"
         )
 
     except Exception as e:
         logger.warning(f"Error checking provider {provider}: {e}")
+        help_info = get_provider_help(provider)
+        if not help_info:
+            return False, f"Provider '{provider}' encountered an error: {e!s}"
         return False, (
             f"Provider '{provider}' encountered an error: {e!s}\n\n"
-            f"Complete setup guide:\n{PROVIDER_HELP[provider]['setup']}\n\n"
-            f"{PROVIDER_HELP[provider]['deps']}"
+            f"Complete setup guide:\n{help_info['setup']}\n\n"
+            f"{help_info['deps']}"
         )
 
 
@@ -161,65 +125,76 @@ def _get_provider_module(provider: str):
     Returns:
         module: The imported provider module or None if import fails
     """
-    try:
-        return importlib.import_module(f"twat_fs.upload_providers.{provider}")
-    except ImportError as e:
-        logger.warning(f"Failed to import provider {provider}: {e}")
-        return None
+    return get_provider_module(provider)
 
 
-def _try_provider(provider: str, file_path: str | Path) -> tuple[bool, str | None]:
+def _try_provider(
+    provider: str, local_path: Path, remote_path: str | Path | None = None
+) -> tuple[bool, str | None]:
     """
-    Try to use a specific provider for upload.
+    Attempt to upload using a specific provider.
 
     Args:
-        provider: Name of the provider to try
-        file_path: Path to the file to upload
+        provider: The provider name to try
+        local_path: The local file path as a Path object
+        remote_path: Optional remote file path
 
     Returns:
-        tuple[bool, str | None]: (success, url if successful else None)
+        A tuple of (success flag, URL if successful)
     """
     try:
-        # Import provider module
-        provider_module = _get_provider_module(provider)
-        if not provider_module:
+        provider_module = get_provider_module(provider)
+        if provider_module is None:
+            logger.debug(f"Provider {provider} module not found")
             return False, None
 
-        # Check if provider has credentials
-        if not provider_module.get_credentials():
+        provider_instance = provider_module.get_provider()
+        if provider_instance is None:
             logger.debug(f"Provider {provider} has no credentials configured")
             return False, None
 
-        # Get provider client
-        client = provider_module.get_provider()
-        if not client:
-            logger.debug(f"Provider {provider} failed to initialize")
-            return False, None
+        try:
+            # Check if the provider's upload_file method accepts remote_path
+            import inspect
 
-        # Try upload
-        url = provider_module.upload_file(file_path)
-        return True, url
+            sig = inspect.signature(provider_instance.upload_file)
+            if len(sig.parameters) > 1:
+                url = provider_instance.upload_file(local_path, remote_path)
+            else:
+                url = provider_instance.upload_file(local_path)
+            return True, url
+        except Exception as e:
+            logger.warning(f"Provider {provider} failed: {e}")
+            return False, None
 
     except Exception as e:
         logger.warning(f"Provider {provider} failed: {e}")
         return False, None
 
 
-def get_provider(provider: str | None = None) -> tuple[str | None, Any]:
+def get_provider(provider: ProviderType = None) -> tuple[str | None, Any]:
     """
-    Get a provider client by name or try providers in order of preference.
+    Get a working provider client from the specified provider(s).
 
     Args:
-        provider: Optional specific provider to use
+        provider: Provider to use, or list of providers to try in order.
+                 If None, uses default provider order.
 
     Returns:
-        tuple[str | None, Any]: Tuple of (provider_name, provider_client) if successful, (None, None) otherwise
+        tuple[str | None, Any]: Tuple of (provider_name, provider_client)
+        If no provider is available, returns (None, None)
     """
-    providers_to_try = [provider] if provider else PROVIDERS_PREFERENCE
+    providers_to_try = (
+        [provider]
+        if isinstance(provider, str)
+        else provider
+        if isinstance(provider, list)
+        else PROVIDERS_PREFERENCE
+    )
 
     for p in providers_to_try:
         try:
-            provider_module = _get_provider_module(p)
+            provider_module = get_provider_module(p)
             if not provider_module:
                 continue
 
@@ -244,22 +219,35 @@ def upload_file(
     local_path: str | Path,
     remote_path: str | Path | None = None,
     *,
-    provider: str | list[str] | None = None,
+    provider: ProviderType = None,
 ) -> str:
     """
-    Upload a file using the specified provider(s) or try providers in order of preference.
+    Upload a file using the specified provider(s) and return the public URL.
 
     Args:
-        local_path: Path to the file to upload
-        remote_path: Optional remote path to use
-        provider: Optional specific provider(s) to use
+        local_path: Path to the local file to upload
+        remote_path: Optional remote path/name for the uploaded file
+        provider: Provider to use, or list of providers to try in order.
+                 If None, uses default provider order.
 
     Returns:
-        str: URL to the uploaded file
+        str: Public URL of the uploaded file
 
     Raises:
-        ValueError: If no provider is available or file upload fails
+        ValueError: If no working provider is found or if the file upload fails
     """
+    # Validate the file path before processing
+    local_path = Path(local_path)
+    if not local_path.exists():
+        msg = f"File not found: {local_path}"
+        raise FileNotFoundError(msg)
+    if not local_path.is_file():
+        msg = "Path is not a file"
+        raise ValueError(msg)
+    if not os.access(local_path, os.R_OK):
+        msg = f"No read permission for file: {local_path}"
+        raise PermissionError(msg)
+
     providers_to_try = (
         [provider]
         if isinstance(provider, str)
@@ -269,7 +257,7 @@ def upload_file(
     )
 
     for p in providers_to_try:
-        success, url = _try_provider(p, local_path)
+        success, url = _try_provider(p, local_path, remote_path)
         if success and url:
             return url
 

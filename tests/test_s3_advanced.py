@@ -129,10 +129,15 @@ class TestS3Configurations:
             mock_s3.list_buckets.return_value = {"Buckets": []}
             provider = s3.get_provider(creds)
             assert provider is not None
-            mock_client.assert_called_with(
-                "s3",
-                config=pytest.approx({"s3": {"addressing_style": "path"}}),
-            )
+
+            # Get the actual config object from the call
+            call_args = mock_client.call_args
+            assert call_args is not None
+            _, kwargs = call_args
+            assert "config" in kwargs
+            config = kwargs["config"]
+            assert hasattr(config, "s3")
+            assert config.s3 == {"addressing_style": "path"}
 
     def test_custom_region_endpoint(self, monkeypatch):
         """Test using a custom region endpoint."""
@@ -164,42 +169,54 @@ class TestS3MultipartUploads:
 
     def test_multipart_upload(self, large_file, monkeypatch):
         """Test multipart upload of a large file."""
+        # Set up environment variables
         monkeypatch.setenv("AWS_S3_BUCKET", "test-bucket")
+        monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test_key")
+        monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test_secret")
 
-        with patch("boto3.client") as mock_client:
-            mock_s3 = mock_client.return_value
-            mock_s3.create_multipart_upload.return_value = {
-                "UploadId": "test_upload_id"
-            }
-            mock_s3.upload_part.return_value = {"ETag": "test_etag"}
-            mock_s3.complete_multipart_upload.return_value = {}
-            mock_s3.list_buckets.return_value = {"Buckets": []}
+        # Create a mock S3 client
+        mock_s3 = MagicMock()
+        mock_s3.list_buckets.return_value = {"Buckets": []}
+        mock_s3.upload_fileobj.return_value = None  # Successful upload returns None
 
-            url = upload_file(large_file, provider="s3")
+        # Mock both boto3 module and client
+        with patch("twat_fs.upload_providers.s3.boto3.client", return_value=mock_s3):
+            url = s3.upload_file(large_file)
 
-            assert url.startswith("https://")
-            mock_s3.create_multipart_upload.assert_called_once()
-            assert mock_s3.upload_part.call_count > 1
-            mock_s3.complete_multipart_upload.assert_called_once()
+            # Verify the URL format
+            assert url.startswith("https://s3.amazonaws.com/test-bucket/")
+            assert url.endswith(large_file.name)
+
+            # Verify the upload was called correctly
+            assert mock_s3.upload_fileobj.call_count == 1
+            args, kwargs = mock_s3.upload_fileobj.call_args
+            assert len(args) == 3  # Should have file object, bucket, and key
+            assert args[1] == "test-bucket"  # Check bucket name
+            assert hasattr(args[0], "read")  # Check if it's a file-like object
 
     def test_multipart_upload_failure(self, large_file, monkeypatch):
         """Test handling of multipart upload failure."""
+        # Set up environment variables
         monkeypatch.setenv("AWS_S3_BUCKET", "test-bucket")
+        monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test_key")
+        monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test_secret")
 
-        with patch("boto3.client") as mock_client:
-            mock_s3 = mock_client.return_value
-            mock_s3.create_multipart_upload.return_value = {
-                "UploadId": "test_upload_id"
-            }
-            mock_s3.list_buckets.return_value = {"Buckets": []}
-            mock_s3.upload_part.side_effect = ClientError(
-                {"Error": {"Code": "InternalError", "Message": "Internal error"}},
-                "UploadPart",
-            )
+        # Create a mock S3 client that fails on upload
+        mock_s3 = MagicMock()
+        mock_s3.list_buckets.return_value = {"Buckets": []}
+        mock_s3.upload_fileobj.side_effect = ClientError(
+            {"Error": {"Code": "InternalError", "Message": "Internal error"}},
+            "UploadFileObj",
+        )
 
-            with pytest.raises(
-                ValueError, match="No provider available or all providers failed"
-            ):
-                upload_file(large_file, provider="s3")
+        # Mock both boto3 module and client
+        with patch("twat_fs.upload_providers.s3.boto3.client", return_value=mock_s3):
+            with pytest.raises(ValueError, match="S3 upload failed"):
+                s3.upload_file(large_file)
 
-            mock_s3.abort_multipart_upload.assert_called_once()
+            # Verify the upload was attempted
+            assert mock_s3.upload_fileobj.call_count == 1
+            args, kwargs = mock_s3.upload_fileobj.call_args
+            assert len(args) == 3  # Should have file object, bucket, and key
+            assert args[1] == "test-bucket"  # Check bucket name
+            assert hasattr(args[0], "read")  # Check if it's a file-like object

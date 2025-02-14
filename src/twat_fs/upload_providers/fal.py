@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run
+#!/usr/bin/env python
 # /// script
 # dependencies = [
 #   "fal-client",
@@ -16,115 +16,74 @@ import os
 from pathlib import Path
 from loguru import logger
 
+import fal_client
+
+# Provider-specific help messages
+PROVIDER_HELP = {
+    "setup": """To use FAL storage:
+1. Create a FAL account at https://fal.ai
+2. Generate an API key from your account settings
+3. Set the following environment variable:
+   - FAL_KEY: Your FAL API key""",
+    "deps": """Additional setup needed:
+1. Install the FAL client: pip install fal-client
+2. Ensure your API key has the necessary permissions""",
+}
+
 
 def get_credentials() -> str | None:
-    """
-    Get FAL credentials from environment variables.
-    This function only checks environment variables and returns them,
-    without importing or initializing any external dependencies.
+    """Get FAL credentials from environment."""
+    return os.getenv("FAL_KEY")
 
-    Returns:
-        Optional[str]: FAL API key if present, None otherwise
+
+def get_provider():
     """
-    key = os.getenv("FAL_KEY")
+    Initialize and return the FAL provider if credentials are present.
+    """
+    key = get_credentials()
     if not key:
-        logger.debug("FAL_KEY environment variable is not set")
+        logger.debug("FAL_KEY not set in environment")
         return None
-    return key
+
+    try:
+        # Create a client instance with the key
+        client = fal_client.SyncClient(key=key)
+        return client
+
+    except Exception as err:
+        logger.warning(f"Failed to initialize FAL provider: {err}")
+        return None
 
 
-def get_provider(credentials: str | None = None):
+def upload_file(local_path: str | Path, remote_path: str | Path | None = None) -> str:
     """
-    Initialize and return the FAL provider client.
-    This function handles importing dependencies and creating the client.
+    Upload a file using FAL.
 
     Args:
-        credentials: Optional FAL API key to use. If None, will call get_credentials()
+        local_path: Path to the file to upload
+        remote_path: Optional remote path (ignored for FAL)
 
     Returns:
-        Any: FAL client if successful, None otherwise
-    """
-    if credentials is None:
-        credentials = get_credentials()
-
-    if not credentials:
-        return None
-
-    try:
-        import fal_client
-
-        # Initialize client with credentials
-        fal_client.set_key(credentials)
-
-        # Test connection
-        fal_client.status()
-
-        return fal_client
-
-    except Exception as e:
-        logger.warning(f"Failed to initialize FAL provider: {e}")
-        return None
-
-
-def _validate_file(local_path: Path) -> None:
-    """
-    Validate file exists and can be read.
-
-    Args:
-        local_path: Path to the file to validate
+        str: URL to the uploaded file
 
     Raises:
-        FileNotFoundError: If file does not exist
-        ValueError: If path is not a file
-        PermissionError: If file cannot be read
+        ValueError: If upload fails
     """
-    if not local_path.exists():
-        msg = f"File not found: {local_path}"
-        raise FileNotFoundError(msg)
-
-    if not local_path.is_file():
-        msg = f"Path is not a file: {local_path}"
-        raise ValueError(msg)
-
     try:
-        # Test if file can be read
-        with open(local_path, "rb") as f:
-            f.read(1)
-    except PermissionError:
-        msg = f"Permission denied: {local_path}"
-        raise PermissionError(msg)
+        client = get_provider()
+        if not client:
+            msg = "FAL provider not initialized"
+            raise ValueError(msg)
+
+        # Convert to Path object and use only the local path
+        path = Path(local_path)
+        result = client.upload_file(str(path))  # FAL client expects a string path
+        if not result:
+            msg = "FAL upload failed - no URL in response"
+            raise ValueError(msg)
+        return result
+
     except Exception as e:
-        msg = f"Error validating file: {e}"
-        raise ValueError(msg)
-
-
-def upload_file(file_path: str | Path, remote_path: str | Path | None = None) -> str:
-    """
-    Upload a file to FAL storage and return its URL.
-
-    Args:
-        file_path: Path to the file to upload (str or Path)
-        remote_path: Optional remote path (ignored for FAL provider)
-
-    Returns:
-        str: URL of the uploaded file
-
-    Raises:
-        FileNotFoundError: If file does not exist
-        ValueError: If path is not a file or FAL_KEY is not set
-        PermissionError: If file cannot be read
-    """
-    if not get_provider():
-        msg = "FAL_KEY environment variable must be set"
-        raise ValueError(msg)
-
-    path = Path(file_path)
-    _validate_file(path)
-
-    try:
-        # remote_path is ignored for FAL provider as it uses its own path handling
-        return get_provider().upload_file(str(path))
-    except Exception as e:
-        logger.error(f"Failed to upload file to FAL: {e}")
-        msg = f"Upload failed: {e}"
-        raise ValueError(msg)
+        logger.warning(f"FAL upload failed: {e}")
+        msg = "FAL upload failed"
+        raise ValueError(msg) from e

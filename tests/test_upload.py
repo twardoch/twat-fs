@@ -35,13 +35,13 @@ def test_file(tmp_path):
 @pytest.fixture
 def mock_fal_provider():
     """Mock FAL provider."""
-    with patch("twat_fs.upload_providers.fal.upload_file") as mock_upload:
-        with patch("twat_fs.upload_providers.fal.get_credentials") as mock_creds:
-            with patch("twat_fs.upload_providers.fal.get_provider") as mock_provider:
-                mock_upload.return_value = TEST_URL
-                mock_creds.return_value = "test_key"
-                mock_provider.return_value = MagicMock()
-                yield mock_upload
+    with patch("twat_fs.upload_providers.fal.get_credentials") as mock_creds:
+        with patch("twat_fs.upload_providers.fal.get_provider") as mock_provider:
+            mock_creds.return_value = "test_key"
+            client = MagicMock()
+            client.upload_file.return_value = TEST_URL
+            mock_provider.return_value = client
+            yield client.upload_file
 
 
 @pytest.fixture
@@ -61,21 +61,21 @@ def mock_dropbox_provider():
 @pytest.fixture
 def mock_s3_provider():
     """Mock S3 provider."""
-    with patch("twat_fs.upload_providers.s3.upload_file") as mock_upload:
-        with patch("twat_fs.upload_providers.s3.get_credentials") as mock_creds:
-            with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
-                mock_upload.return_value = TEST_URL
-                mock_creds.return_value = {
-                    "bucket": "test-bucket",
-                    "endpoint_url": None,
-                    "path_style": False,
-                    "role_arn": None,
-                    "aws_access_key_id": "test_key",
-                    "aws_secret_access_key": "test_secret",
-                    "aws_session_token": None,
-                }
-                mock_provider.return_value = (MagicMock(), "test-bucket")
-                yield mock_upload
+    with patch("twat_fs.upload_providers.s3.get_credentials") as mock_creds:
+        with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
+            mock_creds.return_value = {
+                "bucket": "test-bucket",
+                "endpoint_url": None,
+                "path_style": False,
+                "role_arn": None,
+                "aws_access_key_id": "test_key",
+                "aws_secret_access_key": "test_secret",
+                "aws_session_token": None,
+            }
+            client = MagicMock()
+            client.upload_file.return_value = TEST_URL
+            mock_provider.return_value = client
+            yield client.upload_file
 
 
 class TestProviderSetup:
@@ -251,9 +251,11 @@ class TestUploadFile:
 
     def test_upload_with_default_provider(self, test_file, mock_s3_provider):
         """Test upload with default provider."""
-        url = upload_file(test_file)
-        assert url == TEST_URL
-        mock_s3_provider.assert_called_once_with(test_file, None)
+        with patch("twat_fs.upload_providers.fal.get_provider") as mock_fal:
+            mock_fal.return_value = None  # Make FAL provider unavailable
+            url = upload_file(test_file)
+            assert url == TEST_URL
+            mock_s3_provider.assert_called_once_with(test_file, None)
 
     def test_upload_with_specific_provider(self, test_file, mock_s3_provider):
         """Test upload with specific provider."""
@@ -272,26 +274,59 @@ class TestUploadFile:
     ):
         """Test fallback to next provider on auth failure."""
         mock_s3_provider.side_effect = ValueError("Auth failed")
-        url = upload_file(test_file, provider=["s3", "dropbox"])
-        assert url == TEST_URL
-        mock_dropbox_provider.assert_called_once_with(test_file, None)
+        mock_dropbox_provider.return_value = TEST_URL
+
+        with patch("twat_fs.upload_providers.s3.get_provider") as mock_s3_get_provider:
+            with patch(
+                "twat_fs.upload_providers.dropbox.get_provider"
+            ) as mock_dropbox_get_provider:
+                mock_s3_get_provider.return_value = None  # S3 auth fails
+                mock_dropbox_client = MagicMock()
+                mock_dropbox_client.upload_file.return_value = TEST_URL
+                mock_dropbox_get_provider.return_value = mock_dropbox_client
+
+                url = upload_file(test_file, provider=["s3", "dropbox"])
+                assert url == TEST_URL
+                mock_dropbox_client.upload_file.assert_called_once()
 
     def test_upload_fallback_on_upload_failure(
         self, test_file, mock_s3_provider, mock_dropbox_provider
     ):
         """Test fallback to next provider on upload failure."""
         mock_s3_provider.side_effect = Exception("Upload failed")
-        url = upload_file(test_file, provider=["s3", "dropbox"])
-        assert url == TEST_URL
-        mock_dropbox_provider.assert_called_once_with(test_file, None)
+        mock_dropbox_provider.return_value = TEST_URL
+
+        with patch("twat_fs.upload_providers.s3.get_provider") as mock_s3_get_provider:
+            with patch(
+                "twat_fs.upload_providers.dropbox.get_provider"
+            ) as mock_dropbox_get_provider:
+                mock_s3_client = MagicMock()
+                mock_s3_client.upload_file.side_effect = Exception("Upload failed")
+                mock_s3_get_provider.return_value = mock_s3_client
+
+                mock_dropbox_client = MagicMock()
+                mock_dropbox_client.upload_file.return_value = TEST_URL
+                mock_dropbox_get_provider.return_value = mock_dropbox_client
+
+                url = upload_file(test_file, provider=["s3", "dropbox"])
+                assert url == TEST_URL
+                mock_dropbox_client.upload_file.assert_called_once()
 
     def test_all_providers_fail(self, test_file):
         """Test error when all providers fail."""
-        with pytest.raises(
-            ValueError, match="No provider available or all providers failed"
-        ), patch("twat_fs.upload.get_provider") as mock_get_provider:
-            mock_get_provider.return_value = (None, None)
-            upload_file(test_file)
+        with (
+            patch("twat_fs.upload_providers.fal.get_provider") as mock_fal,
+            patch("twat_fs.upload_providers.dropbox.get_provider") as mock_dropbox,
+            patch("twat_fs.upload_providers.s3.get_provider") as mock_s3,
+        ):
+            mock_fal.return_value = None
+            mock_dropbox.return_value = None
+            mock_s3.return_value = None
+
+            with pytest.raises(
+                ValueError, match="No provider available or all providers failed"
+            ):
+                upload_file(test_file)
 
     def test_invalid_provider(self, test_file):
         """Test upload with invalid provider."""
@@ -330,7 +365,9 @@ class TestEdgeCases:
                 with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
                     mock_upload.return_value = TEST_URL
                     mock_creds.return_value = {"bucket": "test-bucket"}
-                    mock_provider.return_value = (MagicMock(), "test-bucket")
+                    client = MagicMock()
+                    client.upload_file.return_value = TEST_URL
+                    mock_provider.return_value = client
                     url = upload_file(empty_file, provider="s3")
                     assert url == TEST_URL
 
@@ -343,7 +380,9 @@ class TestEdgeCases:
                 with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
                     mock_upload.return_value = TEST_URL
                     mock_creds.return_value = {"bucket": "test-bucket"}
-                    mock_provider.return_value = (MagicMock(), "test-bucket")
+                    client = MagicMock()
+                    client.upload_file.return_value = TEST_URL
+                    mock_provider.return_value = client
                     url = upload_file(special_file, provider="s3")
                     assert url == TEST_URL
 
@@ -356,7 +395,9 @@ class TestEdgeCases:
                 with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
                     mock_upload.return_value = TEST_URL
                     mock_creds.return_value = {"bucket": "test-bucket"}
-                    mock_provider.return_value = (MagicMock(), "test-bucket")
+                    client = MagicMock()
+                    client.upload_file.return_value = TEST_URL
+                    mock_provider.return_value = client
                     url = upload_file(unicode_file, provider="s3")
                     assert url == TEST_URL
 
@@ -370,7 +411,9 @@ class TestEdgeCases:
                 with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
                     mock_upload.return_value = TEST_URL
                     mock_creds.return_value = {"bucket": "test-bucket"}
-                    mock_provider.return_value = (MagicMock(), "test-bucket")
+                    client = MagicMock()
+                    client.upload_file.return_value = TEST_URL
+                    mock_provider.return_value = client
                     url = upload_file(long_file, provider="s3")
                     assert url == TEST_URL
 
@@ -405,6 +448,8 @@ class TestEdgeCases:
                 with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
                     mock_upload.return_value = TEST_URL
                     mock_creds.return_value = {"bucket": "test-bucket"}
-                    mock_provider.return_value = (MagicMock(), "test-bucket")
+                    client = MagicMock()
+                    client.upload_file.return_value = TEST_URL
+                    mock_provider.return_value = client
                     url = upload_file(test_file, provider="s3")
                     assert url == TEST_URL

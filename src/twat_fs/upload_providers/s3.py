@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run
+#!/usr/bin/env python
 # /// script
 # dependencies = [
 #   "boto3",
@@ -14,224 +14,145 @@ This module provides functionality to upload files to Amazon S3 storage service.
 
 import os
 from pathlib import Path
-from typing import TypedDict
-import boto3
-from botocore.exceptions import ClientError
+from typing import Any
 from loguru import logger
 
+import boto3
 
-class S3Credentials(TypedDict):
-    """Type for S3 credentials and configuration."""
+# Provider-specific help messages
+PROVIDER_HELP = {
+    "setup": """To use AWS S3 storage:
+1. Create an AWS account if you don't have one
+2. Create an S3 bucket to store your files
+3. Set up AWS credentials by either:
+   - Creating an IAM user and setting AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+   - Using AWS CLI: run 'aws configure'
+   - Setting up IAM roles if running on AWS infrastructure
+4. Set the following environment variables:
+   - AWS_S3_BUCKET: Name of your S3 bucket
+   - AWS_DEFAULT_REGION: AWS region (e.g. us-east-1)
+   Optional:
+   - AWS_ENDPOINT_URL: Custom S3 endpoint
+   - AWS_S3_PATH_STYLE: Set to 'true' for path-style endpoints
+   - AWS_ROLE_ARN: ARN of role to assume""",
+    "deps": """Additional setup needed:
+1. Install the AWS SDK: pip install boto3
+2. If using AWS CLI: pip install awscli
+3. Configure AWS credentials using one of the methods above
+4. Ensure your IAM user/role has necessary S3 permissions:
+   - s3:PutObject
+   - s3:GetObject
+   - s3:ListBucket""",
+}
 
-    bucket: str
-    endpoint_url: str | None
-    path_style: bool
-    role_arn: str | None
-    aws_access_key_id: str | None
-    aws_secret_access_key: str | None
-    aws_session_token: str | None
 
-
-def get_credentials() -> S3Credentials | None:
+def get_credentials() -> dict[str, Any] | None:
     """
-    Get S3 credentials from environment variables.
-    This function only checks environment variables and returns them,
-    without importing or initializing any external dependencies.
+    Retrieve AWS S3 credentials from environment variables.
 
     Returns:
-        Optional[S3Credentials]: Credentials if all required ones are present, None otherwise
+        Optional[Dict[str, Any]]: Credentials dict or None if not configured
     """
-    # Check required bucket name
     bucket = os.getenv("AWS_S3_BUCKET")
     if not bucket:
         logger.debug("Required AWS_S3_BUCKET environment variable not set")
         return None
 
-    # Build credentials dict
-    creds: S3Credentials = {
+    region = os.getenv("AWS_DEFAULT_REGION")
+    path_style = os.getenv("AWS_S3_PATH_STYLE", "").lower() == "true"
+    endpoint_url = os.getenv("AWS_ENDPOINT_URL")
+    role_arn = os.getenv("AWS_ROLE_ARN")
+    access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
+    secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+    session_token = os.getenv("AWS_SESSION_TOKEN")
+
+    return {
         "bucket": bucket,
-        "endpoint_url": os.getenv("AWS_ENDPOINT_URL"),
-        "path_style": os.getenv("AWS_S3_PATH_STYLE", "").lower() == "true",
-        "role_arn": os.getenv("AWS_ROLE_ARN"),
-        "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
-        "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
-        "aws_session_token": os.getenv("AWS_SESSION_TOKEN"),
+        "region": region,
+        "path_style": path_style,
+        "endpoint_url": endpoint_url,
+        "role_arn": role_arn,
+        "aws_access_key_id": access_key_id,
+        "aws_secret_access_key": secret_access_key,
+        "aws_session_token": session_token,
     }
 
-    return creds
 
-
-def get_provider(credentials: S3Credentials | None = None):
+def get_provider(creds: dict[str, Any] | None = None):
     """
-    Initialize and return the S3 provider client.
-    This function handles importing dependencies and creating the client.
+    Initialize and return the S3 provider using the boto3 client.
 
     Args:
-        credentials: Optional credentials to use. If None, will call get_credentials()
+        creds: Optional credentials dict (if None, will fetch from environment)
 
     Returns:
-        tuple[boto3.client, str]: Tuple of (s3_client, bucket_name) if successful, None otherwise
+        Optional[boto3.client]: Configured S3 client or None if initialization fails
     """
-    if credentials is None:
-        credentials = get_credentials()
-
-    if not credentials:
+    if creds is None:
+        creds = get_credentials()
+    if not creds:
         return None
 
+    client_kwargs = {}
+    if creds.get("region"):
+        client_kwargs["region_name"] = creds["region"]
+    if creds.get("endpoint_url"):
+        client_kwargs["endpoint_url"] = creds["endpoint_url"]
+    if creds.get("path_style"):
+        from boto3.session import Config
+
+        client_kwargs["config"] = Config(s3={"addressing_style": "path"})
+
     try:
-        # Build client kwargs
-        client_kwargs = {}
-
-        if credentials["endpoint_url"]:
-            client_kwargs["endpoint_url"] = credentials["endpoint_url"]
-
-        # Configure credentials if explicitly provided
-        if credentials["aws_access_key_id"] and credentials["aws_secret_access_key"]:
-            client_kwargs["aws_access_key_id"] = credentials["aws_access_key_id"]
-            client_kwargs["aws_secret_access_key"] = credentials[
-                "aws_secret_access_key"
-            ]
-            if credentials["aws_session_token"]:
-                client_kwargs["aws_session_token"] = credentials["aws_session_token"]
-
-        # Path-style endpoints
-        if credentials["path_style"]:
-            client_kwargs["config"] = boto3.client("s3").get_config_variable("s3", {})
-            client_kwargs["config"]["s3"] = {"addressing_style": "path"}
-
-        # Handle role assumption if specified
-        if credentials["role_arn"]:
-            sts = boto3.client("sts")
-            assumed_role = sts.assume_role(
-                RoleArn=credentials["role_arn"], RoleSessionName="twat_fs_upload"
-            )
-            client_kwargs["aws_access_key_id"] = assumed_role["Credentials"][
-                "AccessKeyId"
-            ]
-            client_kwargs["aws_secret_access_key"] = assumed_role["Credentials"][
-                "SecretAccessKey"
-            ]
-            client_kwargs["aws_session_token"] = assumed_role["Credentials"][
-                "SessionToken"
-            ]
-
-        # Create the client
-        s3_client = boto3.client("s3", **client_kwargs)
-
-        # Test the client with a simple operation
-        s3_client.list_buckets()
-
-        return s3_client, credentials["bucket"]
-
+        client = boto3.client("s3", **client_kwargs)
+        # Test the client by listing buckets
+        try:
+            client.list_buckets()
+            return client
+        except Exception as e:
+            logger.warning(f"Failed to validate S3 client: {e}")
+            return None
     except Exception as e:
-        logger.warning(f"Failed to initialize S3 provider: {e}")
+        logger.warning(f"Failed to create S3 client: {e}")
         return None
 
 
 def upload_file(local_path: str | Path, remote_path: str | Path | None = None) -> str:
     """
-    Upload a file to AWS S3 and return its URL.
+    Upload a file to AWS S3, handling multipart uploads for large files.
 
     Args:
-        local_path: Local file path
-        remote_path: Optional remote path (defaults to filename)
+        local_path: Path to the file to upload
+        remote_path: Optional remote path/key to use in S3
 
     Returns:
-        str: URL of the uploaded file
+        str: URL to the uploaded file
 
     Raises:
-        ValueError: If AWS credentials are not properly configured
-        ClientError: If upload fails
+        ValueError: If upload fails or credentials are missing
     """
-    if not provider_auth():
-        msg = "AWS credentials must be properly configured"
+    local_path = Path(local_path)
+    creds = get_credentials()
+    if not creds:
+        msg = "S3 credentials not configured"
         raise ValueError(msg)
 
-    local_path = Path(local_path)
-    bucket = os.getenv("AWS_S3_BUCKET")
-    region = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+    client = get_provider(creds)
+    if client is None:
+        msg = "Failed to initialize S3 client"
+        raise ValueError(msg)
 
-    # Use the file name as the S3 key, but ensure it's unique by adding a timestamp if needed
-    s3_key = local_path.name if remote_path is None else remote_path
-
-    # Get S3 client configuration
-    client_kwargs = {}
-    if endpoint_url := os.getenv("AWS_ENDPOINT_URL"):
-        client_kwargs["endpoint_url"] = endpoint_url
-
-    if os.getenv("AWS_S3_PATH_STYLE", "").lower() == "true":
-        client_kwargs["config"] = boto3.client("s3").get_config_variable("s3", {})
-        client_kwargs["config"]["s3"] = {"addressing_style": "path"}
-
+    key = str(remote_path or local_path.name)
     try:
-        # Handle role assumption if configured
-        if role_arn := os.getenv("AWS_ROLE_ARN"):
-            sts = boto3.client("sts")
-            assumed_role = sts.assume_role(
-                RoleArn=role_arn, RoleSessionName="twat_fs_upload"
-            )
-            credentials = assumed_role["Credentials"]
-            session = boto3.Session(
-                aws_access_key_id=credentials["AccessKeyId"],
-                aws_secret_access_key=credentials["SecretAccessKey"],
-                aws_session_token=credentials["SessionToken"],
-            )
-            s3 = session.client("s3", **client_kwargs)
-        else:
-            s3 = boto3.client("s3", **client_kwargs)
+        # Use upload_fileobj for all files
+        with open(local_path, "rb") as f:
+            client.upload_fileobj(f, creds["bucket"], key)
 
-        # Check if file is large enough for multipart upload
-        file_size = local_path.stat().st_size
-        if file_size > 5 * 1024 * 1024:  # 5MB threshold
-            # Initialize multipart upload
-            mpu = s3.create_multipart_upload(Bucket=bucket, Key=s3_key)
-            upload_id = mpu["UploadId"]
-
-            try:
-                parts = []
-                chunk_size = 5 * 1024 * 1024  # 5MB chunks
-                part_number = 1
-
-                with open(local_path, "rb") as f:
-                    while True:
-                        chunk = f.read(chunk_size)
-                        if not chunk:
-                            break
-
-                        # Upload part
-                        part = s3.upload_part(
-                            Bucket=bucket,
-                            Key=s3_key,
-                            PartNumber=part_number,
-                            UploadId=upload_id,
-                            Body=chunk,
-                        )
-                        parts.append({"PartNumber": part_number, "ETag": part["ETag"]})
-                        part_number += 1
-
-                # Complete multipart upload
-                s3.complete_multipart_upload(
-                    Bucket=bucket,
-                    Key=s3_key,
-                    UploadId=upload_id,
-                    MultipartUpload={"Parts": parts},
-                )
-            except Exception:
-                # Abort multipart upload on failure
-                s3.abort_multipart_upload(Bucket=bucket, Key=s3_key, UploadId=upload_id)
-                raise
-        else:
-            # Simple upload for small files
-            with open(local_path, "rb") as f:
-                s3.upload_fileobj(f, bucket, s3_key)
-
-        # Generate the S3 URL
-        if endpoint_url:
-            url = f"{endpoint_url}/{bucket}/{s3_key}"
-        else:
-            url = f"https://{bucket}.s3.{region}.amazonaws.com/{s3_key}"
-        return url
-
-    except ClientError as e:
-        logger.error(f"Failed to upload to S3: {e!s}")
-        raise
+        # Return the URL to the uploaded file
+        if creds.get("endpoint_url"):
+            return f"{creds['endpoint_url']}/{creds['bucket']}/{key}"
+        return f"https://s3.amazonaws.com/{creds['bucket']}/{key}"
+    except Exception as e:
+        logger.warning(f"S3 upload failed: {e}")
+        msg = "S3 upload failed"
+        raise ValueError(msg) from e

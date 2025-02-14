@@ -24,6 +24,25 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 from loguru import logger
 
+# Provider-specific help messages
+PROVIDER_HELP = {
+    "setup": """To use Dropbox storage:
+1. Create a Dropbox account if you don't have one
+2. Go to https://www.dropbox.com/developers/apps
+3. Create a new app or use an existing one
+4. Generate an access token from the app console
+5. Set the following environment variables:
+   - DROPBOX_ACCESS_TOKEN: Your Dropbox access token
+   Optional:
+   - DROPBOX_REFRESH_TOKEN: OAuth2 refresh token
+   - DROPBOX_APP_KEY: Dropbox app key
+   - DROPBOX_APP_SECRET: Dropbox app secret""",
+    "deps": """Additional setup needed:
+1. Install the Dropbox SDK: pip install dropbox
+2. If using OAuth2:
+   - Set up your redirect URI in the app console
+   - Implement the OAuth2 flow to get refresh tokens""",
+}
 
 load_dotenv()
 
