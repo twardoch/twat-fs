@@ -77,6 +77,12 @@ hatch run lint
 hatch run format
 ```
 
+Perform fixes & tests: 
+
+```bash
+uv venv; source .venv/bin/activate; uv pip install --upgrade -e .[dev,all,test] ; fd -e py -x pyupgrade --py311-plus {}; hatch fmt --unsafe-fixes ; python -m pytest ;
+```
+
 ## License
 
 MIT License 
