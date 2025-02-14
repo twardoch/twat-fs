@@ -2,11 +2,11 @@
 [project]
 name = "twat-fs"
 dynamic = ["version"]
-description = ""
+description = "File system utilities for twat with support for multiple upload providers"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
-keywords = []
+keywords = ["file-upload", "fal", "dropbox", "twat"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python",
@@ -19,11 +19,31 @@ classifiers = [
 
 dependencies = [
     "twat",
+    "loguru>=0.7.0",
+    "fire>=0.5.0",
+    "python-dotenv>=1.0.0",
 ]
 
 
 [project.optional-dependencies]
+# Provider-specific dependencies
+fal = [
+    "fal-client>=0.5.0",
+]
 
+dropbox = [
+    "dropbox>=12.00.0",
+    "tenacity>=8.2.0",
+]
+
+# All providers
+all = [
+    "fal-client>=0.5.0",
+    "dropbox>=12.00.0",
+    "tenacity>=8.2.0",
+]
+
+# Development dependencies
 dev = [
     "pre-commit>=3.6.0",
     "ruff>=0.1.0",
@@ -31,17 +51,23 @@ dev = [
     "pyupgrade>=3.19.0",
 ]
 
+# Testing dependencies
 test = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
 ]
 
-
-all = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
+# Complete development environment
+dev-all = [
+    "fal-client>=1.0.0",
+    "dropbox>=11.36.0",
+    "tenacity>=8.2.0",
+    "pre-commit>=3.6.0",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
+    "pyupgrade>=3.19.0",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
 ]
 
 [project.scripts]
