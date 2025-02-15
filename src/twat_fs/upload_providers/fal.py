@@ -11,6 +11,7 @@
 FAL provider for file uploads.
 This module provides functionality to upload files to FAL's storage service.
 """
+
 from __future__ import annotations
 
 import os

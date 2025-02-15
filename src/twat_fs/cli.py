@@ -9,6 +9,7 @@
 """
 Command-line interface for twat-fs package.
 """
+
 from __future__ import annotations
 
 import os

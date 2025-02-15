@@ -8,6 +8,7 @@
 Provider registry and common interfaces for upload providers.
 This module defines the provider registry and common interfaces that all providers must implement.
 """
+
 from __future__ import annotations
 
 import importlib

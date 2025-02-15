@@ -13,10 +13,10 @@ from twat_fs.upload import PROVIDERS_PREFERENCE, ProviderType
 __version__ = metadata.version(__name__)
 
 __all__ = [
+    "PROVIDERS_PREFERENCE",
+    "ProviderType",
     "main",
-    "upload_file",
     "setup_provider",
     "setup_providers",
-    "ProviderType",
-    "PROVIDERS_PREFERENCE",
+    "upload_file",
 ]

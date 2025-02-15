@@ -14,6 +14,7 @@ Dropbox provider for file uploads.
 This module provides functionality to upload files to Dropbox and get shareable links.
 Supports optional force and unique upload modes, chunked uploads for large files, and custom upload paths.
 """
+
 from __future__ import annotations
 
 import os
@@ -484,7 +485,10 @@ def _ensure_upload_directory(dbx: Any, upload_path: str) -> None:
             logger.debug(f"Successfully created directory: {upload_path}")
         except dropbox.exceptions.ApiError as e:
             # Handle folder already exists case
-            if isinstance(e.error, dropbox.files.CreateFolderError) and e.error.get_path().is_conflict():
+            if (
+                isinstance(e.error, dropbox.files.CreateFolderError)
+                and e.error.get_path().is_conflict()
+            ):
                 logger.debug(f"Directory already exists: {upload_path}")
                 return
             # For other API errors, raise

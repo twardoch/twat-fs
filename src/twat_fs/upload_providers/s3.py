@@ -11,6 +11,7 @@
 AWS S3 provider for file uploads.
 This module provides functionality to upload files to Amazon S3 storage service.
 """
+
 from __future__ import annotations
 
 import os
