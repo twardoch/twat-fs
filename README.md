@@ -223,6 +223,34 @@ hatch run test-cov  # with coverage
 uv venv; source .venv/bin/activate; uv pip install --upgrade -e '.[dev,all,test]' ; fd -e py -x pyupgrade --py311-plus {}; hatch fmt --unsafe-fixes ; python -m pytest ;
 ```
 
+### Publish
+
+Make sure to have in your env: 
+
+```bash
+export UV_PUBLISH_TOKEN="${PYPI_TOKEN}"
+export HATCH_INDEX_AUTH="${UV_PUBLISH_TOKEN}"
+export HATCH_INDEX_USER="__token__"
+```
+
+Build: 
+
+```bash
+VER="v1.7.9" && echo "$VER" > VERSION.txt && git commit -am "$VER" && git tag "$VER"
+```
+
+Then either:
+
+```
+hatch build && hatch publish
+```
+
+Or: 
+
+```
+uv build && uv publish
+``` 
+
 ### Testing
 
 The test suite includes:
