@@ -8,8 +8,9 @@ Tests AWS credential providers, S3 configurations, and multipart uploads.
 
 import os
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from botocore.exceptions import ClientError
 
 from twat_fs.upload_providers import s3
@@ -17,7 +18,7 @@ from twat_fs.upload_providers import s3
 # Test constants - using uppercase to indicate these are test values
 TEST_BUCKET = "test-bucket"
 TEST_ACCESS_KEY = "test_key"
-TEST_SECRET_KEY = "test_secret"  # noqa: S105
+TEST_SECRET_KEY = "test_secret"
 
 # Test data
 TEST_DIR = Path(__file__).parent / "data"

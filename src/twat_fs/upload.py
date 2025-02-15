@@ -12,15 +12,18 @@ Main upload module that provides a unified interface for uploading files
 using different providers.
 """
 
+from __future__ import annotations
+
+import os
 from pathlib import Path
 from typing import Any, Union
+
 from loguru import logger
-import os
 
 from twat_fs.upload_providers import (
     PROVIDERS_PREFERENCE,
-    get_provider_module,
     get_provider_help,
+    get_provider_module,
 )
 
 # Type for provider specification - can be a single provider name or a list of providers
@@ -286,7 +289,7 @@ def upload_file(
         str: URL to the uploaded file
 
     Raises:
-        ValueError: If upload fails
+        ValueError: If upload fails or path is not a file
         FileNotFoundError: If file does not exist
         PermissionError: If file cannot be read
     """
@@ -294,6 +297,10 @@ def upload_file(
     if not local_path.exists():
         msg = f"File {local_path} does not exist"
         raise FileNotFoundError(msg)
+
+    if not local_path.is_file():
+        msg = "Path is not a file"
+        raise ValueError(msg)
 
     if not os.access(local_path, os.R_OK):
         msg = f"File {local_path} cannot be read"
@@ -311,7 +318,7 @@ def upload_file(
         )
         if success and url:
             return url
-        msg = f"Upload failed with provider {provider}"
+        msg = "No provider available or all providers failed"
         raise ValueError(msg)
 
     # For a list of providers or default preference, try each in order
@@ -329,5 +336,5 @@ def upload_file(
         if success and url:
             return url
 
-    msg = "Upload failed with all available providers"
+    msg = "No provider available or all providers failed"
     raise ValueError(msg)

@@ -11,12 +11,13 @@
 FAL provider for file uploads.
 This module provides functionality to upload files to FAL's storage service.
 """
+from __future__ import annotations
 
 import os
 from pathlib import Path
-from loguru import logger
 
 import fal_client
+from loguru import logger
 
 # Provider-specific help messages
 PROVIDER_HELP = {

@@ -9,11 +9,12 @@ These tests interact with real providers and require proper credentials.
 import os
 import time
 from pathlib import Path
+
 import pytest
 from loguru import logger
 
-from twat_fs.upload import upload_file, setup_provider, setup_providers
-from twat_fs.upload_providers import s3, dropbox, fal
+from twat_fs.upload import setup_provider, setup_providers, upload_file
+from twat_fs.upload_providers import dropbox, fal, s3
 
 # Test data
 TEST_DIR = Path(__file__).parent / "data"

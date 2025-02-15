@@ -9,11 +9,11 @@
 """
 Command-line interface for twat-fs package.
 """
+from __future__ import annotations
 
-import sys
 import os
-from pathlib import Path
-from typing import NoReturn
+import sys
+from typing import TYPE_CHECKING, NoReturn
 
 import fire
 from loguru import logger
@@ -24,12 +24,21 @@ log_level = os.getenv("LOGURU_LEVEL", "INFO").upper()  # Default to INFO if not 
 logger.add(sys.stderr, level=log_level)
 
 from twat_fs.upload import (
-    upload_file as _upload_file,
-    setup_provider as _setup_provider,
-    setup_providers as _setup_providers,
-    ProviderType,
     PROVIDERS_PREFERENCE,
+    ProviderType,
 )
+from twat_fs.upload import (
+    setup_provider as _setup_provider,
+)
+from twat_fs.upload import (
+    setup_providers as _setup_providers,
+)
+from twat_fs.upload import (
+    upload_file as _upload_file,
+)
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def upload_file(
@@ -83,7 +92,8 @@ def upload_file(
                 )
             except Exception as e:
                 logger.error(f"Invalid provider list format: {e}")
-                raise ValueError(f"Invalid provider list format: {provider}") from e
+                msg = f"Invalid provider list format: {provider}"
+                raise ValueError(msg) from e
         # Otherwise, use it as a single provider
         logger.debug(f"Using single provider: {provider}")
         try:
@@ -97,7 +107,8 @@ def upload_file(
         except Exception as e:
             # When a specific provider is requested, don't fall back to others
             logger.error(f"Upload failed with provider {provider}: {e}")
-            raise ValueError(f"Upload failed with provider {provider}: {e}") from e
+            msg = f"Upload failed with provider {provider}: {e}"
+            raise ValueError(msg) from e
 
     # For other cases (None or list), pass through
     logger.debug(f"Using provider(s): {provider}")
@@ -144,7 +155,6 @@ def setup_providers() -> dict[str, tuple[bool, str]]:
 
 def show_help() -> NoReturn:
     """Show help message and exit."""
-    print(__doc__)
     sys.exit(0)
 
 
@@ -167,5 +177,5 @@ def main() -> None:
         logger.warning("\nOperation cancelled by user")
         sys.exit(1)
     except Exception as e:
-        logger.error(f"Error: {str(e)}")
+        logger.error(f"Error: {e!s}")
         sys.exit(1)

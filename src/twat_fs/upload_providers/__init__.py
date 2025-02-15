@@ -8,11 +8,15 @@
 Provider registry and common interfaces for upload providers.
 This module defines the provider registry and common interfaces that all providers must implement.
 """
+from __future__ import annotations
 
-from typing import Any, TypedDict, Literal, Protocol, runtime_checkable
-from pathlib import Path
 import importlib
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypedDict, runtime_checkable
+
 from loguru import logger
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # Define provider preference order - this drives everything else
 PROVIDERS_PREFERENCE = [

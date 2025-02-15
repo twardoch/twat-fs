@@ -11,13 +11,14 @@
 AWS S3 provider for file uploads.
 This module provides functionality to upload files to Amazon S3 storage service.
 """
+from __future__ import annotations
 
 import os
 from pathlib import Path
 from typing import Any
-from loguru import logger
 
 import boto3
+from loguru import logger
 
 # Provider-specific help messages
 PROVIDER_HELP = {

@@ -14,12 +14,13 @@ Dropbox provider for file uploads.
 This module provides functionality to upload files to Dropbox and get shareable links.
 Supports optional force and unique upload modes, chunked uploads for large files, and custom upload paths.
 """
+from __future__ import annotations
 
 import os
-from typing import TypedDict, Any
-from urllib import parse
-from pathlib import Path
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, TypedDict
+from urllib import parse
 
 from dotenv import load_dotenv
 from loguru import logger
@@ -84,7 +85,8 @@ class DropboxClient:
                 logger.debug("Successfully refreshed access token")
             except Exception as e:
                 logger.error(f"Failed to refresh token: {e}")
-                raise DropboxUploadError("Failed to refresh access token") from e
+                msg = "Failed to refresh access token"
+                raise DropboxUploadError(msg) from e
 
     def upload_file(
         self,
@@ -116,9 +118,9 @@ class DropboxClient:
         import dropbox
         from tenacity import (
             retry,
+            retry_if_exception_type,
             stop_after_attempt,
             wait_exponential,
-            retry_if_exception_type,
         )
 
         logger.debug(f"Starting upload process for {file_path}")
@@ -140,10 +142,7 @@ class DropboxClient:
             upload_path = _normalize_path(upload_path)
 
             # Use original filename if no remote path specified
-            if remote_path is None:
-                remote_path = path.name
-            else:
-                remote_path = str(remote_path)
+            remote_path = path.name if remote_path is None else str(remote_path)
 
             # Add timestamp for unique filenames
             if unique:
@@ -438,8 +437,8 @@ def _get_download_url(url: str) -> str | None:
 
 def _get_share_url(dbx: Any, db_path: str) -> str | None:
     """Get a shareable link for the uploaded file."""
-    from tenacity import retry, stop_after_attempt, wait_exponential
     import dropbox
+    from tenacity import retry, stop_after_attempt, wait_exponential
 
     @retry(
         stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
@@ -485,10 +484,9 @@ def _ensure_upload_directory(dbx: Any, upload_path: str) -> None:
             logger.debug(f"Successfully created directory: {upload_path}")
         except dropbox.exceptions.ApiError as e:
             # Handle folder already exists case
-            if isinstance(e.error, dropbox.files.CreateFolderError):
-                if e.error.get_path().is_conflict():
-                    logger.debug(f"Directory already exists: {upload_path}")
-                    return
+            if isinstance(e.error, dropbox.files.CreateFolderError) and e.error.get_path().is_conflict():
+                logger.debug(f"Directory already exists: {upload_path}")
+                return
             # For other API errors, raise
             logger.error(f"Failed to create directory: {e}")
             raise
@@ -567,7 +565,8 @@ def _upload_small_file(dbx: Any, file_path: Path, db_path: str) -> None:
         logger.debug(f"Successfully uploaded small file: {db_path}")
     except Exception as e:
         logger.error(f"Failed to upload small file: {e}")
-        raise DropboxUploadError(f"Failed to upload file: {e}") from e
+        msg = f"Failed to upload file: {e}"
+        raise DropboxUploadError(msg) from e
 
 
 def _upload_large_file(
@@ -617,7 +616,8 @@ def _upload_large_file(
         logger.debug(f"Successfully uploaded large file: {db_path}")
     except Exception as e:
         logger.error(f"Failed to upload large file: {e}")
-        raise DropboxUploadError(f"Failed to upload file: {e}") from e
+        msg = f"Failed to upload file: {e}"
+        raise DropboxUploadError(msg) from e
 
 
 def _normalize_path(path: str) -> str:
