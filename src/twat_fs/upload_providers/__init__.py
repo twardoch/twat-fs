@@ -15,7 +15,11 @@ import importlib
 from loguru import logger
 
 # Define provider preference order - this drives everything else
-PROVIDERS_PREFERENCE = ["fal", "dropbox", "s3"]
+PROVIDERS_PREFERENCE = [
+    "dropbox",
+    "fal",
+    "s3",
+]  # Put Dropbox first since it's more reliable
 
 # Create ProviderType from PROVIDERS_PREFERENCE to ensure they stay in sync
 ProviderType = Literal[tuple(PROVIDERS_PREFERENCE)]  # type: ignore
@@ -110,14 +114,18 @@ def get_provider_module(provider: str) -> Provider | None:
     Raises:
         KeyError: If the provider is not in PROVIDERS_PREFERENCE
     """
+    logger.debug(f"Getting provider module: {provider}")
     if provider not in PROVIDERS_PREFERENCE:
         msg = f"Invalid provider: {provider}"
+        logger.error(msg)
         raise KeyError(msg)
 
     if provider not in _provider_modules:
         try:
+            logger.debug(f"Importing provider module: {provider}")
             module = importlib.import_module(f"twat_fs.upload_providers.{provider}")
             if isinstance(module, Provider):
+                logger.debug(f"Successfully loaded provider module: {provider}")
                 _provider_modules[provider] = module
             else:
                 logger.warning(

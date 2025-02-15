@@ -129,7 +129,12 @@ def _get_provider_module(provider: str):
 
 
 def _try_provider(
-    provider: str, local_path: Path, remote_path: str | Path | None = None
+    provider: str,
+    local_path: Path,
+    remote_path: str | Path | None = None,
+    unique: bool = False,
+    force: bool = False,
+    upload_path: str | None = None,
 ) -> tuple[bool, str | None]:
     """
     Attempt to upload using a specific provider.
@@ -138,37 +143,62 @@ def _try_provider(
         provider: The provider name to try
         local_path: The local file path as a Path object
         remote_path: Optional remote file path
+        unique: Whether to ensure unique filenames
+        force: Whether to overwrite existing files
+        upload_path: Custom base upload path
 
     Returns:
         A tuple of (success flag, URL if successful)
+
+    The function will return (False, None) if:
+    - Provider module is not found
+    - Provider credentials are not configured
+    - Upload fails for any reason
     """
+    logger.debug(f"Attempting to use provider: {provider}")
     try:
         provider_module = get_provider_module(provider)
         if provider_module is None:
             logger.debug(f"Provider {provider} module not found")
             return False, None
 
-        provider_instance = provider_module.get_provider()
-        if provider_instance is None:
-            logger.debug(f"Provider {provider} has no credentials configured")
-            return False, None
-
         try:
-            # Check if the provider's upload_file method accepts remote_path
+            logger.debug(f"Getting provider instance for {provider}")
+            provider_instance = provider_module.get_provider()
+            if provider_instance is None:
+                logger.debug(f"Provider {provider} has no credentials configured")
+                return False, None
+
+            # Check if the provider's upload_file method accepts additional parameters
             import inspect
 
             sig = inspect.signature(provider_instance.upload_file)
-            if len(sig.parameters) > 1:
-                url = provider_instance.upload_file(local_path, remote_path)
-            else:
-                url = provider_instance.upload_file(local_path)
+            kwargs = {}
+
+            if "remote_path" in sig.parameters:
+                kwargs["remote_path"] = remote_path
+            if "unique" in sig.parameters:
+                kwargs["unique"] = unique
+            if "force" in sig.parameters:
+                kwargs["force"] = force
+            if "upload_path" in sig.parameters and upload_path is not None:
+                kwargs["upload_path"] = upload_path
+
+            logger.debug(f"Uploading to {provider} with kwargs: {kwargs}")
+            url = provider_instance.upload_file(local_path, **kwargs)
+            logger.debug(f"Upload successful with {provider}, got URL: {url}")
             return True, url
+
+        except ValueError as e:
+            # Provider-specific errors (like auth failures) are raised as ValueError
+            logger.warning(f"Provider {provider} error: {e}")
+            raise  # Re-raise to be caught by the upload_file function
         except Exception as e:
-            logger.warning(f"Provider {provider} failed: {e}")
+            logger.warning(f"Provider {provider} upload failed: {e}")
             return False, None
 
     except Exception as e:
-        logger.warning(f"Provider {provider} failed: {e}")
+        logger.warning(f"Provider {provider} initialization failed: {e}")
         return False, None
 
 
@@ -183,14 +213,32 @@ def get_provider(provider: ProviderType = None) -> tuple[str | None, Any]:
     Returns:
         tuple[str | None, Any]: Tuple of (provider_name, provider_client)
         If no provider is available, returns (None, None)
+
+    Raises:
+        ValueError: If a specific provider is requested but fails to initialize
     """
-    providers_to_try = (
-        [provider]
-        if isinstance(provider, str)
-        else provider
-        if isinstance(provider, list)
-        else PROVIDERS_PREFERENCE
-    )
+    # If a specific provider is requested, only try that one
+    if isinstance(provider, str):
+        provider_module = get_provider_module(provider)
+        if not provider_module:
+            msg = f"Provider '{provider}' module not found"
+            raise ValueError(msg)
+
+        # Check credentials and get client
+        if not provider_module.get_credentials():
+            msg = f"Provider '{provider}' has no credentials configured"
+            raise ValueError(msg)
+
+        client = provider_module.get_provider()
+        if not client:
+            msg = f"Failed to initialize provider '{provider}'"
+            raise ValueError(msg)
+
+        logger.info(f"Using provider: {provider}")
+        return provider, client
+
+    # For a list of providers or default preference, try each in order
+    providers_to_try = provider if isinstance(provider, list) else PROVIDERS_PREFERENCE
 
     for p in providers_to_try:
         try:
@@ -216,50 +264,70 @@ def get_provider(provider: ProviderType = None) -> tuple[str | None, Any]:
 
 
 def upload_file(
-    local_path: str | Path,
-    remote_path: str | Path | None = None,
-    *,
+    file_path: str | Path,
     provider: ProviderType = None,
+    remote_path: str | Path | None = None,
+    unique: bool = False,
+    force: bool = False,
+    upload_path: str | None = None,
 ) -> str:
     """
-    Upload a file using the specified provider(s) and return the public URL.
+    Upload a file using the specified provider.
 
     Args:
-        local_path: Path to the local file to upload
-        remote_path: Optional remote path/name for the uploaded file
-        provider: Provider to use, or list of providers to try in order.
-                 If None, uses default provider order.
+        file_path: Path to the file to upload
+        provider: Provider to use, or list of providers to try in order
+        remote_path: Optional remote path to use
+        unique: Whether to ensure unique filenames
+        force: Whether to overwrite existing files
+        upload_path: Custom base upload path
 
     Returns:
-        str: Public URL of the uploaded file
+        str: URL to the uploaded file
 
     Raises:
-        ValueError: If no working provider is found or if the file upload fails
+        ValueError: If upload fails
+        FileNotFoundError: If file does not exist
+        PermissionError: If file cannot be read
     """
-    # Validate the file path before processing
-    local_path = Path(local_path)
+    local_path = Path(file_path)
     if not local_path.exists():
-        msg = f"File not found: {local_path}"
+        msg = f"File {local_path} does not exist"
         raise FileNotFoundError(msg)
-    if not local_path.is_file():
-        msg = "Path is not a file"
-        raise ValueError(msg)
+
     if not os.access(local_path, os.R_OK):
-        msg = f"No read permission for file: {local_path}"
+        msg = f"File {local_path} cannot be read"
         raise PermissionError(msg)
 
-    providers_to_try = (
-        [provider]
-        if isinstance(provider, str)
-        else provider
-        if isinstance(provider, list)
-        else PROVIDERS_PREFERENCE
-    )
+    # If a specific provider is requested, only try that one
+    if isinstance(provider, str):
+        success, url = _try_provider(
+            provider,
+            local_path,
+            remote_path=remote_path,
+            unique=unique,
+            force=force,
+            upload_path=upload_path,
+        )
+        if success and url:
+            return url
+        msg = f"Upload failed with provider {provider}"
+        raise ValueError(msg)
+
+    # For a list of providers or default preference, try each in order
+    providers_to_try = provider if isinstance(provider, list) else PROVIDERS_PREFERENCE
 
     for p in providers_to_try:
-        success, url = _try_provider(p, local_path, remote_path)
+        success, url = _try_provider(
+            p,
+            local_path,
+            remote_path=remote_path,
+            unique=unique,
+            force=force,
+            upload_path=upload_path,
+        )
         if success and url:
             return url
 
-    msg = "No provider available or all providers failed"
+    msg = "Upload failed with all available providers"
     raise ValueError(msg)
