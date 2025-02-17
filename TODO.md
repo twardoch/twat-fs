@@ -1,151 +1,175 @@
+---
+this_file: TODO.md
+---
+
 # TODO
 
-## Simple Upload Providers
+This document outlines the current tasks for the project—with immediate fixes taking priority—followed by medium- and long-term improvements. The details below are based on recent cleanup logs and test feedback.
 
-✅ Implemented providers:
-- termbin.com (text uploads)
-- 0x0.st (general file uploads)
-- uguu.se (temporary file uploads)
-- bashupload.com (general file uploads)
+---
 
-## Next Steps
+## Immediate Priorities (Critical Fixes)
 
-1. Add tests for simple providers:
-   - Unit tests for each provider
-   - Integration tests
-   - Error handling tests
-   - File size limit tests
+### A. Test Failures and Provider Core Issues
 
-2. Add safety features:
-   - Rate limiting for each provider
-   - File size validation
-   - File type validation
-   - Retry logic for failed uploads
+1. **FAL Provider Implementation Flaws**
+   - **Missing Core Functions:**  
+     - Implement `get_credentials()` in `src/twat_fs/upload_providers/fal.py` so that it retrieves credentials from the environment.  
+       *Example:*
+       ```python
+       def get_credentials() -> dict[str, Any] | None:
+           """Fetch FAL credentials from environment."""
+           return {"key": os.getenv("FAL_KEY")} if os.getenv("FAL_KEY") else None
+       ```
+     - Implement the `get_provider()` function to initialize and return the FAL client.  
+     - Verify that the FAL provider fully complies with the Provider protocol.
+     
+   - **Abstract Class Instantiation Issues:**  
+     - Ensure concrete implementations (e.g., in `bashupload.py`, `simple.py`, etc.) implement the required abstract method (`upload_file_impl`).  
+       *For instance, rename or refactor the upload method to consistently follow the naming convention (either `upload_file` or `upload_file_impl`).*
+   
+2. **Test Infrastructure and Mocks**
+   - Update test mocks to correctly reflect the method signatures.  
+     - Ensure that in tests (e.g., in `tests/test_upload.py`), when mocking provider methods, the signature includes all expected keyword arguments: `unique`, `force`, and `upload_path`.
+   - Fix FAL test fixtures to correctly import and call `fal.get_credentials()` and `fal.get_provider()`.
+   - Address any attribute errors in tests (e.g., missing attributes on the fal provider module).
 
-3. Documentation:
-   - Update main README with new providers
-   - Add provider-specific documentation
-   - Add examples for each provider
-   - Document provider limitations
+> **Wait, but**  
+> These changes are critical because they directly influence both provider functionality and test accuracy. The FAL provider errors are causing several tests to error out, which blocks valid test runs. Properly updating mocks will allow integration tests to reflect the true behavior of the system.
 
-4. Provider Improvements:
-   - Add provider fallback mechanism
-   - Add provider selection based on file type/size
-   - Add provider health checks
-   - Add provider statistics
+---
 
-5. Code Cleanup:
-   - Remove old `uploaders` directory
-   - Standardize error handling across providers
-   - Add type hints for all functions
-   - Add docstrings for all classes/methods
+## B. Code Quality and Refactoring
 
-## bashupload.com
+1. **CLI and Function Arguments**
+   - Refactor boolean-typed positional arguments (`unique`, `force`) in `src/twat_fs/cli.py` to keyword-only arguments.  
+     *Example:*
+     ```python
+     def upload_file(
+         file_path: str | Path,
+         provider: str | list[str] = PROVIDERS_PREFERENCE,
+         *,  # Enforce keyword usage from here on
+         unique: bool = False,
+         force: bool = False,
+         upload_path: str | None = None,
+     ) -> str:
+         ...
+     ```
+   
+2. **Dropbox Provider Complexity**
+   - Reduce complexity in `src/twat_fs/upload_providers/dropbox.py`:
+     - Break the `upload_file` function into helper functions such as `_validate_upload_path()`, `_create_remote_folder()`, and `_upload_file_content()`.
+     - Add missing type annotations, fix return types, and ensure a final return statement exists.
+   
+3. **General Provider Implementations**
+   - For unused method arguments (e.g., `remote_path` in `bashupload.py`, `simple.py`, `termbin.py`, `uguu.py`, and `www0x0.py`), rename the parameter to `_remote_path` to signify it is intentionally unused.
+   - Verify that method names and signatures follow the provider contract consistently across all modules.
 
-I do:
+> **Wait, but**  
+> Clear structuring of function signatures and reducing complexity not only eases maintenance but also helps the type checker (mypy/ruff) pass with fewer errors. This clarity is critical to support future extension and new provider integrations.
 
->>> curl -F "file=@greeting.mp3" https://bashupload.com/
+---
 
-```RETURNED
+## C. Type System Overhaul and Documentation
 
-=========================
+1. **Type Annotation Consistency**
+   - Add missing return type annotations in all functions across both source modules and tests.
+   - Change legacy type hints (e.g., `Union[str, list[str]]`) to the newer union syntax using the pipe operator (`str | list[str]`).
+   - Fix incompatibility issues such as the return type incompatibilities (as seen in `dropbox.py`).
 
-Uploaded 1 file, 16 320 bytes
+2. **Documentation and Docstrings**
+   - Update docstrings for all functions to explain parameter roles, methodologies, and error conditions.
+   - Provide concrete examples within the docstrings where feasible.
 
-wget https://bashupload.com/5H6x9/greeting.mp3
+> **Wait, but**  
+> Consistent type annotations strengthen the robustness and maintainability of the codebase. Detailed docstrings and in-line comments will further help new contributors understand the provider architecture and the rationale behind key decisions.
 
-=========================
+---
 
-```
+## D. Test Suite Improvements
 
-We need to parse out the URL and transform it into
+1. **Mock and Fixture Corrections**
+   - Adjust existing test mocks (especially in `tests/test_upload.py` and `tests/test_integration.py`) to match updated function signatures and ensure proper parameters are passed.
+   - Replace hardcoded test credentials with safer mock values or environment substitutes.
 
-https://bashupload.com/5H6x9/greeting.mp3?download=1
+2. **Enhance Test Coverage**
+   - Add tests for edge cases and provider fallback mechanisms.
+   - Use parameterized tests (with `pytest.mark.parametrize`) or property-based testing (e.g., hypothesis) to cover a broad range of inputs.
+   - Create shared test contracts for provider implementations (via a common "provider contract test").
 
-Alternative syntax curl https://bashupload.com/file.txt --data-binary @/var/file.txt
+> **Wait, but**  
+> Upgrading the test suite is as crucial as fixing provider code. A more robust testing infrastructure will catch integration issues faster and provide ongoing assurance as refactoring continues.
 
-## 0x0.st
+---
 
-https://0x0.st/
+## E. Untracked Files and Version Control Cleanup
 
-SMALL TOOL
-```https://gist.github.com/gingerbeardman/5398a5feee9fa1e157b827d245678ae3
-#!/bin/sh
+1. **File Cleanup**
+   - Confirm that `src/twat_fs/upload_providers/www0x0.py` should be retained (as it appears to be a rename from `0x0.py`).
+   - Remove the outdated `src/twat_fs/upload_providers/0x0.py` file and add the new file properly into version control.
 
-URL="https://0x0.st"
+> **Wait, but**  
+> Version control hygiene is important to avoid confusion over file naming, especially when similar files exist. Ensuring that only the correct files are tracked prevents stale code from complicating further development.
 
-if [ $# -eq 0 ]; then
-    echo "Usage: 0x0.st FILE\n"
-    exit 1
-fi
+---
 
-FILE=$1
+## Medium-Term Priorities
 
-if [ ! -f "$FILE" ]; then
-    echo "File ${FILE} not found"
-    exit 1
-fi
+1. **Test Coverage Expansion**
+   - Develop unit tests for skipped S3 provider tests.
+   - Create more comprehensive tests covering provider authentication (valid, invalid, missing credentials).
+   - Simulate various error conditions (network failures, API errors) across providers.
+   - Integrate performance benchmarks to evaluate upload speeds and handle bottlenecks.
 
-RESPONSE=$(curl -# -F "file=@${FILE}" "${URL}")
+2. **Documentation Enhancements**
+   - Produce detailed, provider-specific documentation that describes configuration, setup instructions, and usage examples.
+   - Add a "Choosing a Provider" guide to help users pick the best provider for their use case.
+   - Include a troubleshooting guide covering common errors such as missing credentials and mock mismatches.
 
-echo "${RESPONSE}" | pbcopy # to clipboard
-echo "${RESPONSE}"  # to terminal
-```
+> **Wait, but**  
+> Expanding both tests and user documentation are medium-term improvements that reinforce the stability of the package while smoothing the user experience. They also serve as a strong foundation for future feature work.
 
-## uguu.se
+---
 
-https://uguu.se/api
+## Long-Term Goals / Enhancements
 
-Endpoint
-You may POST an array of files to https://uguu.se/upload, by default you will get a json response.
-If you want a response in something else than json you add a flag to specify what format you want, for example https://uguu.se/upload?output=csv.
-Valid response types are: json, csv, text, html and gyazo.
-Curl Example
-curl -i -F files[]=@yourfile.jpeg https://uguu.se/upload
+1. **Provider Feature Enhancements**
+   - Implement provider selection logic based on file attributes (size, type).
+   - Add periodic health checks and statistics for each provider.
+   - Incorporate advanced features such as upload cancellation, resume support, and progress callbacks.
+   
+2. **CI/CD and Automated Release**
+   - Establish an automated version bump mechanism.
+   - Integrate automated releases and dependency management (e.g., Dependabot).
+   - Generate code coverage reports as part of continuous integration.
 
->>> curl -i -F files[]=@greeting.mp3 https://uguu.se/upload
+3. **Security Hardening**
+   - Ensure no hardcoded credentials are present (replace with secure environment variables).
+   - Implement retries with exponential backoff for failed uploads.
+   - Add rate limiting to prevent abuse.
 
-```RETURNED
-HTTP/2 200 
-server: nginx
-date: Mon, 17 Feb 2025 19:45:54 GMT
-content-type: application/json; charset=UTF-8
-strict-transport-security: max-age=31536000; includeSubDomains; preload
-strict-transport-security: max-age=31536000; includeSubDomains; preload
+4. **Provider Contract and Abstract Method Enforcement**
+   - Formalize the provider contract and ensure all providers adhere to it.
+   - Document abstract method requirements for new provider implementations in a dedicated "Provider Development Guide."
 
-{
-    "success": true,
-    "files": [
-        {
-            "hash": "5731e769e610edba",
-            "filename": "RYqbskQu.mp3",
-            "url": "https:\/\/d.uguu.se\/RYqbskQu.mp3",
-            "size": 16320,
-            "dupe": false
-        }
-    ]
-}
-```
+> **Wait, but**  
+> Long-term enhancements will not only improve feature richness but also operational resilience and security. Keeping these goals in sight, even as immediate issues are resolved, will foster sustainable development practices.
 
-## termbin.com
+---
 
-https://termbin.com/
+## Additional Notes
 
-Send some text and read it back:
-$ echo just testing! | nc termbin.com 9999https://termbin.com/test$ curl https://termbin.com/testjust testing!
-Send file contents:
-$ cat ~/some_file.txt | nc termbin.com 9999
-Send list of files in the current directory:
-$ ls -la | nc termbin.com 9999
-requirements
-There is only one requirement to use this service: netcat. To check if you already have it installed, type in terminal nc or ncat or netcat.
-Netcat is available on most platforms, including Windows, macOS and Linux.
-alias
-To simplify usage, you can add an alias to your .bashrc on Linux or .bash_profile on macOS.
+- **Review and Iteration:**  
+  Regularly review the changes in `LOG.md` and integrate any new issues or updates from code quality tools (like ruff and mypy).
 
-linux:
-echo 'alias tb="nc termbin.com 9999"' >> .bashrc
+- **Collaboration and Commits:**  
+  Ensure that changes are grouped logically with clear commit messages for clarity during reviews.
 
-mac:
-echo 'alias tb="nc termbin.com 9999"' >> .bash_profile
+- **Performance Improvements:**  
+  As features stabilize, consider performance profiling and optimizations for large file uploads and fallback logic.
+
+---
+
+*This TODO document is a living artifact. Revisit and update it frequently as fixes are applied and new issues or improvements are identified.*
+
 

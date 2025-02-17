@@ -16,11 +16,10 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable, BinaryIO
+from typing import Any, Protocol, runtime_checkable, BinaryIO, ClassVar
 from collections.abc import Generator
 
-
-from . import ProviderHelp
+from . import ProviderHelp, Provider, ProviderClient
 
 
 @dataclass
@@ -49,10 +48,11 @@ class SimpleProviderClient(Protocol):
         ...
 
 
-class SimpleProviderBase(ABC):
+class SimpleProviderBase(ABC, Provider):
     """Base class for simple upload providers"""
 
-    PROVIDER_HELP: ProviderHelp = {
+    # Class variable for provider help
+    PROVIDER_HELP: ClassVar[ProviderHelp] = {
         "setup": "No setup required",
         "deps": "No additional dependencies required",
     }
@@ -86,9 +86,9 @@ class SimpleProviderBase(ABC):
         return None
 
     @classmethod
-    def get_provider(cls) -> SimpleProviderClient:
+    def get_provider(cls) -> ProviderClient | None:
         """Return an instance of this provider"""
-        return cls()  # type: ignore
+        return cls()
 
     def upload_file(
         self, local_path: str | Path, remote_path: str | Path | None = None
@@ -99,33 +99,37 @@ class SimpleProviderBase(ABC):
 
         Args:
             local_path: Path to the file to upload
-            remote_path: Ignored for simple providers
+            remote_path: Optional remote path to use (ignored for simple providers)
 
         Returns:
             str: URL to the uploaded file
 
         Raises:
-            ValueError: If upload fails
+            FileNotFoundError: If the file doesn't exist
+            ValueError: If the path is not a file
+            PermissionError: If the file can't be read
+            RuntimeError: If the upload fails
         """
-        import asyncio
+        path = Path(local_path)
+        self._validate_file(path)
 
-        file_path = Path(local_path)
-        self._validate_file(file_path)
-
-        result = asyncio.run(self.async_upload_file(file_path))
-        if not result.success:
-            msg = f"Upload failed: {result.error}"
-            raise ValueError(msg)
-        return result.url
+        with self._open_file(path) as file:
+            result = self.upload_file_impl(file)
+            if not result.success:
+                msg = f"Upload failed: {result.error or 'Unknown error'}"
+                raise RuntimeError(msg)
+            return result.url
 
     @abstractmethod
-    async def async_upload_file(self, file_path: Path) -> UploadResult:
+    def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """
-        Async method to upload a file. Must be implemented by subclasses.
+        Implement the actual file upload logic.
+        This method should be implemented by concrete provider classes.
 
         Args:
-            file_path: Path to the file to upload
+            file: Open file handle to upload
 
         Returns:
             UploadResult containing the URL and status
         """
+        ...

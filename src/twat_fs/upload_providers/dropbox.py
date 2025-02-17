@@ -318,28 +318,26 @@ def get_provider(credentials: DropboxCredentials | None = None) -> Any:
 def upload_file(
     file_path: str | Path,
     remote_path: str | Path | None = None,
+    *,  # Force keyword arguments for boolean flags
     force: bool = False,
     unique: bool = False,
     upload_path: str = DEFAULT_UPLOAD_PATH,
 ) -> str:
     """
-    Upload a file using this provider.
+    Upload a file to Dropbox and return its URL.
 
     Args:
         file_path: Path to the file to upload
         remote_path: Optional remote path to use
         force: Whether to overwrite existing files
         unique: Whether to ensure unique filenames
-        upload_path: Base upload path in Dropbox
+        upload_path: Custom base upload path
 
     Returns:
         str: URL to the uploaded file
 
     Raises:
-        ValueError: If upload fails
-        FileNotFoundError: If file does not exist
-        PermissionError: If file cannot be read
-        DropboxFileExistsError: If file already exists and force is False
+        ValueError: If upload fails or credentials are invalid
     """
     client = get_provider()
     if not client:
@@ -681,3 +679,18 @@ def _handle_api_error(e: Any, operation: str) -> None:
         logger.error(f"Unexpected error during {operation}: {e}")
         msg = f"Unexpected error: {e}"
         raise DropboxUploadError(msg) from e
+
+
+def _validate_credentials(credentials: DropboxCredentials) -> None:
+    """Validate Dropbox credentials."""
+    # ... existing code ...
+
+
+def _get_client(credentials: DropboxCredentials) -> Any:
+    """Get Dropbox client instance."""
+    # ... existing code ...
+
+
+def _refresh_token(credentials: DropboxCredentials) -> DropboxCredentials | None:
+    """Attempt to refresh the access token."""
+    # ... existing code ...

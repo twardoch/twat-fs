@@ -11,16 +11,17 @@ import fire
 from pathlib import Path
 from src.uploaders import get_uploader
 
+
 async def upload_file(file_path: str, service: str = "bash") -> str:
     """Upload a file using the specified service
-    
+
     Args:
         file_path: Path to file to upload
-        service: Upload service to use ('bash', '0x0', 'uguu', 'termbin')
-        
+        service: Upload service to use ('bash', 'www0x0', 'uguu', 'termbin')
+
     Returns:
         URL of uploaded file
-        
+
     Raises:
         ValueError if service is not recognized
     """
@@ -32,9 +33,11 @@ async def upload_file(file_path: str, service: str = "bash") -> str:
     else:
         raise Exception(f"Upload failed: {result.error}")
 
+
 def main(file_path: str, service: str = "bash"):
     """CLI entry point"""
     return asyncio.run(upload_file(file_path, service))
+
 
 if __name__ == "__main__":
     fire.Fire(main)

@@ -8,7 +8,7 @@ File system utilities for twat, focusing on robust and extensible file upload ca
 
 * **Provider Flexibility**: Seamlessly switch between storage providers without code changes
 * **Fault Tolerance**: Graceful fallback between providers if primary provider fails
-* **Progressive Enhancement**: Start simple with zero configuration (FAL), scale up to advanced providers (S3) as needed
+* **Progressive Enhancement**: Start simple with zero configuration (simple providers), scale up to advanced providers (S3, Dropbox) as needed
 * **Developer Experience**: Clear interfaces, comprehensive type hints, and runtime checks
 * **Extensibility**: Well-defined provider protocol for adding new storage backends
 
@@ -16,16 +16,16 @@ File system utilities for twat, focusing on robust and extensible file upload ca
 
 ### Installation
 
-Basic installation with FAL provider:
+Basic installation with simple providers:
 
 ```bash
-pip install twat-fs
+uv pip install twat-fs
 ```
 
 Install with all providers and development tools:
 
 ```bash
-pip install twat-fs[all,dev]
+uv pip install 'twat-fs[all,dev]'
 ```
 
 ### Basic Usage
@@ -33,14 +33,14 @@ pip install twat-fs[all,dev]
 ```python
 from twat_fs import upload_file
 
-# Simple upload (uses FAL by default)
+# Simple upload (uses www0x0.st by default)
 url = upload_file("path/to/file.txt")
 
 # Specify provider
 url = upload_file("path/to/file.txt", provider="s3")
 
 # Try specific providers in order
-url = upload_file("path/to/file.txt", provider=["s3", "dropbox", "fal"])
+url = upload_file("path/to/file.txt", provider=["s3", "dropbox", "www0x0"])
 ```
 
 ### Command Line Interface
@@ -59,13 +59,14 @@ python -m twat_fs setup all
 
 ## Provider Configuration
 
-### FAL (Default)
+### Simple Providers (No Configuration Required)
 
-Zero configuration needed for basic usage. For production:
+The following providers work out of the box with no configuration:
 
-```bash
-export FAL_KEY="your_key_here"
-```
+* **www0x0.st**: General file uploads (default)
+* **uguu.se**: Temporary file uploads
+* **bashupload.com**: General file uploads
+* **termbin.com**: Text-only uploads via netcat
 
 ### Dropbox
 
@@ -94,6 +95,12 @@ export AWS_SECRET_ACCESS_KEY="secret_key"
 export AWS_ENDPOINT_URL="custom_endpoint"  # For S3-compatible services
 export AWS_S3_PATH_STYLE="true"  # For path-style endpoints
 export AWS_ROLE_ARN="role_to_assume"
+```
+
+### FAL.ai
+
+```bash
+export FAL_KEY="your_key_here"
 ```
 
 ## Architecture
@@ -194,33 +201,33 @@ Then add your provider to `PROVIDERS_PREFERENCE` in `upload_providers/__init__.p
 
 ```bash
 # Install development tools
-pip install hatch
+uv pip install uv
 
 # Create and activate environment
-hatch shell
+uv venv
+source .venv/bin/activate
 
 # Install in development mode with all extras
-pip install -e .[dev,all,test]
+uv pip install -e '.[dev,all,test]'
 ```
 
 ### Code Quality
 
 ```bash
 # Format code
-hatch run fmt
+python -m ruff format src tests
+python -m ruff check --fix --unsafe-fixes src tests
 
 # Run type checks
-hatch run typecheck
-
-# Run linting
-hatch run lint
+python -m mypy src tests
 
 # Run tests
-hatch run test
-hatch run test-cov  # with coverage
+python -m pytest tests
+python -m pytest --cov=src/twat_fs tests  # with coverage
 
 # Quick development cycle
-uv venv; source .venv/bin/activate; uv pip install --upgrade -e '.[dev,all,test]' ; fd -e py -x pyupgrade --py311-plus {}; hatch fmt --unsafe-fixes ; python -m pytest ;
+./cleanup.py install  # Set up environment
+./cleanup.py status  # Run all checks
 ```
 
 ### Publish
@@ -229,27 +236,14 @@ Make sure to have in your env:
 
 ```bash
 export UV_PUBLISH_TOKEN="${PYPI_TOKEN}"
-export HATCH_INDEX_AUTH="${UV_PUBLISH_TOKEN}"
-export HATCH_INDEX_USER="__token__"
 ```
 
-Build: 
+Build and publish: 
 
 ```bash
 VER="v1.7.9" && echo "$VER" > VERSION.txt && git commit -am "$VER" && git tag "$VER"
-```
-
-Then either:
-
-```
-hatch build && hatch publish
-```
-
-Or: 
-
-```
 uv build && uv publish
-``` 
+```
 
 ### Testing
 

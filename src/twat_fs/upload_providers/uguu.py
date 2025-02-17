@@ -7,7 +7,7 @@
 """
 Uguu.se upload provider.
 A simple provider that uploads files to uguu.se.
-Files are automatically deleted after some time.
+Files are automatically deleted after 48 hours.
 """
 
 import aiohttp
@@ -16,43 +16,91 @@ from pathlib import Path
 from loguru import logger
 
 from .simple import SimpleProviderBase, UploadResult
+from . import ProviderHelp, ProviderClient
+
+# Provider help messages
+PROVIDER_HELP: ProviderHelp = {
+    "setup": "No setup required. Note: Files are deleted after 48 hours.",
+    "deps": "Python package: aiohttp",
+}
 
 
 class UguuProvider(SimpleProviderBase):
     """Provider for uguu.se uploads"""
 
-    PROVIDER_HELP = {"setup": "No setup required.", "deps": "Python package: aiohttp"}
-
     def __init__(self) -> None:
-        self.upload_url = "https://uguu.se/upload"
+        super().__init__()
+        self.url = "https://uguu.se/upload.php"
 
-    async def async_upload_file(self, file_path: Path) -> UploadResult:
-        """Upload file to uguu.se"""
+    async def async_upload_file(
+        self, file_path: Path, remote_path: str | Path | None = None
+    ) -> UploadResult:
+        """
+        Upload file to uguu.se
+
+        Args:
+            file_path: Path to the file to upload
+            remote_path: Optional remote path (ignored as uguu.se doesn't support custom paths)
+
+        Returns:
+            UploadResult containing the URL and status
+        """
         try:
             async with aiohttp.ClientSession() as session:
                 data = aiohttp.FormData()
-                data.add_field(
-                    "files[]", open(file_path, "rb"), filename=file_path.name
-                )
+                with self._open_file(file_path) as f:
+                    data.add_field("files[]", f, filename=file_path.name)
 
-                async with session.post(self.upload_url, data=data) as response:
-                    if response.status != 200:
-                        error = await response.text()
-                        msg = f"Upload failed with status {response.status}: {error}"
-                        raise ValueError(
-                            msg
-                        )
+                    async with session.post(self.url, data=data) as response:
+                        if response.status != 200:
+                            error = await response.text()
+                            msg = (
+                                f"Upload failed with status {response.status}: {error}"
+                            )
+                            raise ValueError(msg)
 
-                    result = await response.json()
-                    if not result.get("success"):
-                        msg = "Upload failed according to response"
-                        raise ValueError(msg)
+                        result = await response.json()
+                        if not result or "files" not in result:
+                            msg = f"Invalid response from uguu.se: {result}"
+                            raise ValueError(msg)
 
-                    url = result["files"][0]["url"]
-                    logger.info(f"Successfully uploaded to uguu.se: {url}")
+                        url = result["files"][0]["url"]
+                        logger.info(f"Successfully uploaded to uguu.se: {url}")
 
-                    return UploadResult(url=url, success=True, raw_response=result)
+                        return UploadResult(url=url, success=True, raw_response=result)
 
         except Exception as e:
             logger.error(f"Failed to upload to uguu.se: {e}")
             return UploadResult(url="", success=False, error=str(e))
+
+
+# Module-level functions to implement the Provider protocol
+def get_credentials() -> None:
+    """Simple providers don't need credentials"""
+    return None
+
+
+def get_provider() -> ProviderClient | None:
+    """Return an instance of the provider"""
+    return UguuProvider()
+
+
+def upload_file(local_path: str | Path, remote_path: str | Path | None = None) -> str:
+    """
+    Upload a file and return its URL.
+
+    Args:
+        local_path: Path to the file to upload
+        remote_path: Optional remote path (ignored for simple providers)
+
+    Returns:
+        str: URL to the uploaded file
+
+    Raises:
+        ValueError: If upload fails
+    """
+    provider = get_provider()
+    if not provider:
+        msg = "Failed to initialize provider"
+        raise ValueError(msg)
+    return provider.upload_file(local_path, remote_path)

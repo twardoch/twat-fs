@@ -1,6 +1,9 @@
 #!/usr/bin/env -S uv run -s
 # /// script
 # dependencies = [
+#   "ruff>=0.9.6",
+#   "pytest>=8.3.4",
+#   "mypy>=1.15.0",
 # ]
 # ///
 # this_file: cleanup.py
@@ -32,21 +35,52 @@ IGNORE_PATTERNS = [
     "*.egg-info",
 ]
 REQUIRED_FILES = ["LOG.md", "README.md", "TODO.md"]
+LOG_FILE = Path("CLEANUP.log")
 
 
-def print_message(message: str) -> None:
-    """Print a message to console with timestamp."""
+def new() -> None:
+    """Remove existing log file."""
+    if LOG_FILE.exists():
+        LOG_FILE.unlink()
+
+
+def prefix() -> None:
+    """Write README.md content to log file."""
+    readme = Path("README.md")
+    if readme.exists():
+        log_message("\n=== README.md ===")
+        content = readme.read_text()
+        log_message(content)
+
+
+def suffix() -> None:
+    """Write TODO.md content to log file."""
+    todo = Path("TODO.md")
+    if todo.exists():
+        log_message("\n=== TODO.md ===")
+        content = todo.read_text()
+        log_message(content)
+
+
+def log_message(message: str) -> None:
+    """Log a message to file and console with timestamp."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"{timestamp} - {message}")
+    log_line = f"{timestamp} - {message}\n"
+    with LOG_FILE.open("a") as f:
+        f.write(log_line)
+    print(message)
 
 
 def run_command(cmd: list[str], check: bool = True) -> subprocess.CompletedProcess:
     """Run a shell command and return the result."""
     try:
-        return subprocess.run(cmd, check=check, capture_output=True, text=True)
+        result = subprocess.run(cmd, check=check, capture_output=True, text=True)
+        if result.stdout:
+            log_message(result.stdout)
+        return result
     except subprocess.CalledProcessError as e:
-        print_message(f"Command failed: {' '.join(cmd)}")
-        print_message(f"Error: {e.stderr}")
+        log_message(f"Command failed: {' '.join(cmd)}")
+        log_message(f"Error: {e.stderr}")
         if check:
             raise
         return subprocess.CompletedProcess(cmd, 1, "", str(e))
@@ -69,33 +103,31 @@ class Cleanup:
 
     def _print_header(self, message: str) -> None:
         """Print a section header."""
-        print_message(f"\n=== {message} ===")
+        log_message(f"\n=== {message} ===")
 
     def _check_required_files(self) -> bool:
         """Check if all required files exist."""
         missing = False
         for file in REQUIRED_FILES:
             if not (self.workspace / file).exists():
-                print_message(f"Error: {file} is missing")
+                log_message(f"Error: {file} is missing")
                 missing = True
         return not missing
 
     def _generate_tree(self) -> None:
         """Generate and display tree structure of the project."""
         if not check_command_exists("tree"):
-            print_message(
-                "Warning: 'tree' command not found. Skipping tree generation."
-            )
+            log_message("Warning: 'tree' command not found. Skipping tree generation.")
             return None
 
         try:
             result = run_command(
                 ["tree", "-a", "-I", ".git", "--gitignore", "-n", "-h", "-I", "*_cache"]
             )
-            print("\nProject structure:")
-            print(result.stdout)
+            log_message("\nProject structure:")
+            log_message(result.stdout)
         except Exception as e:
-            print_message(f"Failed to generate tree: {e}")
+            log_message(f"Failed to generate tree: {e}")
         return None
 
     def _git_status(self) -> bool:
@@ -105,72 +137,72 @@ class Cleanup:
 
     def _venv(self) -> None:
         """Create and activate virtual environment using uv."""
-        print_message("Setting up virtual environment")
+        log_message("Setting up virtual environment")
         try:
             run_command(["uv", "venv"])
-            # Note: source command can't be run directly in Python
-            # The activation needs to be done in the shell by the user
-            print_message("Virtual environment created. Please activate it with:")
-            print("source .venv/bin/activate")
+            log_message("Virtual environment created. Please activate it with:")
+            log_message("source .venv/bin/activate")
         except Exception as e:
-            print_message(f"Failed to create virtual environment: {e}")
+            log_message(f"Failed to create virtual environment: {e}")
 
     def _install(self) -> None:
         """Install package in development mode with all extras."""
-        print_message("Installing package with all extras")
+        log_message("Installing package with all extras")
         try:
             self._venv()
             run_command(["uv", "pip", "install", "-e", ".[all,test,dev]"])
-            print_message("Package installed successfully")
+            log_message("Package installed successfully")
         except Exception as e:
-            print_message(f"Failed to install package: {e}")
+            log_message(f"Failed to install package: {e}")
 
-    def _hatch(self) -> None:
-        """Run hatch commands for fixing, type checking and testing."""
-        print_message("Running hatch commands")
+    def _run_checks(self) -> None:
+        """Run code quality checks using ruff and pytest."""
+        log_message("Running code quality checks")
 
-        # Run each command with check=False to handle warnings
         try:
-            self._install()
-            # Store all results to check success
-            results = []
-
-            print_message("Running code fixes...")
-            result = run_command(["python", "-m", "hatch", "run", "fix"], check=False)
-            results.append(result)
-            if result.stdout:
-                print(result.stdout)
-            if result.stderr:
-                print(result.stderr)
-
-            print_message("Running type checks...")
-            result = run_command(
-                ["python", "-m", "hatch", "run", "type-check"], check=False
+            # Run ruff checks
+            log_message("Running code fixes...")
+            run_command(
+                [
+                    "python",
+                    "-m",
+                    "ruff",
+                    "check",
+                    "--fix",
+                    "--unsafe-fixes",
+                    "src",
+                    "tests",
+                ],
+                check=False,
             )
-            results.append(result)
-            if result.stdout:
-                print(result.stdout)
-            if result.stderr:
-                print(result.stderr)
+            run_command(
+                [
+                    "python",
+                    "-m",
+                    "ruff",
+                    "format",
+                    "--respect-gitignore",
+                    "src",
+                    "tests",
+                ],
+                check=False,
+            )
 
-            print_message("Running tests...")
-            result = run_command(["python", "-m", "hatch", "test"], check=False)
-            results.append(result)
-            if result.stdout:
-                print(result.stdout)
-            if result.stderr:
-                print(result.stderr)
+            # Run type checks
+            log_message("Running type checks...")
+            run_command(["python", "-m", "mypy", "src", "tests"], check=False)
 
-            # Check if all commands completed successfully
-            if all(cmd.returncode == 0 for cmd in results):
-                print_message("All hatch commands completed successfully")
-            else:
-                print_message("Hatch commands completed with warnings/errors")
+            # Run tests
+            log_message("Running tests...")
+            run_command(["python", "-m", "pytest", "tests"], check=False)
+
+            log_message("All checks completed")
         except Exception as e:
-            print_message(f"Failed during hatch commands: {e}")
+            log_message(f"Failed during checks: {e}")
 
     def status(self) -> None:
         """Show current repository status: tree structure, git status, and run checks."""
+        prefix()  # Add README.md content at start
         self._print_header("Current Status")
 
         # Check required files
@@ -181,13 +213,15 @@ class Cleanup:
 
         # Show git status
         result = run_command(["git", "status"], check=False)
-        print(result.stdout)
+        log_message(result.stdout)
 
         # Run additional checks
         self._print_header("Environment Status")
         self._venv()
         self._install()
-        self._hatch()
+        self._run_checks()
+
+        suffix()  # Add TODO.md content at end
 
     def venv(self) -> None:
         """Create and activate virtual environment."""
@@ -199,11 +233,6 @@ class Cleanup:
         self._print_header("Package Installation")
         self._install()
 
-    def hatch(self) -> None:
-        """Run hatch commands."""
-        self._print_header("Hatch Commands")
-        self._hatch()
-
     def update(self) -> None:
         """Show status and commit any changes if needed."""
         # First show current status
@@ -211,62 +240,67 @@ class Cleanup:
 
         # Then handle git changes if any
         if self._git_status():
-            print_message("Changes detected in repository")
+            log_message("Changes detected in repository")
             try:
                 # Add all changes
                 run_command(["git", "add", "."])
                 # Commit changes
                 commit_msg = "Update repository files"
                 run_command(["git", "commit", "-m", commit_msg])
-                print_message("Changes committed successfully")
+                log_message("Changes committed successfully")
             except Exception as e:
-                print_message(f"Failed to commit changes: {e}")
+                log_message(f"Failed to commit changes: {e}")
         else:
-            print_message("No changes to commit")
+            log_message("No changes to commit")
 
     def push(self) -> None:
         """Push changes to remote repository."""
         self._print_header("Pushing Changes")
         try:
             run_command(["git", "push"])
-            print_message("Changes pushed successfully")
+            log_message("Changes pushed successfully")
         except Exception as e:
-            print_message(f"Failed to push changes: {e}")
+            log_message(f"Failed to push changes: {e}")
 
 
 def print_usage() -> None:
     """Print usage information."""
-    print("Usage:")
-    print("  cleanup.py status   # Show current status and run all checks")
-    print("  cleanup.py update   # Update and commit changes")
-    print("  cleanup.py push     # Push changes to remote")
-    print("  cleanup.py venv     # Create virtual environment")
-    print("  cleanup.py install  # Install package with all extras")
-    print("  cleanup.py hatch    # Run hatch commands")
+    log_message("Usage:")
+    log_message("  cleanup.py status   # Show current status and run all checks")
+    log_message("  cleanup.py venv     # Create virtual environment")
+    log_message("  cleanup.py install  # Install package with all extras")
+    log_message("  cleanup.py update   # Update and commit changes")
+    log_message("  cleanup.py push     # Push changes to remote")
 
 
 def main() -> NoReturn:
     """Main entry point."""
-    valid_commands = ["update", "push", "status", "venv", "install", "hatch"]
-    if len(sys.argv) != 2 or sys.argv[1] not in valid_commands:
+    new()  # Clear log file
+
+    if len(sys.argv) < 2:
         print_usage()
         sys.exit(1)
 
-    cleanup = Cleanup()
     command = sys.argv[1]
+    cleanup = Cleanup()
 
-    if command == "update":
-        cleanup.update()
-    elif command == "push":
-        cleanup.push()
-    elif command == "status":
-        cleanup.status()
-    elif command == "venv":
-        cleanup.venv()
-    elif command == "install":
-        cleanup.install()
-    elif command == "hatch":
-        cleanup.hatch()
+    try:
+        if command == "status":
+            cleanup.status()
+        elif command == "venv":
+            cleanup.venv()
+        elif command == "install":
+            cleanup.install()
+        elif command == "update":
+            cleanup.update()
+        elif command == "push":
+            cleanup.push()
+        else:
+            print_usage()
+            sys.exit(1)
+    except Exception as e:
+        log_message(f"Error: {e}")
+        sys.exit(1)
 
     sys.exit(0)
 

@@ -14,29 +14,23 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
 
-import fire
-from loguru import logger
-
-# Configure logging before other imports
-logger.remove()  # Remove default handler
-log_level = os.getenv("LOGURU_LEVEL", "INFO").upper()  # Default to INFO if not set
-logger.add(sys.stderr, level=log_level)
+import fire  # type: ignore
+from loguru import logger  # type: ignore
 
 from twat_fs.upload import (
     PROVIDERS_PREFERENCE,
-    ProviderType,
-)
-from twat_fs.upload import (
     setup_provider as _setup_provider,
-)
-from twat_fs.upload import (
     setup_providers as _setup_providers,
-)
-from twat_fs.upload import (
     upload_file as _upload_file,
 )
+
+# Configure logging
+logger.remove()  # Remove default handler
+log_level = os.getenv("LOGURU_LEVEL", "INFO").upper()  # Default to INFO if not set
+logger.add(sys.stderr, level=log_level)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -44,7 +38,7 @@ if TYPE_CHECKING:
 
 def upload_file(
     file_path: str | Path,
-    provider: ProviderType | list[ProviderType] | None = PROVIDERS_PREFERENCE,
+    provider: str | list[str] = PROVIDERS_PREFERENCE,
     unique: bool = False,
     force: bool = False,
     upload_path: str | None = None,
@@ -122,7 +116,7 @@ def upload_file(
     )
 
 
-def setup_provider(provider: ProviderType) -> tuple[bool, str]:
+def setup_provider(provider: str) -> tuple[bool, str]:
     """
     Check setup status for a specific provider.
 

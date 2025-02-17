@@ -119,13 +119,23 @@ def get_provider(creds: dict[str, Any] | None = None):
         return None
 
 
-def upload_file(local_path: str | Path, remote_path: str | Path | None = None) -> str:
+def upload_file(
+    local_path: str | Path,
+    remote_path: str | Path | None = None,
+    *,  # Force keyword arguments for boolean flags
+    unique: bool = False,  # Ignored for S3
+    force: bool = False,  # Ignored for S3
+    upload_path: str | None = None,  # Ignored for S3
+) -> str:
     """
     Upload a file to AWS S3, handling multipart uploads for large files.
 
     Args:
         local_path: Path to the file to upload
         remote_path: Optional remote path/key to use in S3
+        unique: Whether to ensure unique filenames (ignored for S3)
+        force: Whether to overwrite existing files (ignored for S3)
+        upload_path: Custom base upload path (ignored for S3)
 
     Returns:
         str: URL to the uploaded file

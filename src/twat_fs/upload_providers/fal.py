@@ -15,13 +15,15 @@ This module provides functionality to upload files to FAL's storage service.
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from typing import Any, BinaryIO, ClassVar
 
-import fal_client
-from loguru import logger
+import fal_client  # type: ignore
+from loguru import logger  # type: ignore
+
+from .simple import Provider, ProviderHelp, UploadResult, SimpleProviderBase
 
 # Provider-specific help messages
-PROVIDER_HELP = {
+PROVIDER_HELP: ProviderHelp = {
     "setup": """To use FAL storage:
 1. Create a FAL account at https://fal.ai
 2. Generate an API key from your account settings
@@ -33,58 +35,77 @@ PROVIDER_HELP = {
 }
 
 
-def get_credentials() -> str | None:
-    """Get FAL credentials from environment."""
-    return os.getenv("FAL_KEY")
+class FalProvider(SimpleProviderBase):
+    """Provider for uploading files to FAL."""
 
+    # Class variable for provider help
+    PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
 
-def get_provider():
-    """
-    Initialize and return the FAL provider if credentials are present.
-    """
-    key = get_credentials()
-    if not key:
-        logger.debug("FAL_KEY not set in environment")
-        return None
+    def __init__(self, key: str) -> None:
+        """Initialize the FAL provider with the given API key."""
+        super().__init__()
+        self.client = fal_client.SyncClient(key=key)
 
-    try:
-        # Create a client instance with the key
-        return fal_client.SyncClient(key=key)
+    @classmethod
+    def get_credentials(cls) -> Any | None:
+        """Get FAL credentials from environment."""
+        return os.getenv("FAL_KEY")
 
-    except Exception as err:
-        logger.warning(f"Failed to initialize FAL provider: {err}")
-        return None
+    @classmethod
+    def get_provider(cls) -> Provider | None:
+        """
+        Initialize and return the FAL provider if credentials are present.
 
+        Returns:
+            Optional[Provider]: FAL provider instance if credentials are present, None otherwise
+        """
+        key = cls.get_credentials()
+        if not key:
+            logger.debug("FAL_KEY not set in environment")
+            return None
 
-def upload_file(local_path: str | Path, remote_path: str | Path | None = None) -> str:
-    """
-    Upload a file using FAL.
+        try:
+            # Create a provider instance with the key
+            return cls(key=key)
 
-    Args:
-        local_path: Path to the file to upload
-        remote_path: Optional remote path (ignored for FAL)
+        except Exception as err:
+            logger.warning(f"Failed to initialize FAL provider: {err}")
+            return None
 
-    Returns:
-        str: URL to the uploaded file
+    def upload_file_impl(self, file: BinaryIO) -> UploadResult:
+        """
+        Upload a file using FAL.
 
-    Raises:
-        ValueError: If upload fails
-    """
-    try:
-        client = get_provider()
-        if not client:
-            msg = "FAL provider not initialized"
-            raise ValueError(msg)
+        Args:
+            file: Open file handle to upload
 
-        # Convert to Path object and use only the local path
-        path = Path(local_path)
-        result = client.upload_file(str(path))  # FAL client expects a string path
-        if not result:
-            msg = "FAL upload failed - no URL in response"
-            raise ValueError(msg)
-        return result
+        Returns:
+            UploadResult containing the URL and status
 
-    except Exception as e:
-        logger.warning(f"FAL upload failed: {e}")
-        msg = "FAL upload failed"
-        raise ValueError(msg) from e
+        Raises:
+            ValueError: If upload fails
+        """
+        try:
+            # FAL client's upload_file only accepts a string path
+            result = self.client.upload_file(str(file.name))
+            if not result:
+                return UploadResult(
+                    url="",
+                    success=False,
+                    error="FAL upload failed - no URL in response",
+                )
+            return UploadResult(url=str(result), success=True)
+
+        except TypeError as e:
+            # Handle type errors from the FAL client
+            return UploadResult(
+                url="",
+                success=False,
+                error=f"FAL upload failed - invalid argument: {e}",
+            )
+        except Exception as e:
+            return UploadResult(
+                url="",
+                success=False,
+                error=f"FAL upload failed: {e}",
+            )

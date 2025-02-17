@@ -2,12 +2,12 @@
 # /// script
 # dependencies = ["aiohttp"]
 # ///
-# this_file: src/twat_fs/upload_providers/bashupload.py
+# this_file: src/twat_fs/upload_providers/www0x0.py
 
 """
-Bashupload.com upload provider.
-A simple provider that uploads files to bashupload.com.
-Files are automatically deleted after 3 days.
+0x0.st upload provider.
+A simple provider that uploads files to 0x0.st.
+Files are hosted at www.0x0.st.
 """
 
 import aiohttp
@@ -20,27 +20,27 @@ from . import ProviderHelp, ProviderClient
 
 # Provider help messages
 PROVIDER_HELP: ProviderHelp = {
-    "setup": "No setup required. Note: Files are deleted after 3 days.",
+    "setup": "No setup required.",
     "deps": "Python package: aiohttp",
 }
 
 
-class BashUploadProvider(SimpleProviderBase):
-    """Provider for bashupload.com uploads"""
+class ZeroXZeroProvider(SimpleProviderBase):
+    """Provider for 0x0.st uploads (www.0x0.st)"""
 
     def __init__(self) -> None:
         super().__init__()
-        self.url = "https://bashupload.com"
+        self.url = "https://0x0.st"
 
     async def async_upload_file(
         self, file_path: Path, remote_path: str | Path | None = None
     ) -> UploadResult:
         """
-        Upload file to bashupload.com
+        Upload file to 0x0.st (www.0x0.st)
 
         Args:
             file_path: Path to the file to upload
-            remote_path: Optional remote path (ignored as bashupload.com doesn't support custom paths)
+            remote_path: Optional remote path (ignored as 0x0.st doesn't support custom paths)
 
         Returns:
             UploadResult containing the URL and status
@@ -59,23 +59,13 @@ class BashUploadProvider(SimpleProviderBase):
                             )
                             raise ValueError(msg)
 
-                        text = await response.text()
-                        # Extract URL from response text
-                        for line in text.splitlines():
-                            if line.startswith("wget "):
-                                url = line.split(" ")[1].strip()
-                                logger.info(
-                                    f"Successfully uploaded to bashupload: {url}"
-                                )
-                                return UploadResult(
-                                    url=url, success=True, raw_response=text
-                                )
+                        url = (await response.text()).strip()
+                        logger.info(f"Successfully uploaded to 0x0.st: {url}")
 
-                        msg = f"Could not find URL in response: {text}"
-                        raise ValueError(msg)
+                        return UploadResult(url=url, success=True, raw_response=url)
 
         except Exception as e:
-            logger.error(f"Failed to upload to bashupload: {e}")
+            logger.error(f"Failed to upload to 0x0.st: {e}")
             return UploadResult(url="", success=False, error=str(e))
 
 
@@ -87,7 +77,7 @@ def get_credentials() -> None:
 
 def get_provider() -> ProviderClient | None:
     """Return an instance of the provider"""
-    return BashUploadProvider()
+    return ZeroXZeroProvider()
 
 
 def upload_file(local_path: str | Path, remote_path: str | Path | None = None) -> str:

@@ -12,7 +12,15 @@ This module defines the provider registry and common interfaces that all provide
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING, Any, Literal, Protocol, TypedDict, runtime_checkable
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Protocol,
+    TypedDict,
+    runtime_checkable,
+    ClassVar,
+)
 
 from loguru import logger
 
@@ -26,7 +34,7 @@ PROVIDERS_PREFERENCE = [
     "s3",
     # Simple providers
     "termbin",  # Text-only uploads
-    "0x0",  # General file uploads
+    "www0x0",  # General file uploads
     "uguu",  # General file uploads
     "bashupload",  # General file uploads
 ]  # Put Dropbox first since it's more reliable
@@ -69,7 +77,7 @@ class ProviderClient(Protocol):
 class Provider(Protocol):
     """Protocol defining what a provider module must implement."""
 
-    PROVIDER_HELP: ProviderHelp
+    PROVIDER_HELP: ClassVar[ProviderHelp]
 
     @classmethod
     def get_credentials(cls) -> Any | None:
