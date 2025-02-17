@@ -173,7 +173,8 @@ def get_credentials() -> DropboxCredentials | None:
     """Get Dropbox credentials from environment variables."""
     access_token = os.getenv("DROPBOX_ACCESS_TOKEN")
     if not access_token:
-        return None
+        logger.debug("DROPBOX_ACCESS_TOKEN environment variable not set")
+        raise ValueError("Dropbox credentials not found")
 
     creds: DropboxCredentials = {
         "access_token": access_token,
@@ -200,7 +201,10 @@ def get_provider() -> DropboxClient | None:
             return client
         except dropbox.exceptions.AuthError as e:
             logger.error(f"Dropbox authentication failed: {e}")
-            msg = f"Dropbox authentication failed: {e}"
+            if "expired_access_token" in str(e):
+                msg = "Failed to initialize Dropbox client: expired_access_token"
+            else:
+                msg = f"Failed to initialize Dropbox client: {e}"
             raise DropboxUploadError(msg) from e
         except Exception as e:
             logger.error(f"Failed to initialize Dropbox client: {e}")
@@ -212,7 +216,6 @@ def get_provider() -> DropboxClient | None:
         return None
 
 
-# Make the module implement the Provider protocol
 def upload_file(
     file_path: str | Path,
     remote_path: str | Path | None = None,
@@ -239,7 +242,8 @@ def upload_file(
     """
     client = get_provider()
     if not client:
-        msg = "Failed to initialize Dropbox provider"
+        help_info = PROVIDER_HELP["setup"]
+        msg = f"Dropbox credentials not found. {help_info}"
         raise ValueError(msg)
 
     # Use the original filename if no remote path specified
@@ -260,6 +264,12 @@ def upload_file(
             f"File already exists in Dropbox. Use --force to overwrite, "
             f"or use --unique to create a unique filename. Error: {e}"
         )
+        raise ValueError(msg) from e
+    except DropboxUploadError as e:
+        if "expired_access_token" in str(e):
+            msg = "Failed to initialize Dropbox client: expired_access_token"
+        else:
+            msg = f"Failed to initialize Dropbox client: {e}"
         raise ValueError(msg) from e
     except Exception as e:
         msg = f"Failed to upload file: {e}"

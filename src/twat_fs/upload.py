@@ -166,12 +166,12 @@ def _try_provider(
         # Check credentials
         credentials = provider_module.get_credentials()
         if not credentials:
-            return False, f"Provider '{provider}' is not configured"
+            return False, f"Provider '{provider}' credentials not found"
 
         # Try to get provider client
         client = provider_module.get_provider()
         if not client:
-            return False, f"Provider '{provider}' failed to initialize"
+            return False, f"Failed to initialize {provider.title()} client"
 
         # Try to upload
         try:
@@ -185,10 +185,10 @@ def _try_provider(
             return True, url
 
         except Exception as e:
-            return False, f"Upload failed: {e!s}"
+            return False, str(e)
 
     except Exception as e:
-        return False, f"Provider error: {e!s}"
+        return False, str(e)
 
 
 def get_provider(provider: ProviderType = None) -> tuple[str | None, Any]:
