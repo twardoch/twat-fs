@@ -16,11 +16,11 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable, Generator, BinaryIO
+from typing import Any, Protocol, runtime_checkable, BinaryIO
+from collections.abc import Generator
 
-from loguru import logger
 
-from . import Provider, ProviderClient, ProviderHelp
+from . import ProviderHelp
 
 
 @dataclass
@@ -71,11 +71,14 @@ class SimpleProviderBase(ABC):
     def _validate_file(self, file_path: Path) -> None:
         """Validate that a file exists and is readable"""
         if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {file_path}")
+            msg = f"File not found: {file_path}"
+            raise FileNotFoundError(msg)
         if not file_path.is_file():
-            raise ValueError(f"Not a file: {file_path}")
+            msg = f"Not a file: {file_path}"
+            raise ValueError(msg)
         if not os.access(file_path, os.R_OK):
-            raise PermissionError(f"Cannot read file: {file_path}")
+            msg = f"Cannot read file: {file_path}"
+            raise PermissionError(msg)
 
     @classmethod
     def get_credentials(cls) -> None:
@@ -111,7 +114,8 @@ class SimpleProviderBase(ABC):
 
         result = asyncio.run(self.async_upload_file(file_path))
         if not result.success:
-            raise ValueError(f"Upload failed: {result.error}")
+            msg = f"Upload failed: {result.error}"
+            raise ValueError(msg)
         return result.url
 
     @abstractmethod
@@ -125,4 +129,3 @@ class SimpleProviderBase(ABC):
         Returns:
             UploadResult containing the URL and status
         """
-        pass

@@ -38,13 +38,15 @@ class UguuProvider(SimpleProviderBase):
                 async with session.post(self.upload_url, data=data) as response:
                     if response.status != 200:
                         error = await response.text()
+                        msg = f"Upload failed with status {response.status}: {error}"
                         raise ValueError(
-                            f"Upload failed with status {response.status}: {error}"
+                            msg
                         )
 
                     result = await response.json()
                     if not result.get("success"):
-                        raise ValueError("Upload failed according to response")
+                        msg = "Upload failed according to response"
+                        raise ValueError(msg)
 
                     url = result["files"][0]["url"]
                     logger.info(f"Successfully uploaded to uguu.se: {url}")

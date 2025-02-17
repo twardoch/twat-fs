@@ -1,0 +1,5 @@
+---
+description: Run `cleanup.py` script before and after changes
+globs: 
+---
+Before doing any changes run the `cleanup.py update` script in the main folder. After completing the changes run the `cleanup.py status` script and react to the results.

@@ -35,8 +35,9 @@ class BashUploadProvider(SimpleProviderBase):
                 async with session.post(self.upload_url, data=data) as response:
                     if response.status != 200:
                         error = await response.text()
+                        msg = f"Upload failed with status {response.status}: {error}"
                         raise ValueError(
-                            f"Upload failed with status {response.status}: {error}"
+                            msg
                         )
 
                     text = await response.text()
@@ -53,7 +54,8 @@ class BashUploadProvider(SimpleProviderBase):
                                 url=download_url, success=True, raw_response=text
                             )
 
-                    raise ValueError("Could not parse upload URL from response")
+                    msg = "Could not parse upload URL from response"
+                    raise ValueError(msg)
 
         except Exception as e:
             logger.error(f"Failed to upload to bashupload.com: {e}")

@@ -35,8 +35,9 @@ class ZeroXZeroProvider(SimpleProviderBase):
                 async with session.post(self.url, data=data) as response:
                     if response.status != 200:
                         error = await response.text()
+                        msg = f"Upload failed with status {response.status}: {error}"
                         raise ValueError(
-                            f"Upload failed with status {response.status}: {error}"
+                            msg
                         )
 
                     url = (await response.text()).strip()
