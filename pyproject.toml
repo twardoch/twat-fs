@@ -26,7 +26,20 @@ classifiers = [
 # Runtime Dependencies
 # -------------------
 # External packages required for the project to function
-dependencies = ["twat>=1.0.0", "tenacity>=8.0.0"]  # Main twat package and retry utility
+dependencies = [
+    "twat>=1.0.0",
+    "tenacity>=8.0.0",
+    "aiohappyeyeballs>=2.4.6",
+    "aiohttp>=3.11.12",
+    "aiosignal>=1.3.2",
+    "attrs>=25.1.0",
+    "frozenlist>=1.5.0",
+    "multidict>=6.1.0",
+    "propcache>=0.2.1",
+    "yarl>=1.18.3",
+    "fal-client>=0.5.9",
+    "botocore>=1.36.22",
+]  # Main twat package and retry utility
 
 # Optional dependencies for different providers and development
 [project.optional-dependencies]
