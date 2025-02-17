@@ -24,6 +24,11 @@ PROVIDERS_PREFERENCE = [
     "dropbox",
     "fal",
     "s3",
+    # Simple providers
+    "termbin",  # Text-only uploads
+    "0x0",  # General file uploads
+    "uguu",  # General file uploads
+    "bashupload",  # General file uploads
 ]  # Put Dropbox first since it's more reliable
 
 # Create ProviderType from PROVIDERS_PREFERENCE to ensure they stay in sync
@@ -66,7 +71,8 @@ class Provider(Protocol):
 
     PROVIDER_HELP: ProviderHelp
 
-    def get_credentials() -> Any | None:
+    @classmethod
+    def get_credentials(cls) -> Any | None:
         """
         Get provider credentials from environment.
 
@@ -75,7 +81,8 @@ class Provider(Protocol):
         """
         ...
 
-    def get_provider() -> ProviderClient | None:
+    @classmethod
+    def get_provider(cls) -> ProviderClient | None:
         """
         Initialize and return the provider client.
 
@@ -84,7 +91,9 @@ class Provider(Protocol):
         """
         ...
 
-    def upload_file(self: str | Path, remote_path: str | Path | None = None) -> str:
+    def upload_file(
+        self, local_path: str | Path, remote_path: str | Path | None = None
+    ) -> str:
         """
         Upload a file using this provider.
 
