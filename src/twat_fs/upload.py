@@ -178,6 +178,9 @@ def _try_provider(
             url = client.upload_file(
                 local_path,
                 remote_path=remote_path,
+                unique=unique,
+                force=force,
+                upload_path=upload_path,
             )
             return True, url
 

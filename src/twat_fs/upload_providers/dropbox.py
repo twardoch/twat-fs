@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, TypedDict
 from urllib import parse
 
+import dropbox  # type: ignore
 from dotenv import load_dotenv
 from loguru import logger
 
@@ -66,64 +67,44 @@ class DropboxCredentials(TypedDict):
 class DropboxClient:
     """Wrapper around Dropbox client that implements our ProviderClient protocol."""
 
-    def __init__(self, dbx: Any):
-        """Initialize with a Dropbox client instance."""
-        self.dbx = dbx
+    def __init__(self, credentials: DropboxCredentials) -> None:
+        """Initialize the Dropbox client."""
+        self.credentials = credentials
+        self.dbx = self._create_client()
+
+    def _create_client(self) -> dropbox.Dropbox:
+        """Create and return a Dropbox client instance."""
+        return dropbox.Dropbox(
+            oauth2_access_token=self.credentials["access_token"],
+            oauth2_refresh_token=self.credentials["refresh_token"],
+            app_key=self.credentials["app_key"],
+        )
 
     def _refresh_token_if_needed(self) -> None:
-        """
-        Check if token needs refresh and handle it.
-        """
-        import dropbox
-
+        """Refresh the access token if needed and possible."""
         try:
-            # Try a simple API call to test token
-            self.dbx.check_user()
+            # Check current token
+            self.dbx.users_get_current_account()
         except dropbox.exceptions.AuthError as e:
-            logger.warning(f"Auth error, attempting token refresh: {e}")
-            try:
-                self.dbx.refresh_access_token()
-                logger.debug("Successfully refreshed access token")
-            except Exception as e:
-                logger.error(f"Failed to refresh token: {e}")
-                msg = "Failed to refresh access token"
-                raise DropboxUploadError(msg) from e
+            if "expired_access_token" in str(e):
+                logger.debug("Access token expired, attempting refresh")
+                try:
+                    self.dbx.refresh_access_token()
+                except Exception as refresh_err:
+                    logger.debug(f"Unable to refresh access token: {refresh_err}")
+            else:
+                logger.debug(f"Authentication error: {e}")
 
     def upload_file(
         self,
         file_path: str | Path,
         remote_path: str | Path | None = None,
+        *,
         force: bool = False,
         unique: bool = False,
         upload_path: str = DEFAULT_UPLOAD_PATH,
     ) -> str:
-        """
-        Upload a file to Dropbox.
-
-        Args:
-            file_path: Path to the file to upload
-            remote_path: Optional remote path (relative to upload_path)
-            force: Whether to overwrite existing files
-            unique: Whether to ensure unique filenames
-            upload_path: Base upload path in Dropbox
-
-        Returns:
-            str: URL to the uploaded file
-
-        Raises:
-            ValueError: If provider is not authenticated
-            FileNotFoundError: If file does not exist
-            PermissionError: If file cannot be read
-            DropboxUploadError: If upload fails
-        """
-        import dropbox
-        from tenacity import (
-            retry,
-            retry_if_exception_type,
-            stop_after_attempt,
-            wait_exponential,
-        )
-
+        """Upload a file to Dropbox and return its URL."""
         logger.debug(f"Starting upload process for {file_path}")
 
         path = Path(file_path)
@@ -155,170 +136,87 @@ class DropboxClient:
             db_path = _normalize_path(os.path.join(upload_path, remote_path))
             logger.debug(f"Target Dropbox path: {db_path}")
 
-            # Ensure upload directory exists (with retry)
-            @retry(
-                stop=stop_after_attempt(3),
-                wait=wait_exponential(multiplier=1, min=4, max=10),
-                retry=retry_if_exception_type(dropbox.exceptions.ApiError),
-            )
-            def ensure_dir():
-                _ensure_upload_directory(self.dbx, upload_path)
+            # Ensure upload directory exists
+            _ensure_upload_directory(self.dbx, upload_path)
 
-            ensure_dir()
-
-            # Check if file exists and get metadata
+            # Check if file exists
             exists, remote_metadata = _check_file_exists(self.dbx, db_path)
-
             if exists and not force:
-                # Get local file size
-                local_size = os.path.getsize(path)
-
-                # If sizes match, return existing URL
-                if remote_metadata and remote_metadata["size"] == local_size:
-                    logger.debug(
-                        f"File {db_path} already exists with identical size, reusing URL"
-                    )
-                    if url := _get_share_url(self.dbx, db_path):
-                        if direct_url := _get_download_url(url):
-                            return direct_url
-                        return url
-
-                # Sizes don't match - we'll replace the file
-                logger.debug(
-                    f"File {db_path} exists with different size (local: {local_size}, remote: {remote_metadata['size'] if remote_metadata else 'unknown'}), replacing"
-                )
+                msg = f"File already exists at {db_path}"
+                raise DropboxFileExistsError(msg)
 
             # Upload file based on size
             file_size = os.path.getsize(path)
             if file_size <= SMALL_FILE_THRESHOLD:
                 _upload_small_file(self.dbx, path, db_path)
             else:
-                _upload_large_file(self.dbx, path, db_path, MAX_FILE_SIZE)
+                _upload_large_file(self.dbx, path, db_path, SMALL_FILE_THRESHOLD)
 
-            # Get shareable link (with retry)
-            @retry(
-                stop=stop_after_attempt(3),
-                wait=wait_exponential(multiplier=1, min=4, max=10),
-                retry=retry_if_exception_type(dropbox.exceptions.ApiError),
-            )
-            def get_url():
-                logger.debug("Getting share URL")
-                if url := _get_share_url(self.dbx, db_path):
-                    if direct_url := _get_download_url(url):
-                        logger.debug(f"Generated direct download URL: {direct_url}")
-                        return direct_url
-                    logger.debug(f"Generated share URL: {url}")
-                    return url
-                return None
+            # Get shareable URL
+            url = _get_share_url(self.dbx, db_path)
+            if not url:
+                msg = "Failed to get share URL"
+                raise DropboxUploadError(msg)
 
-            if url := get_url():
-                return url
+            logger.info(f"Successfully uploaded to Dropbox: {url}")
+            return url
 
-            msg = "Failed to get share URL"
-            raise DropboxUploadError(msg)
-
-        except dropbox.exceptions.ApiError as e:
-            _handle_api_error(e, "upload")
-        except DropboxUploadError:
+        except DropboxFileExistsError:
             raise
         except Exception as e:
-            msg = f"Failed to upload file: {e}"
+            logger.error(f"Failed to upload to Dropbox: {e}")
+            msg = f"Upload failed: {e}"
             raise DropboxUploadError(msg) from e
 
 
 def get_credentials() -> DropboxCredentials | None:
-    """
-    Get Dropbox credentials from environment variables.
-    This function only checks environment variables and returns them,
-    without importing or initializing any external dependencies.
-
-    Returns:
-        Optional[DropboxCredentials]: Credentials if access token is present, None otherwise
-    """
+    """Get Dropbox credentials from environment variables."""
     access_token = os.getenv("DROPBOX_ACCESS_TOKEN")
     if not access_token:
-        logger.debug("DROPBOX_ACCESS_TOKEN environment variable not set")
         return None
 
-    logger.debug("Found Dropbox access token")
-    creds = {
+    creds: DropboxCredentials = {
         "access_token": access_token,
         "refresh_token": os.getenv("DROPBOX_REFRESH_TOKEN"),
         "app_key": os.getenv("DROPBOX_APP_KEY"),
         "app_secret": os.getenv("DROPBOX_APP_SECRET"),
     }
-    logger.debug(
-        f"Dropbox credentials: refresh_token={bool(creds['refresh_token'])}, app_key={bool(creds['app_key'])}, app_secret={bool(creds['app_secret'])}"
-    )
     return creds
 
 
-def get_provider(credentials: DropboxCredentials | None = None) -> Any:
-    """
-    Initialize and return the Dropbox provider client.
-    This function handles importing dependencies and creating the client.
-
-    Args:
-        credentials: Optional credentials to use. If None, will call get_credentials()
-
-    Returns:
-        Any: Dropbox client if successful
-
-    Raises:
-        ValueError: If authentication fails or credentials are invalid
-    """
-    logger.debug("Initializing Dropbox provider")
-    if credentials is None:
-        credentials = get_credentials()
-
-    if not credentials:
-        msg = "Dropbox credentials not found"
-        raise ValueError(msg)
-
+def get_provider() -> DropboxClient | None:
+    """Initialize and return the Dropbox client."""
     try:
-        import dropbox
+        creds = get_credentials()
+        if not creds:
+            logger.debug("Dropbox credentials not found")
+            return None
 
-        logger.debug("Successfully imported dropbox package")
-
-        # Initialize client with credentials
-        logger.debug("Creating Dropbox client")
-        dbx = dropbox.Dropbox(
-            oauth2_access_token=credentials["access_token"],
-            oauth2_refresh_token=credentials["refresh_token"],
-            app_key=credentials["app_key"],
-            app_secret=credentials["app_secret"],
-        )
-
-        # Test connection
+        client = DropboxClient(creds)
         try:
-            logger.debug("Testing Dropbox connection")
-            dbx.users_get_current_account()
-            logger.debug("Successfully authenticated with Dropbox")
-            return DropboxClient(dbx)  # Return our wrapped client
+            # Test the client
+            client.dbx.users_get_current_account()
+            logger.debug("Successfully initialized Dropbox client")
+            return client
         except dropbox.exceptions.AuthError as e:
+            logger.error(f"Dropbox authentication failed: {e}")
             msg = f"Dropbox authentication failed: {e}"
-            logger.error(msg)
-            raise ValueError(msg) from e
+            raise DropboxUploadError(msg) from e
         except Exception as e:
-            msg = f"Failed to connect to Dropbox: {e}"
-            logger.error(msg)
-            raise ValueError(msg) from e
+            logger.error(f"Failed to initialize Dropbox client: {e}")
+            msg = f"Failed to initialize Dropbox client: {e}"
+            raise DropboxUploadError(msg) from e
 
-    except ImportError as e:
-        msg = "Failed to import dropbox package. Please install it with: pip install dropbox"
-        logger.error(msg)
-        raise ValueError(msg) from e
     except Exception as e:
-        msg = f"Failed to initialize Dropbox client: {e}"
-        logger.error(msg)
-        raise ValueError(msg) from e
+        logger.error(f"Failed to initialize Dropbox client: {e}")
+        return None
 
 
 # Make the module implement the Provider protocol
 def upload_file(
     file_path: str | Path,
     remote_path: str | Path | None = None,
-    *,  # Force keyword arguments for boolean flags
+    *,
     force: bool = False,
     unique: bool = False,
     upload_path: str = DEFAULT_UPLOAD_PATH,
@@ -350,7 +248,11 @@ def upload_file(
 
     try:
         return client.upload_file(
-            file_path, remote_path, force=force, unique=unique, upload_path=upload_path
+            file_path,
+            remote_path,
+            force=force,
+            unique=unique,
+            upload_path=upload_path,
         )
     except DropboxFileExistsError as e:
         # Provide a more helpful error message
@@ -434,30 +336,26 @@ def _get_download_url(url: str) -> str | None:
         return None
 
 
-def _get_share_url(dbx: Any, db_path: str) -> str | None:
+def _get_share_url(dbx: dropbox.Dropbox, db_path: str) -> str:
     """Get a shareable link for the uploaded file."""
-    import dropbox
     from tenacity import retry, stop_after_attempt, wait_exponential
 
     @retry(
-        stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
     )
-    def _share_with_retry():
+    def get_url() -> str:
         try:
-            shared = dbx.sharing_create_shared_link_with_settings(db_path)
-            return shared.url
-        except dropbox.exceptions.ApiError as e:
-            if e.error.is_shared_link_already_exists():
-                links = dbx.sharing_list_shared_links(db_path).links
-                if links:
-                    return links[0].url
+            shared_link = dbx.sharing_create_shared_link_with_settings(db_path)
+            # Convert to direct download URL
+            url = shared_link.url.replace("?dl=0", "?dl=1")
+            logger.debug(f"Created share URL: {url}")
+            return url
+        except Exception as e:
+            logger.error(f"Failed to create share URL: {e}")
             raise
 
-    try:
-        return _share_with_retry()
-    except Exception as e:
-        logger.warning(f"Failed to create share link: {e}")
-        return None
+    return get_url()
 
 
 def _ensure_upload_directory(dbx: Any, upload_path: str) -> None:
@@ -545,22 +443,9 @@ def _check_file_exists(dbx: Any, db_path: str) -> tuple[bool, dict | None]:
         return False, None
 
 
-def _upload_small_file(dbx: Any, file_path: Path, db_path: str) -> None:
-    """
-    Upload a small file to Dropbox.
-
-    Args:
-        dbx: Dropbox client
-        file_path: Local file path
-        db_path: Dropbox path
-
-    Raises:
-        DropboxUploadError: If upload fails
-    """
-    import dropbox
-
+def _upload_small_file(dbx: dropbox.Dropbox, file_path: Path, db_path: str) -> None:
+    """Upload a small file to Dropbox."""
     logger.debug(f"Uploading small file: {file_path} -> {db_path}")
-
     try:
         with open(file_path, "rb") as f:
             dbx.files_upload(f.read(), db_path, mode=dropbox.files.WriteMode.overwrite)
@@ -572,25 +457,11 @@ def _upload_small_file(dbx: Any, file_path: Path, db_path: str) -> None:
 
 
 def _upload_large_file(
-    dbx: Any, file_path: Path, db_path: str, chunk_size: int
+    dbx: dropbox.Dropbox, file_path: Path, db_path: str, chunk_size: int
 ) -> None:
-    """
-    Upload a large file to Dropbox using chunked upload.
-
-    Args:
-        dbx: Dropbox client
-        file_path: Local file path
-        db_path: Dropbox path
-        chunk_size: Size of each chunk in bytes
-
-    Raises:
-        DropboxUploadError: If upload fails
-    """
-    import dropbox
-
+    """Upload a large file to Dropbox using chunked upload."""
     logger.debug(f"Starting chunked upload: {file_path} -> {db_path}")
     file_size = os.path.getsize(file_path)
-
     try:
         with open(file_path, "rb") as f:
             upload_session_start_result = dbx.files_upload_session_start(
