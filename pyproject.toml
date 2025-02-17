@@ -5,7 +5,13 @@ description = 'File system utilities for twat with support for multiple upload p
 readme = 'README.md'
 requires-python = '>=3.10'
 license = 'MIT'
-keywords = ['file-upload', 'fal', 'dropbox', 's3', 'twat']
+keywords = [
+    'file-upload',
+    'fal',
+    'dropbox',
+    's3',
+    'twat',
+]
 classifiers = [
     'Development Status :: 4 - Beta',
     'Programming Language :: Python',
@@ -35,7 +41,10 @@ email = 'adam+github@twardoch.com'
 [project.optional-dependencies]
 fal = ['fal-client>=0.5.9']
 dropbox = ['dropbox>=12.00.2']
-s3 = ['boto3>=1.36.22', 'botocore>=1.36.22']
+s3 = [
+    'boto3>=1.36.22',
+    'botocore>=1.36.22',
+]
 all = [
     'aiohappyeyeballs>=2.4.6',
     'aiohttp>=3.11.12',
@@ -55,8 +64,8 @@ all = [
 dev = [
     'botocore-stubs<=1.36.21',
     'hatch>=1.14.0',
-    'hatchling>=1.21.0', 
-    'hatch-vcs>=0.3.0',
+    'hatchling>=1.27.0',
+    'hatch-vcs>=0.4.0',
     'mypy-boto3-s3<=1.36.21',
     'mypy-boto3-sts<=1.36.0',
     'mypy>=1.15.0',
@@ -66,15 +75,35 @@ dev = [
     'types-awscrt>=0.23.10',
     'types-boto3>=1.36.22',
     'types-s3transfer>=0.11.2',
+    'argparse-types',
+    'botocore-types',
+    'http-types',
+    'json-types',
+    'litellm-types',
+    'types-aioboto3',
+    'types-aiobotocore',
+    'types-aiofiles',
+    'types-attrs',
+    'types-backports',
+    'types-beautifulsoup4',
+    'types-botocore',
+    'types-cachetools',
+    'types-jinja2',
+    'types-lxml',
+    'types-markdown',
+    'types-pyyaml',
+    'types-regex',
+    'types-toml',
+    'types-tqdm',
 ]
 test = [
-    'pytest>=8.3.4', 
+    'pytest>=8.3.4',
     'pytest-cov>=6.0.0',
     'pytest-benchmark>=5.1.0',
     'pytest-mock>=3.14.0',
     'pytest-asyncio>=0.25.3',
     'pytest-timeout>=2.3.1',
-    ]
+]
 
 [project.scripts]
 twat-fs = 'twat_fs.__main__:main'
@@ -88,24 +117,46 @@ Source = 'https://github.com/twardoch/twat-fs'
 
 [build-system]
 build-backend = 'hatchling.build'
-requires = ['hatchling>=1.21.0', 'hatch-vcs>=0.3.0']
+requires = [
+    'hatchling>=1.27.0',
+    'hatch-vcs>=0.4.0',
+]
 [tool.coverage.paths]
-twat_fs = ['src/twat_fs', '*/twat-fs/src/twat_fs']
-tests = ['tests', '*/twat-fs/tests']
+twat_fs = [
+    'src/twat_fs',
+    '*/twat-fs/src/twat_fs',
+]
+tests = [
+    'tests',
+    '*/twat-fs/tests',
+]
 
 [tool.coverage.report]
-exclude_lines = ['no cov', 'if __name__ == .__main__.:', 'if TYPE_CHECKING:']
+exclude_lines = [
+    'no cov',
+    'if __name__ == .__main__.:',
+    'if TYPE_CHECKING:',
+]
 
 [tool.coverage.run]
-source_pkgs = ['twat_fs', 'tests']
+source_pkgs = [
+    'twat_fs',
+    'tests',
+]
 branch = true
 parallel = true
 omit = ['src/twat_fs/__about__.py']
 [tool.hatch.build.hooks.vcs]
 version-file = 'src/twat_fs/__version__.py'
 [tool.hatch.build.targets.wheel]
-packages = ['src/twat_fs', 'src/twat']
-include = ['src/twat_fs/**/*.py', 'src/twat/**/*.py']
+packages = [
+    'src/twat_fs',
+    'src/twat',
+]
+include = [
+    'src/twat_fs/**/*.py',
+    'src/twat/**/*.py',
+]
 [tool.hatch.envs.default]
 dependencies = [
     'pytest>=8.3.4',
@@ -127,7 +178,11 @@ fix = [
     'ruff format --respect-gitignore src/twat_fs tests',
 ]
 [[tool.hatch.envs.all.matrix]]
-python = ['3.10', '3.11', '3.12']
+python = [
+    '3.10',
+    '3.11',
+    '3.12',
+]
 
 [tool.hatch.envs.lint]
 detached = true
@@ -140,9 +195,18 @@ dependencies = [
 
 [tool.hatch.envs.lint.scripts]
 typing = 'mypy --install-types --non-interactive {args:src/twat_fs tests}'
-style = ['ruff check {args:.}', 'ruff format --respect-gitignore {args:.}']
-fmt = ['ruff format --respect-gitignore {args:.}', 'ruff check --fix {args:.}']
-all = ['style', 'typing']
+style = [
+    'ruff check {args:.}',
+    'ruff format --respect-gitignore {args:.}',
+]
+fmt = [
+    'ruff format --respect-gitignore {args:.}',
+    'ruff check --fix {args:.}',
+]
+all = [
+    'style',
+    'typing',
+]
 
 [tool.hatch.envs.test]
 dependencies = [
@@ -213,7 +277,15 @@ extend-select = [
     'W',
     'YTT',
 ]
-ignore = ['ARG001', 'E501', 'I001', 'RUF001', 'PLR2004', 'EXE003', 'ISC001']
+ignore = [
+    'ARG001',
+    'E501',
+    'I001',
+    'RUF001',
+    'PLR2004',
+    'EXE003',
+    'ISC001',
+]
 
 [tool.ruff.per-file-ignores]
 "tests/*" = ['S101']
@@ -221,7 +293,10 @@ ignore = ['ARG001', 'E501', 'I001', 'RUF001', 'PLR2004', 'EXE003', 'ISC001']
 addopts = '-v --durations=10 -p no:briefcase'
 asyncio_mode = 'auto'
 console_output_style = 'progress'
-filterwarnings = ['ignore::DeprecationWarning', 'ignore::UserWarning']
+filterwarnings = [
+    'ignore::DeprecationWarning',
+    'ignore::UserWarning',
+]
 log_cli = true
 log_cli_level = 'INFO'
 markers = [
@@ -252,4 +327,13 @@ min_time = 0.1
 histogram = true
 storage = 'file'
 save-data = true
-compare = ['min', 'max', 'mean', 'stddev', 'median', 'iqr', 'ops', 'rounds']
+compare = [
+    'min',
+    'max',
+    'mean',
+    'stddev',
+    'median',
+    'iqr',
+    'ops',
+    'rounds',
+]
