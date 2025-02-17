@@ -174,7 +174,7 @@ def get_credentials() -> DropboxCredentials | None:
     access_token = os.getenv("DROPBOX_ACCESS_TOKEN")
     if not access_token:
         logger.debug("DROPBOX_ACCESS_TOKEN environment variable not set")
-        raise ValueError("Dropbox credentials not found")
+        return None
 
     creds: DropboxCredentials = {
         "access_token": access_token,

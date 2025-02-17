@@ -209,7 +209,7 @@ class TestProviderAuth:
         monkeypatch.delenv("DROPBOX_ACCESS_TOKEN", raising=False)
         assert dropbox.get_credentials() is None
         with pytest.raises(ValueError, match="Dropbox credentials not found"):
-            dropbox.get_provider()
+            dropbox.upload_file("test.txt")
 
     def test_s3_auth_with_credentials(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test S3 auth when credentials are present."""

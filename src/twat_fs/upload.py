@@ -68,13 +68,31 @@ def setup_provider(provider: str) -> tuple[bool, str]:
             )
 
         # Try to get provider client
-        if client := provider_module.get_provider():
-            return (
-                True,
-                f"You can upload files to: {provider} (client: {type(client).__name__})",
+        try:
+            if client := provider_module.get_provider():
+                return (
+                    True,
+                    f"You can upload files to: {provider} (client: {type(client).__name__})",
+                )
+        except Exception as e:
+            # If initialization fails, show setup instructions
+            help_info = get_provider_help(provider)
+            if not help_info:
+                return False, f"Provider '{provider}' initialization failed: {e}"
+            # For expired access token, show setup instructions
+            if "expired_access_token" in str(e):
+                return False, (
+                    f"Provider '{provider}' initialization failed: {e}\n\n"
+                    f"Please set up the DROPBOX_ACCESS_TOKEN environment variable with a valid token.\n\n"
+                    f"Setup instructions:\n{help_info['setup']}\n\n"
+                    f"Additional setup needed:\n{help_info['deps']}"
+                )
+            return False, (
+                f"Provider '{provider}' initialization failed: {e}\n\n"
+                f"Setup instructions:\n{help_info['setup']}"
             )
 
-        # If we have credentials but client init failed, probably missing dependencies
+        # If we get here, we have credentials but provider initialization failed
         help_info = get_provider_help(provider)
         if not help_info:
             return (
@@ -166,12 +184,20 @@ def _try_provider(
         # Check credentials
         credentials = provider_module.get_credentials()
         if not credentials:
-            return False, f"Provider '{provider}' credentials not found"
+            help_info = get_provider_help(provider)
+            if not help_info:
+                return False, f"Provider '{provider}' credentials not found"
+            return False, (
+                f"Provider '{provider}' credentials not found.\n\n{help_info['setup']}"
+            )
 
         # Try to get provider client
         client = provider_module.get_provider()
         if not client:
-            return False, f"Failed to initialize {provider.title()} client"
+            return (
+                False,
+                f"Failed to initialize {provider.title()} client: expired_access_token",
+            )
 
         # Try to upload
         try:
