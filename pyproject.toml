@@ -44,7 +44,7 @@ dependencies = [
 # Optional dependencies for different providers and development
 [project.optional-dependencies]
 # Provider-specific dependencies
-fal = ["fal-client>=0.5.0"]  # FAL.ai client for AI file operations
+fal = ["fal-client>=0.5.9"]  # FAL.ai client for AI file operations
 
 dropbox = ["dropbox>=12.00.0"]  # Dropbox SDK for cloud storage
 
