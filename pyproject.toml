@@ -55,9 +55,10 @@ all = [
 dev = [
     'botocore-stubs<=1.36.21',
     'hatch>=1.14.0',
-    'hatchling>=1.21.0', 'hatch-vcs>=0.3.0',
+    'hatchling>=1.21.0', 
+    'hatch-vcs>=0.3.0',
     'mypy-boto3-s3<=1.36.21',
-    'mypy-boto3-sts>=1.36.22',
+    'mypy-boto3-sts<=1.36.0',
     'mypy>=1.15.0',
     'pre-commit>=4.1.0',
     'pyupgrade>=3.19.1',
