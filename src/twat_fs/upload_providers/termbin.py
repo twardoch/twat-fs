@@ -14,8 +14,8 @@ from pathlib import Path
 
 from loguru import logger
 
-from .simple import SimpleProviderBase, UploadResult
-from . import ProviderHelp, ProviderClient
+from twat_fs.upload_providers.simple import SimpleProviderBase, UploadResult
+from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
 
 # Provider help messages
 PROVIDER_HELP: ProviderHelp = {

@@ -14,10 +14,17 @@ import aiohttp
 import asyncio
 from loguru import logger
 
-from .protocols import ProviderClient
-from .types import ExpirationTime, UploadResult
+from twat_fs.upload_providers.protocols import ProviderClient
+from twat_fs.upload_providers.types import ExpirationTime, UploadResult
 
 LITTERBOX_API_URL = "https://litterbox.catbox.moe/resources/internals/api.php"
+
+# Provider-specific help messages
+PROVIDER_HELP = {
+    "setup": """No setup required. Note: Files are deleted after 24 hours by default.
+Optional: Set LITTERBOX_DEFAULT_EXPIRATION environment variable to change expiration time (1h, 12h, 24h, 72h).""",
+    "deps": """No additional dependencies required.""",
+}
 
 
 class LitterboxProvider(ProviderClient):

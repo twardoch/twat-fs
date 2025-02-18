@@ -3,6 +3,7 @@
 # dependencies = [
 #   "loguru",
 #   "fire",
+#   "rich",
 # ]
 # ///
 # this_file: src/twat_fs/upload.py
@@ -17,8 +18,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Union
 from collections.abc import Sequence
+from dataclasses import dataclass
+from enum import Enum, auto
 
 from loguru import logger
+from rich.console import Console
+from rich.table import Table
 
 from twat_fs.upload_providers import (
     PROVIDERS_PREFERENCE,
@@ -28,124 +33,248 @@ from twat_fs.upload_providers import (
     RetryableError,
     NonRetryableError,
 )
-from .upload_providers.core import with_retry, RetryStrategy
+from twat_fs.upload_providers.core import with_retry, RetryStrategy
 
 # Type for provider specification - can be a single provider name or a list of providers
 ProviderType = Union[str, list[str], None]
 
 
-def setup_provider(provider: str) -> tuple[bool, str]:
+class ProviderStatus(Enum):
+    """Status of a provider's setup."""
+
+    READY = auto()
+    NEEDS_CONFIG = auto()
+    NOT_AVAILABLE = auto()
+
+
+@dataclass
+class ProviderInfo:
+    """Information about a provider's setup status."""
+
+    status: ProviderStatus
+    message: str
+    details: str = ""
+
+
+def setup_provider(provider: str, verbose: bool = False) -> ProviderInfo:
     """
-    Check a provider's setup status and return instructions if needed.
+    Check a provider's setup status and return its information.
 
     Args:
         provider: Name of the provider to check
+        verbose: Whether to include detailed setup instructions
 
     Returns:
-        Tuple[bool, str]: (success, explanation)
-        - If provider is fully working: (True, "You can upload files to: {provider}")
-        - If credentials exist but setup needed: (False, detailed setup instructions)
-        - If no credentials: (False, complete setup guide including credentials)
+        ProviderInfo: Provider status information
     """
     try:
+        # Skip the 'simple' provider as it's just a base class
+        if provider.lower() == "simple":
+            return ProviderInfo(
+                ProviderStatus.NOT_AVAILABLE,
+                f"Provider '{provider}' is not available.",
+                "This is a base provider and should not be used directly.",
+            )
+
         # Import provider module
         provider_module = get_provider_module(provider)
         if not provider_module:
             help_info = get_provider_help(provider)
             if not help_info:
-                return False, f"Provider '{provider}' is not available."
-            return (
-                False,
-                f"Provider '{provider}' is not available.\n\n{help_info['setup']}",
+                return ProviderInfo(
+                    ProviderStatus.NOT_AVAILABLE,
+                    f"Provider '{provider}' is not available.",
+                )
+            return ProviderInfo(
+                ProviderStatus.NOT_AVAILABLE,
+                f"Provider '{provider}' is not available.",
+                help_info["setup"] if verbose else "",
             )
 
-        # Check credentials
+        # Get help info for notes about retention
+        help_info = get_provider_help(provider)
+        retention_note = ""
+        if help_info and "setup" in help_info:
+            setup_info = help_info["setup"].lower()
+            if "no setup required" in setup_info:
+                # Extract any retention information
+                if "deleted after" in setup_info:
+                    retention_note = setup_info[setup_info.find("note:") :].strip()
+                elif "only works with" in setup_info:
+                    retention_note = setup_info[setup_info.find("note:") :].strip()
+
+        # Check if this is a simple provider (no setup required)
+        if (
+            help_info
+            and "setup" in help_info
+            and "no setup required" in help_info["setup"].lower()
+        ):
+            return ProviderInfo(
+                ProviderStatus.READY,
+                f"{provider} (SimpleProvider)"
+                + (f" - {retention_note}" if retention_note else ""),
+            )
+
+        # Check credentials for providers that need them
         credentials = provider_module.get_credentials()
         if not credentials:
-            help_info = get_provider_help(provider)
             if not help_info:
-                return False, f"Provider '{provider}' is not configured."
-            return False, (
-                f"Provider '{provider}' is not configured. Please set up the required credentials:\n\n{help_info['setup']}"
+                return ProviderInfo(
+                    ProviderStatus.NEEDS_CONFIG,
+                    f"Provider '{provider}' needs configuration.",
+                )
+            return ProviderInfo(
+                ProviderStatus.NEEDS_CONFIG,
+                f"Provider '{provider}' needs configuration.",
+                help_info["setup"] if verbose else "",
             )
 
         # Try to get provider client
         try:
             if client := provider_module.get_provider():
-                return (
-                    True,
-                    f"You can upload files to: {provider} (client: {type(client).__name__})",
+                return ProviderInfo(
+                    ProviderStatus.READY,
+                    f"{provider} ({type(client).__name__})"
+                    + (f" - {retention_note}" if retention_note else ""),
                 )
         except Exception as e:
             help_info = get_provider_help(provider)
             if not help_info:
-                return False, f"Provider '{provider}' initialization failed: {e}"
-            if (
-                provider.lower() == "dropbox"
-                or "expired_access_token" in str(e).lower()
-            ):
-                return False, (
-                    f"Provider '{provider}' initialization failed: expired_access_token\n\n"
-                    f"Please set up the DROPBOX_ACCESS_TOKEN environment variable with a valid token.\n\n"
-                    f"Setup instructions:\n{help_info['setup']}\n\n"
-                    f"Additional setup needed:\n{help_info['deps']}"
+                return ProviderInfo(
+                    ProviderStatus.NEEDS_CONFIG,
+                    f"Provider '{provider}' initialization failed: {e}",
                 )
-            return False, (
-                f"Provider '{provider}' initialization failed: {e}\n\n"
-                f"Setup instructions:\n{help_info['setup']}"
+            details = ""
+            if verbose:
+                if (
+                    provider.lower() == "dropbox"
+                    or "expired_access_token" in str(e).lower()
+                ):
+                    details = (
+                        f"Please set up the DROPBOX_ACCESS_TOKEN environment variable with a valid token.\n\n"
+                        f"Setup instructions:\n{help_info['setup']}\n\n"
+                        f"Additional setup needed:\n{help_info['deps']}"
+                    )
+                else:
+                    details = (
+                        f"Setup instructions:\n{help_info['setup']}\n\n"
+                        f"Additional setup needed:\n{help_info['deps']}"
+                    )
+            return ProviderInfo(
+                ProviderStatus.NEEDS_CONFIG,
+                f"Provider '{provider}' initialization failed: {e}",
+                details,
             )
 
         # If we get here, we have credentials but provider initialization failed
         help_info = get_provider_help(provider)
         if not help_info:
-            return (
-                False,
-                f"Provider '{provider}' has credentials but additional setup is needed.",
+            return ProviderInfo(
+                ProviderStatus.NEEDS_CONFIG,
+                f"Provider '{provider}' has credentials but needs additional setup.",
             )
-        if provider.lower() == "dropbox":
-            return False, (
-                f"Provider '{provider}' initialization failed: expired_access_token\n\n"
-                f"Please set up the DROPBOX_ACCESS_TOKEN environment variable with a valid token.\n\n"
-                f"Setup instructions:\n{help_info['setup']}\n\n"
-                f"Additional setup needed:\n{help_info['deps']}"
-            )
-        else:
-            return False, (
-                f"Provider '{provider}' has credentials but additional setup is needed:\n\n"
-                f"{help_info['deps']}"
-            )
+        details = ""
+        if verbose:
+            if provider.lower() == "dropbox":
+                details = (
+                    f"Please set up the DROPBOX_ACCESS_TOKEN environment variable with a valid token.\n\n"
+                    f"Setup instructions:\n{help_info['setup']}\n\n"
+                    f"Additional setup needed:\n{help_info['deps']}"
+                )
+            else:
+                details = f"Additional setup needed:\n{help_info['deps']}"
+        return ProviderInfo(
+            ProviderStatus.NEEDS_CONFIG,
+            f"Provider '{provider}' needs additional setup.",
+            details,
+        )
 
     except Exception as e:
         logger.warning(f"Error checking provider {provider}: {e}")
         help_info = get_provider_help(provider)
         if not help_info:
-            return False, f"Provider '{provider}' encountered an error: {e!s}"
-        return False, (
-            f"Provider '{provider}' encountered an error: {e!s}\n\n"
-            f"Complete setup guide:\n{help_info['setup']}\n\n"
-            f"{help_info['deps']}"
+            return ProviderInfo(
+                ProviderStatus.NOT_AVAILABLE,
+                f"Provider '{provider}' encountered an error: {e!s}",
+            )
+        return ProviderInfo(
+            ProviderStatus.NOT_AVAILABLE,
+            f"Provider '{provider}' encountered an error: {e!s}",
+            f"Complete setup guide:\n{help_info['setup']}\n\n{help_info['deps']}"
+            if verbose
+            else "",
         )
 
 
-def setup_providers() -> dict[str, tuple[bool, str]]:
+def setup_providers(verbose: bool = False) -> None:
     """
-    Check setup status for all available providers.
+    Check setup status for all available providers and display a summary.
 
-    Returns:
-        Dict[str, Tuple[bool, str]]: Dictionary mapping provider names to their setup status and explanation
+    Args:
+        verbose: Whether to show detailed setup instructions
     """
-    results = {}
-    for provider in PROVIDERS_PREFERENCE:
-        success, explanation = setup_provider(provider)
-        results[provider] = (success, explanation)
+    console = Console()
 
-        # Log the result
-        if success:
-            logger.info(explanation)
-        else:
-            logger.warning(f"Provider {provider} needs setup:\n{explanation}")
+    # Get status for all providers except 'simple'
+    provider_infos = {
+        provider: setup_provider(provider, verbose)
+        for provider in PROVIDERS_PREFERENCE
+        if provider.lower() != "simple"
+    }
 
-    return results
+    # Create status groups
+    ready = [
+        (name, info)
+        for name, info in provider_infos.items()
+        if info.status == ProviderStatus.READY
+    ]
+    needs_config = [
+        (name, info)
+        for name, info in provider_infos.items()
+        if info.status == ProviderStatus.NEEDS_CONFIG
+    ]
+    not_available = [
+        (name, info)
+        for name, info in provider_infos.items()
+        if info.status == ProviderStatus.NOT_AVAILABLE
+    ]
+
+    # Create and display the table
+    table = Table(title="Provider Status")
+    table.add_column("Provider", style="cyan")
+    table.add_column("Status", style="magenta")
+    table.add_column("Message", style="white", no_wrap=False)
+
+    # Add ready providers
+    for name, info in ready:
+        table.add_row(name, "[green]Ready[/green]", info.message)
+        if verbose and info.details:
+            table.add_row("", "", info.details)
+
+    # Add providers needing configuration
+    for name, info in needs_config:
+        table.add_row(name, "[yellow]Needs Setup[/yellow]", info.message)
+        if verbose and info.details:
+            table.add_row("", "", info.details)
+
+    # Add unavailable providers
+    for name, info in not_available:
+        table.add_row(name, "[red]Not Available[/red]", info.message)
+        if verbose and info.details:
+            table.add_row("", "", info.details)
+
+    console.print(table)
+
+    # Print summary
+    console.print("\n[bold]Summary:[/bold]")
+    console.print(f"✓ [green]{len(ready)}[/green] providers ready")
+    if needs_config:
+        console.print(f"⚠ [yellow]{len(needs_config)}[/yellow] providers need setup")
+    if not_available:
+        console.print(f"✗ [red]{len(not_available)}[/red] providers not available")
+
+    if not verbose and (needs_config or not_available):
+        console.print("\n[dim]Run with --verbose for detailed setup instructions[/dim]")
 
 
 def _get_provider_module(provider: str) -> Provider | None:

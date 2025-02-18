@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING, cast
 
 from loguru import logger
 
-from .core import RetryableError, NonRetryableError, UploadError
-from .protocols import ProviderClient, Provider, ProviderHelp
-from .types import ExpirationTime, UploadResult
+from twat_fs.upload_providers.core import RetryableError, NonRetryableError, UploadError
+from twat_fs.upload_providers.protocols import ProviderClient, Provider, ProviderHelp
+from twat_fs.upload_providers.types import ExpirationTime, UploadResult
 
 if TYPE_CHECKING:
     from pathlib import Path

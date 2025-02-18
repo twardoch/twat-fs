@@ -24,6 +24,7 @@ from typing import Any, TypedDict
 from urllib import parse
 
 import dropbox  # type: ignore
+from dropbox.exceptions import AuthError
 from dotenv import load_dotenv
 from loguru import logger
 
@@ -40,7 +41,7 @@ PROVIDER_HELP = {
    - DROPBOX_REFRESH_TOKEN: OAuth2 refresh token
    - DROPBOX_APP_KEY: Dropbox app key
    - DROPBOX_APP_SECRET: Dropbox app secret""",
-    "deps": """Additional setup needed:
+    "deps": """Setup requirements:
 1. Install the Dropbox SDK: pip install dropbox
 2. If using OAuth2:
    - Set up your redirect URI in the app console
@@ -85,8 +86,21 @@ class DropboxClient:
         try:
             # Check current token
             self.dbx.users_get_current_account()
-        except dropbox.exceptions.AuthError as e:
+        except AuthError as e:
             if "expired_access_token" in str(e):
+                if not (
+                    self.credentials["refresh_token"] and self.credentials["app_key"]
+                ):
+                    logger.debug(
+                        "\n".join(
+                            [
+                                "Cannot refresh token:",
+                                "- Missing refresh token or app key",
+                                "- Set DROPBOX_REFRESH_TOKEN and DROPBOX_APP_KEY to enable automatic refresh",
+                            ]
+                        )
+                    )
+                    return
                 logger.debug("Access token expired, attempting refresh")
                 try:
                     self.dbx.refresh_access_token()
@@ -168,6 +182,14 @@ class DropboxClient:
             msg = f"Upload failed: {e}"
             raise DropboxUploadError(msg) from e
 
+    def get_account_info(self) -> None:
+        """Get account information from Dropbox."""
+        try:
+            self.dbx.users_get_current_account()
+        except AuthError as e:
+            logger.error(f"Failed to get account info: {e}")
+            raise
+
 
 def get_credentials() -> DropboxCredentials | None:
     """Get Dropbox credentials from environment variables."""
@@ -186,33 +208,44 @@ def get_credentials() -> DropboxCredentials | None:
 
 
 def get_provider() -> DropboxClient | None:
-    """Initialize and return the Dropbox client."""
+    """Initialize and return a Dropbox client if credentials are available."""
     try:
-        creds = get_credentials()
-        if not creds:
-            logger.debug("Dropbox credentials not found")
+        credentials = get_credentials()
+        if not credentials:
             return None
 
-        client = DropboxClient(creds)
+        client = DropboxClient(credentials)
+        # Test the client by trying to get account info
         try:
-            # Test the client
-            client.dbx.users_get_current_account()
-            logger.debug("Successfully initialized Dropbox client")
+            client.get_account_info()
             return client
-        except dropbox.exceptions.AuthError as e:
-            logger.error(f"Dropbox authentication failed: {e}")
+        except AuthError as e:
             if "expired_access_token" in str(e):
-                msg = "Failed to initialize Dropbox client: expired_access_token"
+                if not (credentials["refresh_token"] and credentials["app_key"]):
+                    logger.warning(
+                        "\n".join(
+                            [
+                                "Dropbox token has expired and cannot be refreshed automatically.",
+                                "To enable automatic token refresh:",
+                                "1. Set DROPBOX_REFRESH_TOKEN environment variable",
+                                "2. Set DROPBOX_APP_KEY environment variable",
+                                "For now, please generate a new access token.",
+                            ]
+                        )
+                    )
+                else:
+                    logger.error(
+                        "Dropbox access token has expired. Please generate a new token."
+                    )
             else:
-                msg = f"Failed to initialize Dropbox client: {e}"
-            raise DropboxUploadError(msg) from e
+                logger.error(f"Dropbox authentication failed: {e}")
+            return None
         except Exception as e:
             logger.error(f"Failed to initialize Dropbox client: {e}")
-            msg = f"Failed to initialize Dropbox client: {e}"
-            raise DropboxUploadError(msg) from e
+            return None
 
     except Exception as e:
-        logger.error(f"Failed to initialize Dropbox client: {e}")
+        logger.error(f"Error initializing Dropbox client: {e}")
         return None
 
 
@@ -534,7 +567,7 @@ def _handle_api_error(e: Any, operation: str) -> None:
     """
     import dropbox
 
-    if isinstance(e, dropbox.exceptions.AuthError):
+    if isinstance(e, AuthError):
         logger.error(f"Authentication error during {operation}: {e}")
         msg = "Authentication failed. Please check your access token or refresh your credentials."
         raise DropboxUploadError(msg) from e

@@ -8,6 +8,45 @@ This document outlines the current tasks for the project—with immediate fixes 
 
 ---
 
+## TOP CURRENT PROBLEMS
+
+### ISSUE 1
+
+If I try to upload the file `VERSION.txt` from the main folder of this project to the providers that don't require config, I get this:
+
+```bash
+twat fs upload_provider list 2>/dev/null | while read p; do echo -n "[$p]("; twat fs upload VERSION.txt --provider "$p"; echo ")"; done;
+```
+
+I get: 
+
+```
+[catbox](Upload failed: An error occurred while uploading with catbox: I/O operation on closed file
+)
+[litterbox](Upload failed: An error occurred while uploading with litterbox: I/O operation on closed file
+)
+[fal](https://v3.fal.media/files/penguin/HJ0VSEKNEScppttv4DM9r_VERSION.txt
+https://v3.fal.media/files/penguin/HJ0VSEKNEScppttv4DM9r_VERSION.txt
+)
+[bashupload](Upload failed: Can't instantiate abstract class BashUploadProvider without an implementation for abstract method 'upload_file_impl'
+)
+[termbin](Upload failed: Can't instantiate abstract class TermbinProvider without an implementation for abstract method 'upload_file_impl'
+)
+[uguu](Upload failed: Can't instantiate abstract class UguuProvider without an implementation for abstract method 'upload_file_impl'
+)
+[www0x0](Upload failed: Can't instantiate abstract class ZeroXZeroProvider without an implementation for abstract method 'upload_file_impl'
+)
+[filebin](Upload failed: An error occurred while uploading with filebin: SimpleProviderBase.upload_file() got an unexpected keyword argument 'unique'
+)
+[pixeldrain](Upload failed: An error occurred while uploading with pixeldrain: SimpleProviderBase.upload_file() got an unexpected keyword argument 'unique'
+)
+```
+
+
+
+
+
+
 ## Immediate Priorities (Critical Fixes)
 
 ### A. Error Handling Improvements

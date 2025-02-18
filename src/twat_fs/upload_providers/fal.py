@@ -21,7 +21,7 @@ from typing import ClassVar
 import fal_client  # type: ignore
 from loguru import logger  # type: ignore
 
-from . import Provider, ProviderClient, ProviderHelp
+from twat_fs.upload_providers.protocols import Provider, ProviderClient, ProviderHelp
 
 # Provider-specific help messages
 PROVIDER_HELP: ProviderHelp = {

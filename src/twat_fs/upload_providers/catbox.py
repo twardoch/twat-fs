@@ -13,8 +13,9 @@ from typing import TypedDict
 import aiohttp
 from loguru import logger
 
-from . import ProviderClient, UploadResult
-from .core import (
+from twat_fs.upload_providers.protocols import ProviderClient
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.core import (
     with_async_retry,
     with_retry,
     validate_file,
@@ -25,6 +26,13 @@ from .core import (
 )
 
 CATBOX_API_URL = "https://catbox.moe/user/api.php"
+
+# Provider-specific help messages
+PROVIDER_HELP = {
+    "setup": """No setup required. Note: Files are stored permanently.
+Optional: Set CATBOX_USERHASH environment variable for authenticated uploads.""",
+    "deps": """No additional dependencies required.""",
+}
 
 
 class CatboxCredentials(TypedDict, total=False):

@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable, BinaryIO, ClassVar
 from collections.abc import Generator
 
-from . import ProviderHelp, Provider, ProviderClient
+from twat_fs.upload_providers.protocols import ProviderHelp, Provider, ProviderClient
 
 
 @dataclass

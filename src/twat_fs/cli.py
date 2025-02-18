@@ -1,6 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env -S uv run
 # /// script
-# dependencies = ["fire"]
+# dependencies = ["fire", "loguru", "rich"]
+# ///
+# this_file: src/twat_fs/cli.py
 
 """
 Command-line interface for twat-fs package.
@@ -11,57 +13,104 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 import fire
 from loguru import logger
 
 from twat_fs.upload import (
     PROVIDERS_PREFERENCE,
+    ProviderStatus,
     setup_provider as _setup_provider,
     setup_providers as _setup_providers,
     upload_file as _upload_file,
 )
 
-# Configure logging
+# Configure logging: errors and warnings to stderr, provider info to stdout
 logger.remove()  # Remove default handler
-log_level = os.getenv("LOGURU_LEVEL", "INFO").upper()  # Default to INFO if not set
-logger.add(sys.stderr, level=log_level)
+log_level = os.getenv("LOGURU_LEVEL", "INFO").upper()
+
+# All warnings and errors go to stderr
+logger.add(
+    sys.stderr,
+    level="WARNING",
+    format="<red>{message}</red>",
+)
+
+# Info and debug messages go to stdout, but only for non-error records
+logger.add(
+    sys.stdout,
+    level=log_level,
+    format="{message}",
+    filter=lambda record: record["level"].no < logger.level("WARNING").no,
+)
+
+
+def parse_provider_list(provider: str) -> list[str] | None:
+    """Parse a provider list string like '[s3,dropbox]' into a list."""
+    if provider.startswith("[") and provider.endswith("]"):
+        try:
+            return [p.strip() for p in provider[1:-1].split(",")]
+        except Exception:
+            return None
+    return None
+
+
+class UploadProviderCommands:
+    """Commands for managing upload providers."""
+
+    def setup(self, provider_id: str | None = None) -> NoReturn:
+        """
+        Show setup information for a specific provider or all providers.
+
+        Args:
+            provider_id: Optional provider ID to show setup info for.
+                       If not provided, shows info for all providers.
+        """
+        if provider_id:
+            # For a specific provider, print only the provider ID to stdout if it's ready
+            result = _setup_provider(provider_id, verbose=True)
+            if result.status == ProviderStatus.READY:
+                sys.exit(0)
+            else:
+                logger.error(
+                    f"Provider '{provider_id}' is not ready: {result.message}"
+                    + (f"\n{result.details}" if result.details else "")
+                )
+                sys.exit(1)  # Provider not ready
+        else:
+            # For all providers, show detailed setup info
+            _setup_providers(verbose=True)
+            sys.exit(0)
+
+    def list(self) -> NoReturn:
+        """List all available providers, printing active ones to stdout."""
+        active_found = False
+        for provider in PROVIDERS_PREFERENCE:
+            result = _setup_provider(provider, verbose=False)
+            if result.status == ProviderStatus.READY:
+                active_found = True
+            else:
+                logger.debug(f"Provider '{provider}' not ready: {result.message}")
+
+        if not active_found:
+            logger.warning(
+                "No active providers found. Run 'upload_provider setup' for details."
+            )
+        sys.exit(0)
 
 
 class TwatFS:
     """
     A robust and extensible file upload utility with support for multiple storage providers.
 
-    This CLI tool provides a unified interface for uploading files to various storage services,
-    from simple providers like 0x0 and uguu to advanced services like s3 and dropbox.
-    Key features include:
-
-    * Provider Flexibility: Seamlessly switch between storage providers
-    * Fault Tolerance: Graceful fallback between providers if primary fails
-    * Progressive Enhancement: Start simple (no config needed) and scale up as needed
-    * Multiple Provider Support: s3, dropbox, fal, and several simple providers
-    * Comprehensive Setup Tools: Easy provider configuration and status checks
-
-    Configuration:
-    Advanced providers require environment variables:
-    * s3: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET
-    * dropbox: DROPBOX_ACCESS_TOKEN
-    * fal: FAL_KEY
-
-    Logging Configuration:
-    Set LOGURU_LEVEL environment variable to control logging:
-    * DEBUG: Detailed debugging information
-    * INFO: General operational information (default)
-    * WARNING: Warning messages only
-    * ERROR: Error messages only
-
-    Basic usage:
-        twat-fs upload path/to/file.txt                     # Uses default provider
-        twat-fs upload --provider s3 path/to/file.txt       # Uses specific provider
-        twat-fs upload --provider "[s3,dropbox]" file.txt   # Try providers in order
-        twat-fs setup provider s3                           # Check s3 configuration
-        twat-fs setup all                                   # Check all providers
+    Commands:
+        upload              Upload a file using configured providers
+        upload_provider    Manage upload providers (setup, list)
     """
+
+    def __init__(self) -> None:
+        self.upload_provider = UploadProviderCommands()
 
     def upload(
         self,
@@ -74,148 +123,50 @@ class TwatFS:
         """
         Upload a file using the specified provider(s) with automatic fallback.
 
-        This command supports both simple and advanced upload scenarios. When multiple
-        providers are specified, it will try them in order until successful.
-
         Args:
             file_path: Path to the file to upload
-            provider: Provider(s) to use for upload: `s3`, `dropbox`, `fal`, `0x0`, `uguu`, `catbox`, `litterbox`, `bashupload`, `termbin` or multiple: `[s3,dropbox]`, Default: Uses provider preference order
+            provider: Provider(s) to use for upload. Can be a single provider or a list
             unique: Add timestamp to filename to ensure uniqueness
             force: Overwrite existing files if they exist
-            remote_path: Custom remote path/prefix (provider-specific):
-                        - S3: Bucket prefix
-                        - Dropbox: Folder path
-                        - Simple providers: Ignored
+            remote_path: Custom remote path/prefix (provider-specific)
 
         Returns:
             URL of the uploaded file
-
-        Examples:
-            # Simple upload with default provider
-            twat-fs upload image.png
-
-            # Upload to S3 with custom path
-            twat-fs upload data.csv --provider s3 --remote-path "data/2024/"
-
-            # Try multiple providers with unique filename
-            twat-fs upload log.txt --provider "[s3,dropbox]" --unique
-
-            # Force upload to specific provider
-            twat-fs upload config.json --provider dropbox --force
         """
-        logger.debug(f"Upload requested for file: {file_path}")
-        logger.debug(f"Provider argument type: {type(provider)}, value: {provider}")
-        logger.debug(
-            f"Upload options: unique={unique}, force={force}, remote_path={remote_path}"
-        )
+        try:
+            # Handle provider list passed as string
+            if isinstance(provider, str):
+                providers = parse_provider_list(provider)
+                if providers is not None:
+                    provider = providers
 
-        if isinstance(provider, str):
-            # Support a provider list passed as a string, e.g. "[s3,dropbox]"
-            if provider.startswith("[") and provider.endswith("]"):
-                try:
-                    providers = [p.strip() for p in provider[1:-1].split(",")]
-                    logger.debug(f"Parsed provider list: {providers}")
-                    return _upload_file(
-                        file_path,
-                        provider=providers,
-                        unique=unique,
-                        force=force,
-                        upload_path=remote_path,
-                    )
-                except Exception as e:
-                    logger.error(f"Invalid provider list format: {e}")
-                    msg = f"Invalid provider list format: {provider}"
-                    raise ValueError(msg) from e
-            logger.debug(f"Using single provider: {provider}")
-            try:
-                return _upload_file(
-                    file_path,
-                    provider=provider,
-                    unique=unique,
-                    force=force,
-                    upload_path=remote_path,
-                )
-            except Exception as e:
-                logger.error(f"Upload failed with provider {provider}: {e}")
-                msg = f"Upload failed with provider {provider}: {e}"
-                raise ValueError(msg) from e
+            # Verify file exists
+            if not Path(file_path).exists():
+                logger.error(f"File not found: {file_path}")
+                sys.exit(1)
 
-        logger.debug(f"Using provider(s): {provider}")
-        return _upload_file(
-            file_path,
-            provider=provider,
-            unique=unique,
-            force=force,
-            upload_path=remote_path,
-        )
-
-    class _SetupFS:
-        """
-        Provider setup and configuration management commands.
-
-        These commands help you:
-        * Verify provider credentials and configurations
-        * Test actual connectivity to provider services
-        * View detailed setup requirements for each provider
-        * Diagnose configuration issues with helpful messages
-        * Get provider-specific troubleshooting guidance
-
-        Available providers include:
-
-        Simple Providers (no setup required):
-            0x0             General file uploads
-            uguu            Temporary file uploads (24h)
-            termbin        Text-only uploads
-            bashupload     General file uploads
-
-        Advanced Providers (requires configuration):
-            s3             Enterprise-grade storage (AWS)
-            dropbox        Cloud storage integration
-            fal            AI-powered file hosting
-
-        Commands:
-            setup provider <name>    Check specific provider:
-                                    - Verifies environment variables
-                                    - Tests API connectivity
-                                    - Shows detailed status
-
-            setup all               Check all providers:
-                                   - Shows setup status overview
-                                   - Identifies missing configurations
-                                   - Lists available providers
-        """
-
-        def provider(self, provider: str) -> tuple[bool, str]:
-            """
-            Check setup status for a specific provider.
-
-            Args:
-                provider: Provider to check (s3, dropbox, fal).
-
-            Returns:
-                A tuple (success, explanation).
-            """
-            return _setup_provider(provider)
-
-        def all(self) -> dict[str, tuple[bool, str]]:
-            """
-            Check setup status for all available providers.
-
-            Returns:
-                A dict mapping provider names to (success, explanation) tuples.
-            """
-            return _setup_providers()
-
-    # Expose the setup commands as a subcommand.
-    setup = _SetupFS()
+            url = _upload_file(
+                file_path,
+                provider=provider,
+                unique=unique,
+                force=force,
+                upload_path=remote_path,
+            )
+            return url
+        except Exception as e:
+            logger.error(f"Upload failed: {e}")
+            sys.exit(1)
 
 
 def main() -> None:
+    """Entry point for the CLI."""
     fire.Fire(TwatFS)
 
 
-# Backwards compatibility for the API:
-# These names are still exported for external imports.
+# Backwards compatibility for the API
 upload_file = TwatFS().upload
-setup_provider = TwatFS().setup.provider
-setup_providers = TwatFS().setup.all
+setup_provider = TwatFS().upload_provider.setup
+
+
+def setup_providers():
+    return TwatFS().upload_provider.setup(None)
