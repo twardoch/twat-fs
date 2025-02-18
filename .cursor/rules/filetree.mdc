@@ -57,7 +57,7 @@ globs:
 │   ├── [  63]  __init__.py
 │   ├── [  96]  data
 │   │   └── [ 100]  test.txt
-│   ├── [3.2K]  test_filebin_pixeldrain.py
+│   ├── [3.1K]  test_filebin_pixeldrain.py
 │   ├── [8.7K]  test_integration.py
 │   ├── [8.7K]  test_s3_advanced.py
 │   ├── [ 180]  test_twat_fs.py
