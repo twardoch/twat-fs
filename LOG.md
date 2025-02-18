@@ -13,7 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- New error handling system with RetryableError and NonRetryableError
+- Intelligent provider fallback with exponential backoff
+- URL validation for all uploaded files
 - Completed implementation of all simple upload providers:
+  - catbox.moe for permanent uploads (new default)
+  - litterbox.catbox.moe for temporary uploads
   - termbin.com for text uploads
   - 0x0.st for general file uploads
   - uguu.se for temporary file uploads
@@ -29,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed S3 provider to handle all upload parameters correctly
 - Fixed provider parameter handling in _try_provider function
 - Fixed various type annotation issues
+- Fixed provider fallback to properly handle temporary vs permanent failures
+- Fixed URL validation to ensure all returned URLs are accessible
 
 ### Changed
 
@@ -37,6 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated documentation with new provider information
 - Standardized error handling across all providers
 - Reorganized TODO.md to prioritize code quality and type system improvements
+- Changed default provider to catbox.moe for better reliability
+- Improved provider fallback mechanism with exponential backoff
+- Enhanced error messages with provider context
 
 ### Known Issues
 
@@ -202,6 +212,34 @@ Added support for simple file upload services that don't require authentication:
    - Add provider selection logic
    - Add health checks
    - Add usage statistics
+
+## 2024-02-18
+
+### Enhanced Error Handling and Provider Fallback
+
+1. Implemented new error handling system:
+   - Added RetryableError for temporary failures
+   - Added NonRetryableError for permanent failures
+   - Added provider context to error messages
+   - Added URL validation for all uploads
+
+2. Improved provider fallback:
+   - One retry with exponential backoff for temporary failures
+   - Immediate fallback to next provider for permanent failures
+   - Clear error messages with provider context
+   - Proper handling of provider chains
+
+3. Added URL validation:
+   - HEAD request validation for all URLs
+   - Redirect following
+   - Retry on temporary failures
+   - Configurable timeouts
+
+4. Next steps:
+   - Add more test coverage for error scenarios
+   - Improve error messages and logging
+   - Add performance metrics
+   - Add provider health checks
 
 [1.7.9]: https://github.com/twardoch/twat-fs/compare/v1.7.8...v1.7.9
 [1.7.8]: https://github.com/twardoch/twat-fs/compare/v1.7.5...v1.7.8

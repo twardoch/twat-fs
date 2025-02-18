@@ -5,8 +5,7 @@
 # this_file: src/twat_fs/upload_providers/__init__.py
 
 """
-Provider registry and common interfaces for upload providers.
-This module defines the provider registry and common interfaces that all providers must implement.
+Upload provider registry and base classes.
 """
 
 from __future__ import annotations
@@ -27,17 +26,88 @@ from loguru import logger
 if TYPE_CHECKING:
     from pathlib import Path
 
-# Define provider preference order - this drives everything else
+
+@runtime_checkable
+class ProviderClient(Protocol):
+    """Protocol defining the interface for upload providers."""
+
+    def upload_file(
+        self,
+        local_path: str | Path,
+        remote_path: str | Path | None = None,
+        *,
+        unique: bool = False,
+        force: bool = False,
+        upload_path: str | None = None,
+    ) -> str:
+        """Upload a file and return its public URL."""
+        ...
+
+
+class UploadResult:
+    """Result of an upload operation."""
+
+    def __init__(self, url: str, metadata: dict[str, Any] | None = None) -> None:
+        """Initialize upload result."""
+        self.url = url
+        self.metadata = metadata or {}
+
+
+# Order of preference for providers when none specified
 PROVIDERS_PREFERENCE = [
-    "dropbox",
-    "fal",
-    "s3",
-    # Simple providers
-    "termbin",  # Text-only uploads
-    "www0x0",  # General file uploads
-    "uguu",  # General file uploads
-    "bashupload",  # General file uploads
-]  # Put Dropbox first since it's more reliable
+    "catbox",  # Anonymous uploads, permanent
+    "litterbox",  # Anonymous uploads, temporary
+    "dropbox",  # Authenticated, permanent
+    "s3",  # Authenticated, permanent
+    "fal",  # Authenticated, permanent
+    "www0x0",  # Anonymous uploads, permanent
+    "uguu",  # Anonymous uploads, temporary
+    "bashupload",  # Anonymous uploads, permanent
+    "termbin",  # Anonymous uploads, text-only
+]
+
+# Map of provider module names to their import paths
+PROVIDER_MODULES = {
+    "catbox": "twat_fs.upload_providers.catbox",
+    "litterbox": "twat_fs.upload_providers.litterbox",
+    "dropbox": "twat_fs.upload_providers.dropbox",
+    "s3": "twat_fs.upload_providers.s3",
+    "fal": "twat_fs.upload_providers.fal",
+    "www0x0": "twat_fs.upload_providers.www0x0",
+    "uguu": "twat_fs.upload_providers.uguu",
+    "bashupload": "twat_fs.upload_providers.bashupload",
+    "termbin": "twat_fs.upload_providers.termbin",
+}
+
+# Provider help messages
+PROVIDER_HELP = {
+    "catbox": """
+Catbox.moe File Upload Provider
+
+Configuration:
+- Optional: Set CATBOX_USERHASH for authenticated uploads
+- No configuration needed for anonymous uploads
+
+Features:
+- Anonymous uploads (default)
+- Authenticated uploads with user hash
+- URL-based uploads
+- File deletion (authenticated only)
+""",
+    "litterbox": """
+Litterbox.catbox.moe Temporary File Upload Provider
+
+Configuration:
+- Optional: Set LITTERBOX_DEFAULT_EXPIRATION to '1h', '12h', '24h', or '72h'
+- Defaults to '24h' if not specified
+
+Features:
+- Anonymous uploads only
+- Configurable expiration times
+- Files automatically deleted after expiration
+""",
+    # ... existing help messages ...
+}
 
 # Create ProviderType from PROVIDERS_PREFERENCE to ensure they stay in sync
 ProviderType = Literal[tuple(PROVIDERS_PREFERENCE)]  # type: ignore
@@ -48,33 +118,6 @@ class ProviderHelp(TypedDict):
 
     setup: str
     deps: str
-
-
-@runtime_checkable
-class ProviderClient(Protocol):
-    """Protocol defining what a provider client must implement."""
-
-    def upload_file(
-        self,
-        local_path: str | Path,
-        remote_path: str | Path | None = None,
-        **kwargs: Any,
-    ) -> str:
-        """
-        Upload a file to the provider's storage.
-
-        Args:
-            local_path: Path to the file to upload
-            remote_path: Optional remote path to use
-            **kwargs: Additional provider-specific options
-
-        Returns:
-            str: URL to the uploaded file
-
-        Raises:
-            ValueError: If upload fails
-        """
-        ...
 
 
 @runtime_checkable

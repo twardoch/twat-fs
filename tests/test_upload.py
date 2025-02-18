@@ -7,7 +7,7 @@ Tests for the upload functionality.
 
 import os
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, Mock
 
 import pytest
 from botocore.exceptions import ClientError
@@ -18,7 +18,14 @@ from twat_fs.upload import (
     setup_providers,
     upload_file,
 )
-from twat_fs.upload_providers import dropbox, fal, s3
+from twat_fs.upload_providers import (
+    dropbox,
+    fal,
+    s3,
+    catbox,
+    litterbox,
+    UploadResult,
+)
 
 # Test data
 TEST_FILE = Path(__file__).parent / "data" / "test.txt"
@@ -518,3 +525,146 @@ class TestEdgeCases:
                     mock_provider.return_value = client
                     url = upload_file(test_file, provider="s3")
                     assert url == TEST_URL
+
+
+class TestCatboxProvider:
+    """Test cases for the Catbox provider."""
+
+    def test_catbox_auth_with_userhash(self):
+        """Test Catbox provider with userhash."""
+        with patch.dict(os.environ, {"CATBOX_USERHASH": "test_hash"}):
+            creds = catbox.get_credentials()
+            assert creds == {"userhash": "test_hash"}
+
+            provider = catbox.get_provider()
+            assert provider is not None
+            assert isinstance(provider, catbox.CatboxProvider)
+            assert provider.userhash == "test_hash"
+
+    def test_catbox_auth_without_userhash(self):
+        """Test Catbox provider without userhash (anonymous mode)."""
+        with patch.dict(os.environ, clear=True):
+            creds = catbox.get_credentials()
+            assert creds is None
+
+            provider = catbox.get_provider()
+            assert provider is not None
+            assert isinstance(provider, catbox.CatboxProvider)
+            assert provider.userhash is None
+
+    @pytest.mark.asyncio
+    async def test_catbox_upload_file(self, tmp_path):
+        """Test file upload to Catbox."""
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("test content")
+
+        mock_response = Mock()
+        mock_response.status = 200
+        mock_response.text = Mock(return_value="https://files.catbox.moe/abc123.txt")
+
+        mock_session = Mock()
+        mock_session.post = Mock(return_value=mock_response)
+        mock_session.__aenter__ = Mock(return_value=mock_session)
+        mock_session.__aexit__ = Mock(return_value=None)
+
+        with patch("aiohttp.ClientSession", return_value=mock_session):
+            provider = catbox.CatboxProvider()
+            result = await provider.async_upload_file(test_file)
+
+            assert isinstance(result, UploadResult)
+            assert result.url == "https://files.catbox.moe/abc123.txt"
+
+            # Verify correct form data was sent
+            _, kwargs = mock_session.post.call_args
+            assert kwargs["data"]._fields[0][0] == "reqtype"
+            assert kwargs["data"]._fields[0][1] == "fileupload"
+
+    @pytest.mark.asyncio
+    async def test_catbox_upload_url(self):
+        """Test URL upload to Catbox."""
+        test_url = "https://example.com/image.jpg"
+
+        mock_response = Mock()
+        mock_response.status = 200
+        mock_response.text = Mock(return_value="https://files.catbox.moe/xyz789.jpg")
+
+        mock_session = Mock()
+        mock_session.post = Mock(return_value=mock_response)
+        mock_session.__aenter__ = Mock(return_value=mock_session)
+        mock_session.__aexit__ = Mock(return_value=None)
+
+        with patch("aiohttp.ClientSession", return_value=mock_session):
+            provider = catbox.CatboxProvider({"userhash": "test_hash"})
+            result = await provider.async_upload_url(test_url)
+
+            assert isinstance(result, UploadResult)
+            assert result.url == "https://files.catbox.moe/xyz789.jpg"
+
+            # Verify correct form data was sent
+            _, kwargs = mock_session.post.call_args
+            assert kwargs["data"]._fields[0][0] == "reqtype"
+            assert kwargs["data"]._fields[0][1] == "urlupload"
+            assert kwargs["data"]._fields[1][0] == "url"
+            assert kwargs["data"]._fields[1][1] == test_url
+
+
+class TestLitterboxProvider:
+    """Test cases for the Litterbox provider."""
+
+    def test_litterbox_default_expiration(self):
+        """Test Litterbox provider with default expiration."""
+        provider = litterbox.get_provider()
+        assert provider is not None
+        assert isinstance(provider, litterbox.LitterboxProvider)
+        assert provider.default_expiration == litterbox.ExpirationTime.HOURS_24
+
+    def test_litterbox_custom_expiration(self):
+        """Test Litterbox provider with custom expiration."""
+        with patch.dict(os.environ, {"LITTERBOX_DEFAULT_EXPIRATION": "1h"}):
+            provider = litterbox.get_provider()
+            assert provider is not None
+            assert isinstance(provider, litterbox.LitterboxProvider)
+            assert provider.default_expiration == litterbox.ExpirationTime.HOUR_1
+
+    def test_litterbox_invalid_expiration(self):
+        """Test Litterbox provider with invalid expiration time."""
+        with patch.dict(os.environ, {"LITTERBOX_DEFAULT_EXPIRATION": "invalid"}):
+            provider = litterbox.get_provider()
+            assert provider is not None
+            assert isinstance(provider, litterbox.LitterboxProvider)
+            # Should fall back to 24h
+            assert provider.default_expiration == litterbox.ExpirationTime.HOURS_24
+
+    @pytest.mark.asyncio
+    async def test_litterbox_upload_file(self, tmp_path):
+        """Test file upload to Litterbox."""
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("test content")
+
+        mock_response = Mock()
+        mock_response.status = 200
+        mock_response.text = Mock(
+            return_value="https://litterbox.catbox.moe/abc123.txt"
+        )
+
+        mock_session = Mock()
+        mock_session.post = Mock(return_value=mock_response)
+        mock_session.__aenter__ = Mock(return_value=mock_session)
+        mock_session.__aexit__ = Mock(return_value=None)
+
+        with patch("aiohttp.ClientSession", return_value=mock_session):
+            provider = litterbox.LitterboxProvider()
+            result = await provider.async_upload_file(
+                test_file, expiration=litterbox.ExpirationTime.HOURS_12
+            )
+
+            assert isinstance(result, UploadResult)
+            assert result.url == "https://litterbox.catbox.moe/abc123.txt"
+            assert result.metadata["expiration"] == "12h"
+
+            # Verify correct form data was sent
+            _, kwargs = mock_session.post.call_args
+            assert kwargs["data"]._fields[0][0] == "reqtype"
+            assert kwargs["data"]._fields[0][1] == "fileupload"
+            assert kwargs["data"]._fields[1][0] == "time"
+            assert kwargs["data"]._fields[1][1] == "12h"

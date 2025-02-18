@@ -7,7 +7,11 @@ File system utilities for twat, focusing on robust and extensible file upload ca
 `twat-fs` provides a unified interface for uploading files to various storage providers while addressing common challenges:
 
 * **Provider Flexibility**: Seamlessly switch between storage providers without code changes
-* **Fault Tolerance**: Graceful fallback between providers if primary provider fails
+* **Smart Fallback**: Intelligent retry and fallback between providers:
+  - One retry with exponential backoff for temporary failures
+  - Automatic fallback to next provider for permanent failures
+  - Clear distinction between retryable and non-retryable errors
+* **URL Validation**: Ensures returned URLs are accessible before returning them
 * **Progressive Enhancement**: Start simple with zero configuration (simple providers), scale up to advanced providers (S3, Dropbox) as needed
 * **Developer Experience**: Clear interfaces, comprehensive type hints, and runtime checks
 * **Extensibility**: Well-defined provider protocol for adding new storage backends
@@ -33,14 +37,21 @@ uv pip install 'twat-fs[all,dev]'
 ```python
 from twat_fs import upload_file
 
-# Simple upload (uses www0x0.st by default)
+# Simple upload (uses catbox.moe by default)
 url = upload_file("path/to/file.txt")
 
-# Specify provider
-url = upload_file("path/to/file.txt", provider="s3")
+# Specify provider with fallback
+url = upload_file("path/to/file.txt", provider=["s3", "dropbox", "catbox"])
 
-# Try specific providers in order
-url = upload_file("path/to/file.txt", provider=["s3", "dropbox", "www0x0"])
+# Handle provider-specific errors
+from twat_fs.upload_providers.core import RetryableError, NonRetryableError
+
+try:
+    url = upload_file("file.txt", provider="s3")
+except RetryableError as e:
+    print(f"Temporary error with {e.provider}: {e}")
+except NonRetryableError as e:
+    print(f"Permanent error with {e.provider}: {e}")
 ```
 
 ### Command Line Interface
@@ -49,8 +60,8 @@ url = upload_file("path/to/file.txt", provider=["s3", "dropbox", "www0x0"])
 # Simple upload
 python -m twat_fs upload_file path/to/file.txt
 
-# Specify provider
-python -m twat_fs upload_file path/to/file.txt --provider s3
+# Specify provider with fallback
+python -m twat_fs upload_file path/to/file.txt --provider s3,dropbox,catbox
 
 # Check provider setup
 python -m twat_fs setup provider s3
@@ -63,7 +74,9 @@ python -m twat_fs setup all
 
 The following providers work out of the box with no configuration:
 
-* **www0x0.st**: General file uploads (default)
+* **catbox.moe**: General file uploads (default)
+* **litterbox.catbox.moe**: Temporary file uploads with expiration
+* **www0x0.st**: General file uploads
 * **uguu.se**: Temporary file uploads
 * **bashupload.com**: General file uploads
 * **termbin.com**: Text-only uploads via netcat
@@ -107,23 +120,32 @@ export FAL_KEY="your_key_here"
 
 ### Provider System
 
-The package uses a provider-based architecture with three key components:
+The package uses a provider-based architecture with these key components:
 
 1. **Provider Registry**: Central registry of available providers
    * Maintains provider preference order
    * Handles lazy loading of provider modules
    * Provides runtime protocol checking
+   * Manages provider fallback chain
 
 2. **Provider Protocol**: Formal interface that all providers must implement
    * Credentials management
    * Client initialization
    * File upload functionality
    * Help and setup information
+   * Error classification (retryable vs. non-retryable)
 
 3. **Provider Client**: The actual implementation that handles uploads
    * Provider-specific upload logic
    * Error handling and retries
+   * URL validation
    * Progress tracking (where supported)
+
+4. **Error Handling**: Structured error hierarchy
+   * RetryableError: Temporary failures (rate limits, timeouts)
+   * NonRetryableError: Permanent failures (auth, invalid files)
+   * Automatic retry with exponential backoff
+   * Provider fallback for permanent failures
 
 ### Type System
 
@@ -132,6 +154,7 @@ Strong typing throughout with runtime checks:
 * Type hints for all public APIs
 * Runtime protocol verification
 * Custom types for provider-specific data
+* Error type hierarchy
 
 ## Implementing a New Provider
 
@@ -266,55 +289,52 @@ When adding a new provider:
 
 ### Error Types
 
-The package uses a structured error hierarchy:
+The package uses a structured error hierarchy for better error handling:
 
 ```python
-from twat_fs.errors import (
+from twat_fs.upload_providers.core import (
     UploadError,              # Base class for all upload errors
-    ProviderError,            # Base class for provider-specific errors
-    ConfigurationError,       # Missing or invalid configuration
-    AuthenticationError,      # Authentication/credential issues
-    UploadFailedError,       # Upload failed after max retries
-    ProviderNotFoundError,   # Provider module not found/importable
+    RetryableError,           # Temporary failures that should be retried
+    NonRetryableError,        # Permanent failures that trigger fallback
 )
 ```
 
 ### Common Issues
 
-1. **Provider Not Available**
+1. **Temporary Failures (RetryableError)**
+   * Rate limiting
+   * Network timeouts
+   * Server errors (503, 504)
+   * Connection resets
+   ```python
+   try:
+       url = upload_file("file.txt")
+   except RetryableError as e:
+       print(f"Temporary error with {e.provider}: {e}")
+       # Will be retried automatically with exponential backoff
+   ```
 
-```python
-try:
-    url = upload_file("file.txt", provider="s3")
-except ProviderNotFoundError as e:
-    # Provider module not found
-    print(f"Provider not available: {e}")
-    print(e.setup_instructions)  # Gets provider-specific setup guide
-```
+2. **Permanent Failures (NonRetryableError)**
+   * Authentication failures
+   * Invalid files
+   * Missing permissions
+   * Provider not available
+   ```python
+   try:
+       url = upload_file("file.txt", provider=["s3", "dropbox"])
+   except NonRetryableError as e:
+       print(f"All providers failed. Last error from {e.provider}: {e}")
+   ```
 
-2. **Authentication Failures**
-
-```python
-try:
-    url = upload_file("file.txt")
-except AuthenticationError as e:
-    # Credentials missing or invalid
-    print(f"Auth failed: {e}")
-    print(e.provider)      # Which provider failed
-    print(e.credentials)   # Which credentials are missing/invalid
-```
-
-3. **Upload Failures**
-
-```python
-try:
-    url = upload_file("file.txt")
-except UploadFailedError as e:
-    print(f"Upload failed: {e}")
-    print(e.provider)      # Which provider failed
-    print(e.attempts)      # Number of attempts made
-    print(e.last_error)    # Underlying error from provider
-```
+3. **URL Validation**
+   * All returned URLs are validated with HEAD request
+   * Follows redirects
+   * Verifies accessibility
+   * Retries on temporary failures
+   ```python
+   # URL is guaranteed to be accessible when returned
+   url = upload_file("file.txt")
+   ```
 
 ### Provider Status Checking
 
@@ -342,7 +362,10 @@ logger.level("DEBUG")
 logger.add("twat_fs.log", rotation="1 day")
 
 # Log format includes provider info
-logger.add(sys.stderr, format="{time} {level} [{extra[provider]}] {message}")
+logger.add(
+    sys.stderr,
+    format="{time} {level} [{extra[provider]}] {message}"
+)
 ```
 
 ### Debugging Provider Issues

@@ -10,7 +10,27 @@ This document outlines the current tasks for the project—with immediate fixes 
 
 ## Immediate Priorities (Critical Fixes)
 
-### A. Test Failures and Provider Core Issues
+### A. Error Handling Improvements
+
+1. **Test Coverage for New Error System**
+   - Add comprehensive tests for RetryableError scenarios
+   - Add comprehensive tests for NonRetryableError scenarios
+   - Add tests for provider fallback chains
+   - Add tests for URL validation
+
+2. **Error Message Improvements**
+   - Add more context to error messages
+   - Include provider-specific troubleshooting info
+   - Add error codes for common failures
+   - Improve logging of error chains
+
+3. **URL Validation Enhancements**
+   - Add support for custom validation strategies
+   - Add content-type validation
+   - Add size validation
+   - Add timeout configuration
+
+### B. Test Failures and Provider Core Issues
 
 1. **FAL Provider Implementation Flaws**
    - **Missing Core Functions:**  
@@ -37,9 +57,7 @@ This document outlines the current tasks for the project—with immediate fixes 
 > **Wait, but**  
 > These changes are critical because they directly influence both provider functionality and test accuracy. The FAL provider errors are causing several tests to error out, which blocks valid test runs. Properly updating mocks will allow integration tests to reflect the true behavior of the system.
 
----
-
-## B. Code Quality and Refactoring
+### C. Code Quality and Refactoring
 
 1. **CLI and Function Arguments**
    - Refactor boolean-typed positional arguments (`unique`, `force`) in `src/twat_fs/cli.py` to keyword-only arguments.  
@@ -68,9 +86,7 @@ This document outlines the current tasks for the project—with immediate fixes 
 > **Wait, but**  
 > Clear structuring of function signatures and reducing complexity not only eases maintenance but also helps the type checker (mypy/ruff) pass with fewer errors. This clarity is critical to support future extension and new provider integrations.
 
----
-
-## C. Type System Overhaul and Documentation
+### D. Type System Overhaul and Documentation
 
 1. **Type Annotation Consistency**
    - Add missing return type annotations in all functions across both source modules and tests.
@@ -84,76 +100,74 @@ This document outlines the current tasks for the project—with immediate fixes 
 > **Wait, but**  
 > Consistent type annotations strengthen the robustness and maintainability of the codebase. Detailed docstrings and in-line comments will further help new contributors understand the provider architecture and the rationale behind key decisions.
 
----
+### E. Test Suite Improvements
 
-## D. Test Suite Improvements
+1. **Error Handling Tests**
+   - Add tests for RetryableError scenarios:
+     - Rate limiting
+     - Network timeouts
+     - Server errors
+   - Add tests for NonRetryableError scenarios:
+     - Authentication failures
+     - Invalid files
+     - Provider not available
+   - Add tests for provider fallback chains
+   - Add tests for URL validation
 
-1. **Mock and Fixture Corrections**
-   - Adjust existing test mocks (especially in `tests/test_upload.py` and `tests/test_integration.py`) to match updated function signatures and ensure proper parameters are passed.
-   - Replace hardcoded test credentials with safer mock values or environment substitutes.
-
-2. **Enhance Test Coverage**
-   - Add tests for edge cases and provider fallback mechanisms.
-   - Use parameterized tests (with `pytest.mark.parametrize`) or property-based testing (e.g., hypothesis) to cover a broad range of inputs.
-   - Create shared test contracts for provider implementations (via a common "provider contract test").
-
-> **Wait, but**  
-> Upgrading the test suite is as crucial as fixing provider code. A more robust testing infrastructure will catch integration issues faster and provide ongoing assurance as refactoring continues.
-
----
-
-## E. Untracked Files and Version Control Cleanup
-
-1. **File Cleanup**
-   - Confirm that `src/twat_fs/upload_providers/www0x0.py` should be retained (as it appears to be a rename from `0x0.py`).
-   - Remove the outdated `src/twat_fs/upload_providers/0x0.py` file and add the new file properly into version control.
-
-> **Wait, but**  
-> Version control hygiene is important to avoid confusion over file naming, especially when similar files exist. Ensuring that only the correct files are tracked prevents stale code from complicating further development.
+2. **Provider-Specific Tests**
+   - Add tests for catbox.moe provider
+   - Add tests for litterbox.catbox.moe provider
+   - Update existing provider tests with new error handling
 
 ---
 
 ## Medium-Term Priorities
 
-1. **Test Coverage Expansion**
-   - Develop unit tests for skipped S3 provider tests.
-   - Create more comprehensive tests covering provider authentication (valid, invalid, missing credentials).
-   - Simulate various error conditions (network failures, API errors) across providers.
-   - Integrate performance benchmarks to evaluate upload speeds and handle bottlenecks.
+1. **Provider Health Monitoring**
+   - Add provider health checks
+   - Add provider statistics collection
+   - Add provider performance metrics
+   - Add provider reliability scoring
 
-2. **Documentation Enhancements**
-   - Produce detailed, provider-specific documentation that describes configuration, setup instructions, and usage examples.
-   - Add a "Choosing a Provider" guide to help users pick the best provider for their use case.
-   - Include a troubleshooting guide covering common errors such as missing credentials and mock mismatches.
+2. **Smart Provider Selection**
+   - Implement provider scoring system
+   - Add automatic provider ranking
+   - Add file-type based provider selection
+   - Add size-based provider selection
 
-> **Wait, but**  
-> Expanding both tests and user documentation are medium-term improvements that reinforce the stability of the package while smoothing the user experience. They also serve as a strong foundation for future feature work.
+3. **Enhanced Error Recovery**
+   - Add more sophisticated retry strategies
+   - Add circuit breaker pattern
+   - Add provider quarantine
+   - Add provider rate limiting
+
+4. **Documentation Enhancements**
+   - Add error handling guide
+   - Add provider selection guide
+   - Add troubleshooting guide
+   - Add performance tuning guide
 
 ---
 
 ## Long-Term Goals / Enhancements
 
 1. **Provider Feature Enhancements**
-   - Implement provider selection logic based on file attributes (size, type).
-   - Add periodic health checks and statistics for each provider.
-   - Incorporate advanced features such as upload cancellation, resume support, and progress callbacks.
-   
+   - Add provider health monitoring
+   - Add provider statistics
+   - Add provider rate limiting
+   - Add provider circuit breakers
+
 2. **CI/CD and Automated Release**
-   - Establish an automated version bump mechanism.
-   - Integrate automated releases and dependency management (e.g., Dependabot).
-   - Generate code coverage reports as part of continuous integration.
+   - Add automated error reporting
+   - Add performance regression testing
+   - Add reliability testing
+   - Add load testing
 
 3. **Security Hardening**
-   - Ensure no hardcoded credentials are present (replace with secure environment variables).
-   - Implement retries with exponential backoff for failed uploads.
-   - Add rate limiting to prevent abuse.
-
-4. **Provider Contract and Abstract Method Enforcement**
-   - Formalize the provider contract and ensure all providers adhere to it.
-   - Document abstract method requirements for new provider implementations in a dedicated "Provider Development Guide."
-
-> **Wait, but**  
-> Long-term enhancements will not only improve feature richness but also operational resilience and security. Keeping these goals in sight, even as immediate issues are resolved, will foster sustainable development practices.
+   - Add URL scanning
+   - Add content validation
+   - Add provider verification
+   - Add upload encryption
 
 ---
 

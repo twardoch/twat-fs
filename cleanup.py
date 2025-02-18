@@ -68,7 +68,7 @@ IGNORE_PATTERNS = [
     "build",
     "*.egg-info",
 ]
-REQUIRED_FILES = ["LOG.md", "README.md", "TODO.md"]
+REQUIRED_FILES = ["LOG.md", ".cursor/rules/0project.mdc", "TODO.md"]
 LOG_FILE = Path("CLEANUP.log")
 
 
@@ -80,9 +80,9 @@ def new() -> None:
 
 def prefix() -> None:
     """Write README.md content to log file."""
-    readme = Path("README.md")
+    readme = Path(".cursor/rules/0project.mdc")
     if readme.exists():
-        log_message("\n=== README.md ===")
+        log_message("\n=== PROJECT STATEMENT ===")
         content = readme.read_text()
         log_message(content)
 
@@ -155,11 +155,10 @@ class Cleanup:
             return None
 
         try:
-            result = run_command(
-                ["tree", "-a", "-I", ".git", "--gitignore", "-n", "-h", "-I", "*_cache"]
-            )
-            log_message("\nProject structure:")
-            log_message(result.stdout)
+            run_command(["sh", "filetree.sh"])
+            with open(".cursor/rules/filetree.mdc") as f:
+                log_message("\nProject structure:")
+                log_message(f.read())
         except Exception as e:
             log_message(f"Failed to generate tree: {e}")
         return None
