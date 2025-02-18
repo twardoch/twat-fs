@@ -12,12 +12,12 @@ import requests
 from pathlib import Path
 from typing import BinaryIO, cast, ClassVar
 import time
-import random
+import secrets
 import string
 
 from loguru import logger
 
-from twat_fs.upload_providers.simple import BaseProvider, UploadResult
+from twat_fs.upload_providers.simple import BaseProvider
 
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
 
@@ -55,7 +55,7 @@ class FilebinProvider(BaseProvider):
             # Create a unique bin name using timestamp and random suffix
             timestamp = int(time.time())
             suffix = "".join(
-                random.choices(string.ascii_lowercase + string.digits, k=6)
+                secrets.choice(string.ascii_lowercase + string.digits) for _ in range(6)
             )
             bin_name = f"twat-fs-{timestamp}-{suffix}"
             bin_url = f"{self.url}/{bin_name}"

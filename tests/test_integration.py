@@ -113,9 +113,7 @@ class TestDropboxIntegration:
         except ValueError as e:
             # Test should pass if error is due to expired credentials or not configured
             assert "Failed to initialize Dropbox client" in str(e)
-            assert (
-                "expired_access_token" in str(e) or "not configured" in str(e)
-            )
+            assert "expired_access_token" in str(e) or "not configured" in str(e)
 
     def test_dropbox_upload_large_file(self, large_test_file: Path) -> None:
         """Test uploading a large file to Dropbox."""
@@ -125,9 +123,7 @@ class TestDropboxIntegration:
         except ValueError as e:
             # Test should pass if error is due to expired credentials or not configured
             assert "Failed to initialize Dropbox client" in str(e)
-            assert (
-                "expired_access_token" in str(e) or "not configured" in str(e)
-            )
+            assert "expired_access_token" in str(e) or "not configured" in str(e)
 
 
 class TestFalIntegration:

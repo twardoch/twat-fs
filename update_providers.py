@@ -2,6 +2,11 @@
 
 import re
 from pathlib import Path
+from typing import BinaryIO, ClassVar
+from loguru import logger
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.simple import BaseProvider
+from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
 
 
 def update_provider_file(file_path: Path) -> None:
@@ -15,7 +20,12 @@ def update_provider_file(file_path: Path) -> None:
     # Update imports
     content = content.replace(
         "from twat_fs.upload_providers.simple import SimpleProviderBase, UploadResult",
+        "from twat_fs.upload_providers.types import UploadResult\nfrom twat_fs.upload_providers.simple import BaseProvider",
+    )
+
+    content = content.replace(
         "from twat_fs.upload_providers.simple import BaseProvider, UploadResult",
+        "from twat_fs.upload_providers.types import UploadResult\nfrom twat_fs.upload_providers.simple import BaseProvider",
     )
 
     # Add convert_to_upload_result import

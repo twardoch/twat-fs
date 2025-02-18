@@ -201,7 +201,7 @@ class Cleanup:
 
         try:
             # Run ruff checks
-            log_message("Running code fixes...")
+            log_message(">>> Running code fixes...")
             run_command(
                 [
                     "python",
@@ -229,11 +229,11 @@ class Cleanup:
             )
 
             # Run type checks
-            log_message("Running type checks...")
+            log_message(">>>Running type checks...")
             run_command(["python", "-m", "mypy", "src", "tests"], check=False)
 
             # Run tests
-            log_message("Running tests...")
+            log_message(">>> Running tests...")
             run_command(["python", "-m", "pytest", "tests"], check=False)
 
             log_message("All checks completed")

@@ -326,7 +326,7 @@ def setup_provider(
             # A provider is ready if it has either:
             # 1. Both async_upload_file and upload_file methods
             # 2. Just the upload_file method
-            if has_async and has_sync or has_sync:
+            if (has_async and has_sync) or has_sync:
                 provider_info = ProviderInfo(
                     True,
                     f"{provider} ({type(client).__name__})"
@@ -348,6 +348,7 @@ def setup_provider(
                         False,
                         message,
                         provider_info.help_info,
+                        timing,  # Store timing even for failed tests
                     )
                 else:
                     provider_info.timing = timing
@@ -391,29 +392,11 @@ def setup_providers(
     Returns:
         dict[str, ProviderInfo]: Dictionary mapping provider names to their setup status
     """
-    console = Console()
-    table = Table(
-        Column("Provider", style="cyan"),
-        Column("Status", style="green"),
-        Column("Details", style="yellow"),
-        title="Provider Setup Status",
-    )
-
     results: dict[str, ProviderInfo] = {}
 
     for provider in PROVIDERS_PREFERENCE:
         result = setup_provider(provider, verbose=verbose, online=online)
         results[provider] = result
-
-        if verbose:
-            table.add_row(
-                provider,
-                "[green]Ready[/green]" if result.success else "[red]Not Ready[/red]",
-                result.explanation,
-            )
-
-    if verbose:
-        console.print(table)
 
     return results
 

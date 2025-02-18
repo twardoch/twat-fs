@@ -14,7 +14,7 @@ from typing import BinaryIO, ClassVar
 
 from loguru import logger
 
-from twat_fs.upload_providers.simple import BaseProvider, UploadResult
+from twat_fs.upload_providers.simple import BaseProvider
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
 from twat_fs.upload_providers.core import (
     RetryableError,

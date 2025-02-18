@@ -2,7 +2,7 @@
 description: File tree of the project
 globs: 
 ---
-[ 928]  .
+[1.0K]  .
 ├── [  64]  .benchmarks
 ├── [  96]  .cursor
 │   └── [ 224]  rules
@@ -25,43 +25,46 @@ globs:
 ├── [ 11K]  cleanup.py
 ├── [  96]  dist
 ├── [  96]  examples
-│   └── [ 930]  upload_example.py
+│   └── [ 948]  upload_example.py
 ├── [ 306]  filetree.sh
+├── [2.8K]  fix_type_errors.py
+├── [ 439]  mypy.ini
 ├── [6.9K]  pyproject.toml
 ├── [ 128]  src
 │   └── [ 384]  twat_fs
-│       ├── [ 472]  __init__.py
+│       ├── [ 447]  __init__.py
 │       ├── [ 733]  __main__.py
-│       ├── [6.1K]  cli.py
+│       ├── [5.7K]  cli.py
 │       ├── [  96]  data
 │       │   └── [1.5K]  test.jpg
 │       ├── [   1]  py.typed
 │       ├── [ 24K]  upload.py
 │       └── [ 608]  upload_providers
-│           ├── [3.6K]  __init__.py
-│           ├── [4.1K]  bashupload.py
-│           ├── [ 13K]  catbox.py
-│           ├── [ 14K]  core.py
+│           ├── [3.5K]  __init__.py
+│           ├── [4.5K]  bashupload.py
+│           ├── [ 14K]  catbox.py
+│           ├── [ 12K]  core.py
 │           ├── [ 20K]  dropbox.py
-│           ├── [7.7K]  fal.py
-│           ├── [4.6K]  filebin.py
-│           ├── [9.6K]  litterbox.py
-│           ├── [5.2K]  pixeldrain.py
+│           ├── [8.5K]  fal.py
+│           ├── [5.0K]  filebin.py
+│           ├── [ 10K]  litterbox.py
+│           ├── [6.1K]  pixeldrain.py
 │           ├── [3.6K]  protocols.py
-│           ├── [5.2K]  s3.py
-│           ├── [4.9K]  simple.py
-│           ├── [ 751]  types.py
-│           ├── [2.8K]  uguu.py
-│           └── [3.8K]  www0x0.py
+│           ├── [5.1K]  s3.py
+│           ├── [6.0K]  simple.py
+│           ├── [ 728]  types.py
+│           ├── [3.6K]  uguu.py
+│           └── [4.0K]  www0x0.py
 ├── [ 352]  tests
 │   ├── [  63]  __init__.py
 │   ├── [  96]  data
 │   │   └── [ 100]  test.txt
 │   ├── [3.1K]  test_filebin_pixeldrain.py
-│   ├── [8.7K]  test_integration.py
+│   ├── [9.1K]  test_integration.py
 │   ├── [8.7K]  test_s3_advanced.py
 │   ├── [ 180]  test_twat_fs.py
-│   └── [ 28K]  test_upload.py
+│   └── [ 29K]  test_upload.py
+├── [2.5K]  update_providers.py
 └── [382K]  uv.lock
 
-14 directories, 47 files
+14 directories, 50 files

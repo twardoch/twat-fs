@@ -289,10 +289,8 @@ class RetryableError(UploadError):
     """Error that can be retried (e.g., network issues)."""
 
 
-
 class NonRetryableError(UploadError):
     """Error that should not be retried (e.g., invalid credentials)."""
-
 
 
 async def validate_url(
@@ -313,14 +311,17 @@ async def validate_url(
         NonRetryableError: If validation fails due to permanent issues
     """
     try:
-        async with aiohttp.ClientSession(
-            timeout=timeout,
-            headers={"User-Agent": USER_AGENT},
-        ) as session, session.head(
-            url,
-            allow_redirects=True,
-            max_redirects=MAX_REDIRECTS,
-        ) as response:
+        async with (
+            aiohttp.ClientSession(
+                timeout=timeout,
+                headers={"User-Agent": USER_AGENT},
+            ) as session,
+            session.head(
+                url,
+                allow_redirects=True,
+                max_redirects=MAX_REDIRECTS,
+            ) as response,
+        ):
             if response.status in (200, 201, 202, 203, 204):
                 return True
             if response.status in (401, 403, 404):

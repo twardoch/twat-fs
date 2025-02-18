@@ -17,7 +17,7 @@ from typing import (
     BinaryIO,
     ClassVar,
     TypeVar,
-TYPE_CHECKING,
+    TYPE_CHECKING,
 )
 
 from twat_fs.upload_providers.protocols import ProviderHelp, Provider, ProviderClient

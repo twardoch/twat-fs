@@ -69,20 +69,95 @@ class UploadProviderCommands:
         console = Console(stderr=True)  # Use stderr for error messages
 
         if provider_id:
-            result = _setup_provider(provider_id, verbose=True, online=online)
-            if result.success:
-                console.print(
-                    f"\n[green]Provider {provider_id} is ready to use[/green]"
-                )
-            else:
-                console.print(f"\n[red]Provider {provider_id} is not ready[/red]")
-                console.print(f"\n[yellow]Reason:[/yellow] {result.explanation}")
-                console.print("\n[yellow]Setup Instructions:[/yellow]")
-                console.print(
-                    result.help_info.get("setup", "No setup instructions available")
-                )
+            with console.status("[cyan]Testing provider...[/cyan]"):
+                result = _setup_provider(provider_id, verbose=True, online=online)
+                if result.success:
+                    console.print(
+                        f"\n[green]Provider {provider_id} is ready to use[/green]"
+                    )
+                    if online and result.timing:
+                        console.print(
+                            f"\n[cyan]Online test time: {result.timing.get('total_duration', 0.0):.2f}s[/cyan]"
+                        )
+                else:
+                    console.print(f"\n[red]Provider {provider_id} is not ready[/red]")
+                    console.print(f"\n[yellow]Reason:[/yellow] {result.explanation}")
+                    console.print("\n[yellow]Setup Instructions:[/yellow]")
+                    console.print(
+                        result.help_info.get("setup", "No setup instructions available")
+                    )
         else:
-            _setup_providers(verbose=True, online=online)
+            from rich.table import Table
+
+            table = Table(title="Provider Setup Status", show_lines=True)
+            table.add_column("Provider", no_wrap=True)
+            table.add_column("Status", no_wrap=True)
+            if online:
+                table.add_column("Time (s)", justify="right", no_wrap=True)
+            table.add_column("Details", width=50)
+
+            with console.status("[cyan]Testing providers...[/cyan]") as status:
+                results = _setup_providers(verbose=True, online=online)
+
+                # Sort providers: Ready first (by time), then Not Ready (alphabetically)
+                sorted_providers = []
+                ready_providers = []
+                not_ready_providers = []
+
+                for provider, info in results.items():
+                    if provider.lower() == "simple":
+                        continue  # Skip the base provider
+
+                    if info.success:
+                        time = (
+                            info.timing.get("total_duration", float("inf"))
+                            if info.timing
+                            else float("inf")
+                        )
+                        ready_providers.append((provider, info, time))
+                    else:
+                        time = (
+                            info.timing.get("total_duration", float("inf"))
+                            if info.timing
+                            else float("inf")
+                        )
+                        not_ready_providers.append((provider, info, time))
+
+                # Sort ready providers by time
+                ready_providers.sort(key=lambda x: x[2])
+                # Sort not ready providers alphabetically
+                not_ready_providers.sort(key=lambda x: x[0])
+
+                # Combine sorted lists
+                sorted_providers = [(p, i) for p, i, _ in ready_providers] + [
+                    (p, i) for p, i, _ in not_ready_providers
+                ]
+
+                for provider, info in sorted_providers:
+                    status = (
+                        "[green]Ready[/green]"
+                        if info.success
+                        else "[red]Not Ready[/red]"
+                    )
+                    details = info.explanation
+                    if info.help_info.get("setup"):
+                        details = f"{details}\n{info.help_info['setup']}"
+
+                    if online:
+                        time = ""
+                        if (
+                            info.timing
+                            and info.timing.get("total_duration") is not None
+                        ):
+                            time = f"{info.timing.get('total_duration', 0.0):.2f}"
+                        row = [provider, status, time, details]
+                    else:
+                        row = [provider, status, details]
+
+                    table.add_row(*row)
+
+            console.print("\n")  # Add some spacing
+            console.print(table)
 
     def list(self, online: bool = False) -> None:
         """List all available (ready) provider IDs, one per line. If --online is provided, run online tests.
@@ -103,7 +178,7 @@ class UploadProviderCommands:
 
         # Print each active provider ID, one per line, to stdout
         for provider in active_providers:
-            pass
+            print(provider)
 
         sys.exit(0)
 

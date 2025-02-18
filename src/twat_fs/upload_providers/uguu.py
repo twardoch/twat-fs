@@ -14,7 +14,7 @@ from typing import BinaryIO, ClassVar
 
 from loguru import logger
 
-from twat_fs.upload_providers.simple import BaseProvider, UploadResult
+from twat_fs.upload_providers.simple import BaseProvider
 
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
 
@@ -44,21 +44,28 @@ class UguuProvider(BaseProvider):
 
         Returns:
             UploadResult containing the URL and status
+
+        Raises:
+            RetryableError: For temporary failures that can be retried
+            NonRetryableError: For permanent failures
         """
         try:
             files = {"files[]": file}
-            response = requests.post(self.url, files=files)
+            response = requests.post(self.url, files=files, timeout=30)
 
-            if response.status_code != 200:
+            if response.status_code == 429:  # Rate limit
+                msg = f"Rate limited: {response.text}"
+                raise RetryableError(msg, "uguu")
+            elif response.status_code != 200:
                 msg = (
                     f"Upload failed with status {response.status_code}: {response.text}"
                 )
-                raise ValueError(msg)
+                raise NonRetryableError(msg, "uguu")
 
             result = response.json()
             if not result or "files" not in result:
                 msg = f"Invalid response from uguu.se: {result}"
-                raise ValueError(msg)
+                raise NonRetryableError(msg, "uguu")
 
             url = result["files"][0]["url"]
             logger.debug(f"Successfully uploaded to uguu.se: {url}")
@@ -72,8 +79,16 @@ class UguuProvider(BaseProvider):
                 },
             )
 
+        except requests.Timeout as e:
+            msg = f"Upload timed out: {e}"
+            raise RetryableError(msg, "uguu") from e
+        except requests.ConnectionError as e:
+            msg = f"Connection error: {e}"
+            raise RetryableError(msg, "uguu") from e
+        except (ValueError, NonRetryableError, RetryableError) as e:
+            raise e
         except Exception as e:
-            logger.error(f"Failed to upload to uguu.se: {e}")
+            msg = f"Upload failed: {e}"
             return UploadResult(
                 url="",
                 metadata={
