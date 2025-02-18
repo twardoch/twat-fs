@@ -63,12 +63,44 @@ python -m twat_fs upload_file path/to/file.txt
 # Specify provider with fallback
 python -m twat_fs upload_file path/to/file.txt --provider s3,dropbox,catbox
 
+# Disable fallback (fail immediately if provider fails)
+python -m twat_fs upload_file path/to/file.txt --provider s3 --fragile
+
 # Check provider setup
 python -m twat_fs setup provider s3
 python -m twat_fs setup all
 ```
 
 ## Provider Configuration
+
+### Provider Fallback System
+
+The package implements a robust provider fallback system:
+
+1. **Circular Fallback**: When using multiple providers, if a provider fails, the system will:
+   - Try the next provider in the list
+   - If all remaining providers fail, start over from the beginning of the full provider list
+   - Continue until all providers have been tried once
+   - Each provider is only tried once to avoid infinite loops
+
+2. **Fragile Mode**: For cases where fallback is not desired:
+   - Use the `--fragile` flag in CLI: `--fragile`
+   - In code: `upload_file(..., fragile=True)`
+   - System will fail immediately if the requested provider fails
+   - No fallback attempts will be made
+
+Example fallback scenarios:
+```python
+# Full circular fallback (if E fails, tries F, G, A, B, C, D)
+url = upload_file("file.txt", provider="E")
+
+# Fragile mode (fails immediately if E fails)
+url = upload_file("file.txt", provider="E", fragile=True)
+
+# Custom provider list with circular fallback
+# If C fails, tries A, then B
+url = upload_file("file.txt", provider=["C", "A", "B"])
+```
 
 ### Simple Providers (No Configuration Required)
 
@@ -406,3 +438,22 @@ print(provider.get_provider())     # Check client initialization
 MIT License
  
 .
+
+
+
+## extra
+
+```bash
+for PROVIDER in $(twat fs upload_provider list 2>/dev/null); do URL="$(twat fs upload "./src/twat_fs/data/test.jpg" --provider "$PROVIDER")"; echo "[$PROVIDER]($URL)"; done
+```
+
+```
+Error: Upload failed: Failed to upload with catbox: Unexpected error: URL validation failed (status 503)
+[catbox]()
+[litterbox](https://litter.catbox.moe/8a6jf0.jpg)
+[fal](https://v3.fal.media/files/monkey/Kd6SwMGEIbxMIFPihlFQL_test.jpg)
+[bashupload](https://bashupload.com/TTHlX/test.jpg?download=1)
+[uguu](https://d.uguu.se/RrhFSqLP.jpg)
+[www0x0](https://0x0.st/8qUT.jpg)
+[filebin](https://filebin.net/twat-fs-1739859030-enq2xe/test.jpg)
+```

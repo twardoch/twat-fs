@@ -15,7 +15,6 @@ This module provides functionality to upload files to FAL's storage service.
 from __future__ import annotations
 
 import os
-import time
 from pathlib import Path
 from typing import ClassVar
 

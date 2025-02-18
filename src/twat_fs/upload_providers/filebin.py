@@ -79,7 +79,9 @@ class FilebinProvider(SimpleProviderBase):
                         timeout=30,
                     )
                     if response.status_code in (200, 201, 204):
-                        logger.info(f"Successfully uploaded to filebin.net: {file_url}")
+                        logger.debug(
+                            f"Successfully uploaded to filebin.net: {file_url}"
+                        )
                         return UploadResult(
                             url=str(file_url),
                             success=True,

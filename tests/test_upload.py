@@ -25,6 +25,7 @@ from twat_fs.upload_providers import (
     litterbox,
     UploadResult,
 )
+from twat_fs.upload_providers.core import RetryableError, NonRetryableError
 
 # Test data
 TEST_FILE = Path(__file__).parent / "data" / "test.txt"
@@ -697,3 +698,73 @@ class TestLitterboxProvider:
             )
             assert isinstance(result, UploadResult)
             assert result.url == "https://litterbox.catbox.moe/abc123.txt"
+
+
+def test_circular_fallback(
+    test_file: Path,
+    mock_s3_provider: MagicMock,
+    mock_dropbox_provider: MagicMock,
+    mock_catbox_provider: MagicMock,
+) -> None:
+    """Test circular fallback when providers fail."""
+    # Make all providers fail once
+    mock_s3_provider.upload_file.side_effect = RetryableError("S3 failed", "s3")
+    mock_dropbox_provider.upload_file.side_effect = RetryableError(
+        "Dropbox failed", "dropbox"
+    )
+    mock_catbox_provider.upload_file.side_effect = [
+        RetryableError("Catbox failed first", "catbox"),  # First try fails
+        "https://catbox.moe/success.txt",  # Second try succeeds
+    ]
+
+    # Try upload starting with S3
+    url = upload_file(test_file, provider="s3")
+    assert url == "https://catbox.moe/success.txt"
+
+    # Verify the circular fallback order
+    assert mock_s3_provider.upload_file.call_count == 1
+    assert mock_dropbox_provider.upload_file.call_count == 1
+    assert mock_catbox_provider.upload_file.call_count == 2
+
+
+def test_fragile_mode(
+    test_file: Path,
+    mock_s3_provider: MagicMock,
+) -> None:
+    """Test that fragile mode fails immediately without fallback."""
+    # Make S3 provider fail
+    mock_s3_provider.upload_file.side_effect = RetryableError("S3 failed", "s3")
+
+    # Should raise immediately in fragile mode
+    with pytest.raises(NonRetryableError) as exc_info:
+        upload_file(test_file, provider="s3", fragile=True)
+
+    assert "S3 failed" in str(exc_info.value)
+    assert mock_s3_provider.upload_file.call_count == 1
+
+
+def test_custom_provider_list_circular_fallback(
+    test_file: Path,
+    mock_s3_provider: MagicMock,
+    mock_dropbox_provider: MagicMock,
+    mock_catbox_provider: MagicMock,
+) -> None:
+    """Test circular fallback with custom provider list."""
+    # Make providers fail in sequence
+    mock_catbox_provider.upload_file.side_effect = RetryableError(
+        "Catbox failed", "catbox"
+    )
+    mock_s3_provider.upload_file.side_effect = RetryableError("S3 failed", "s3")
+    mock_dropbox_provider.upload_file.side_effect = [
+        RetryableError("Dropbox failed first", "dropbox"),  # First try fails
+        "https://dropbox.com/success.txt",  # Second try succeeds
+    ]
+
+    # Try upload with custom provider list: ["catbox", "s3", "dropbox"]
+    url = upload_file(test_file, provider=["catbox", "s3", "dropbox"])
+    assert url == "https://dropbox.com/success.txt"
+
+    # Verify the circular fallback order
+    assert mock_catbox_provider.upload_file.call_count == 1
+    assert mock_s3_provider.upload_file.call_count == 1
+    assert mock_dropbox_provider.upload_file.call_count == 2

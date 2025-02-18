@@ -172,7 +172,7 @@ class DropboxClient:
                 msg = "Failed to get share URL"
                 raise DropboxUploadError(msg)
 
-            logger.info(f"Successfully uploaded to Dropbox: {url}")
+            logger.debug(f"Successfully uploaded to Dropbox: {url}")
             return url
 
         except DropboxFileExistsError:

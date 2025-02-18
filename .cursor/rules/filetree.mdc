@@ -41,17 +41,17 @@ globs:
 │       ├── [ 640]  upload_providers
 │       │   ├── [3.6K]  __init__.py
 │       │   ├── [4.1K]  bashupload.py
-│       │   ├── [ 11K]  catbox.py
-│       │   ├── [ 10K]  core.py
+│       │   ├── [ 12K]  catbox.py
+│       │   ├── [ 11K]  core.py
 │       │   ├── [ 20K]  dropbox.py
-│       │   ├── [7.1K]  fal.py
+│       │   ├── [7.7K]  fal.py
 │       │   ├── [4.5K]  filebin.py
-│       │   ├── [7.9K]  litterbox.py
+│       │   ├── [8.8K]  litterbox.py
 │       │   ├── [5.2K]  pixeldrain.py
 │       │   ├── [3.2K]  protocols.py
 │       │   ├── [5.2K]  s3.py
 │       │   ├── [4.9K]  simple.py
-│       │   ├── [3.0K]  termbin.py
+│       │   ├── [4.2K]  termbin.py
 │       │   ├── [ 751]  types.py
 │       │   ├── [2.8K]  uguu.py
 │       │   └── [3.8K]  www0x0.py

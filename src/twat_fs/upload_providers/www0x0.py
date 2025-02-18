@@ -67,7 +67,7 @@ class Www0x0Provider(SimpleProviderBase):
                 msg = f"Invalid response from server: {url}"
                 raise NonRetryableError(msg, "www0x0")
 
-            logger.info(f"Successfully uploaded to 0x0.st: {url}")
+            logger.debug(f"Successfully uploaded to 0x0.st: {url}")
             return UploadResult(
                 url=url,
                 success=True,

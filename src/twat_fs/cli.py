@@ -88,7 +88,6 @@ class UploadProviderCommands:
         else:
             # For all providers, show detailed status info
             _setup_providers(verbose=True, online=online)
-            sys.exit(0)
 
     def list(self, online: bool = False) -> None:
         """List all available (ready) provider IDs, one per line. If --online is provided, run online tests.
@@ -133,6 +132,7 @@ class TwatFS:
         unique: bool = False,
         force: bool = False,
         remote_path: str | None = None,
+        fragile: bool = False,
     ) -> str:
         """
         Upload a file using the specified provider(s) with automatic fallback.
@@ -143,6 +143,7 @@ class TwatFS:
             unique: Add timestamp to filename to ensure uniqueness
             force: Overwrite existing files if they exist
             remote_path: Custom remote path/prefix (provider-specific)
+            fragile: If True, fail immediately without trying fallback providers
 
         Returns:
             URL of the uploaded file
@@ -165,6 +166,7 @@ class TwatFS:
                 unique=unique,
                 force=force,
                 upload_path=remote_path,
+                fragile=fragile,
             )
             return url
         except Exception as e:

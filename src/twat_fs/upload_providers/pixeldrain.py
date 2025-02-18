@@ -100,7 +100,7 @@ class PixeldrainProvider(SimpleProviderBase):
 
                     # Construct public URL
                     url = f"https://pixeldrain.com/u/{data['id']}"
-                    logger.info(f"Successfully uploaded to pixeldrain.com: {url}")
+                    logger.debug(f"Successfully uploaded to pixeldrain.com: {url}")
                     return UploadResult(
                         url=url,
                         success=True,

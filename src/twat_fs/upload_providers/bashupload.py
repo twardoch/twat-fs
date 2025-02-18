@@ -67,7 +67,7 @@ class BashUploadProvider(SimpleProviderBase):
             for line in response.text.splitlines():
                 if line.startswith("wget "):
                     url = line.split(" ")[1].strip()
-                    logger.info(f"Successfully uploaded to bashupload: {url}")
+                    logger.debug(f"Successfully uploaded to bashupload: {url}")
                     return UploadResult(
                         url=f"{url}?download=1",
                         success=True,

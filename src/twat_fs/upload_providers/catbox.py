@@ -11,6 +11,8 @@ import os
 from pathlib import Path
 from typing import TypedDict, ClassVar
 import aiohttp
+import requests
+import time
 
 from twat_fs.upload_providers.protocols import ProviderClient, Provider, ProviderHelp
 from twat_fs.upload_providers.types import UploadResult
@@ -19,6 +21,7 @@ from twat_fs.upload_providers.core import (
     validate_file,
     async_to_sync,
     with_url_validation,
+    with_timing,
     RetryableError,
     NonRetryableError,
 )
@@ -43,6 +46,7 @@ class CatboxProvider(ProviderClient, Provider):
     """Provider for catbox.moe file uploads."""
 
     PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
+    provider_name = "catbox"
 
     def __init__(self, credentials: CatboxCredentials | None = None) -> None:
         """Initialize the Catbox provider with optional credentials."""
@@ -67,6 +71,7 @@ class CatboxProvider(ProviderClient, Provider):
         max_attempts=3,
         exceptions=(aiohttp.ClientError, RetryableError),
     )
+    @with_timing
     async def async_upload_file(
         self,
         file_path: Path,
@@ -160,6 +165,7 @@ class CatboxProvider(ProviderClient, Provider):
         max_attempts=3,
         exceptions=(aiohttp.ClientError, RetryableError),
     )
+    @with_timing
     async def async_upload_url(
         self,
         url: str,
@@ -341,3 +347,39 @@ def upload_file(
         force=force,
         upload_path=upload_path,
     )
+
+
+def upload_catbox(file_path: Path, max_retries: int = 3, backoff: int = 2) -> str:
+    """
+    Upload a file to Catbox. It retries on certain HTTP errors (e.g., 503).
+
+    :param file_path: Path object representing the file to upload
+    :param max_retries: Maximum number of retry attempts
+    :param backoff: Seconds to wait between retries
+    :return: The direct download URL from Catbox
+    :raises RuntimeError: If the upload fails after the allowed retries
+    """
+    url = "https://catbox.moe/user/api.php"
+    files = {"fileToUpload": open(file_path, "rb")}
+    data = {"reqtype": "fileupload"}
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = requests.post(url, files=files, data=data, timeout=30)
+            if response.status_code == 200 and response.text.startswith("http"):
+                return response.text.strip()
+            else:
+                # This covers unexpected status codes or a non-url response
+                raise RuntimeError(
+                    f"Unexpected response (status {response.status_code}): {response.text}"
+                )
+        except (requests.exceptions.RequestException, RuntimeError) as exc:
+            # We log or print the error for debug/troubleshooting
+            if attempt < max_retries:
+                time.sleep(backoff)
+            else:
+                raise RuntimeError(
+                    f"Failed to upload file to Catbox after {max_retries} attempts: {exc}"
+                ) from exc
+    # This return won't be reached, but keeps linters happy
+    return ""

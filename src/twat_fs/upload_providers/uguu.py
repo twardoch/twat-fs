@@ -59,7 +59,7 @@ class UguuProvider(SimpleProviderBase):
                 raise ValueError(msg)
 
             url = result["files"][0]["url"]
-            logger.info(f"Successfully uploaded to uguu.se: {url}")
+            logger.debug(f"Successfully uploaded to uguu.se: {url}")
 
             return UploadResult(url=url, success=True, raw_response=result)
 

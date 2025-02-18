@@ -9,7 +9,9 @@ API documentation: https://litterbox.catbox.moe/tools.php
 
 import os
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast, Callable
+from collections.abc import Coroutine, Awaitable
+from functools import wraps
 import aiohttp
 from loguru import logger
 
@@ -19,6 +21,7 @@ from twat_fs.upload_providers.core import (
     validate_file,
     async_to_sync,
     with_url_validation,
+    with_timing,
     RetryableError,
     NonRetryableError,
 )
@@ -33,10 +36,27 @@ Optional: Set LITTERBOX_DEFAULT_EXPIRATION environment variable to change expira
 }
 
 
+def _ensure_coroutine(
+    func: Callable[..., Awaitable[UploadResult]],
+) -> Callable[..., Coroutine[Any, Any, UploadResult]]:
+    """Ensure the function returns a Coroutine type."""
+
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> UploadResult:
+        result = await func(*args, **kwargs)
+        if not isinstance(result, UploadResult):
+            msg = f"Expected UploadResult, got {type(result)}"
+            raise RuntimeError(msg)
+        return result
+
+    return cast(Callable[..., Coroutine[Any, Any, UploadResult]], wrapper)
+
+
 class LitterboxProvider(ProviderClient, Provider):
     """Provider for litterbox.catbox.moe temporary file uploads."""
 
     PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
+    provider_name = "litterbox"
 
     def __init__(
         self, default_expiration: ExpirationTime | str = ExpirationTime.HOURS_12
@@ -90,7 +110,9 @@ class LitterboxProvider(ProviderClient, Provider):
             expiration = ExpirationTime.HOURS_24
         return cls(default_expiration=expiration)
 
+    @_ensure_coroutine
     @with_url_validation
+    @with_timing
     async def async_upload_file(
         self,
         file_path: Path,
@@ -99,7 +121,7 @@ class LitterboxProvider(ProviderClient, Provider):
         unique: bool = False,
         force: bool = False,
         upload_path: str | None = None,
-        expiration: ExpirationTime | None = None,
+        **kwargs: Any,
     ) -> UploadResult:
         """
         Upload a file to litterbox.catbox.moe.
@@ -110,7 +132,7 @@ class LitterboxProvider(ProviderClient, Provider):
             unique: Ignored for this provider
             force: Ignored for this provider
             upload_path: Ignored for this provider
-            expiration: Optional expiration time, defaults to provider default
+            **kwargs: Additional provider-specific arguments
 
         Returns:
             UploadResult: Upload result with URL and metadata
@@ -120,12 +142,12 @@ class LitterboxProvider(ProviderClient, Provider):
             RetryableError: For temporary failures that can be retried
             NonRetryableError: For permanent failures
         """
-        file_path = Path(file_path) if isinstance(file_path, str) else file_path
+        file_path = Path(str(file_path))
         if not file_path.exists():
             msg = f"File not found: {file_path}"
             raise FileNotFoundError(msg)
 
-        expiration = expiration or self.default_expiration
+        expiration = kwargs.get("expiration") or self.default_expiration
         data = aiohttp.FormData()
         data.add_field("reqtype", "fileupload")
         data.add_field(
@@ -175,7 +197,7 @@ class LitterboxProvider(ProviderClient, Provider):
                             url=url,
                             metadata={
                                 "expiration": expiration.value,
-                                "provider": "litterbox",
+                                "provider": self.provider_name,
                             },
                         )
 
@@ -187,9 +209,7 @@ class LitterboxProvider(ProviderClient, Provider):
             msg = f"Upload failed: {e}"
             raise RetryableError(msg, "litterbox") from e
 
-    @validate_file
-    @async_to_sync
-    async def upload_file(
+    def upload_file(
         self,
         local_path: str | Path,
         remote_path: str | Path | None = None,
@@ -197,7 +217,7 @@ class LitterboxProvider(ProviderClient, Provider):
         unique: bool = False,
         force: bool = False,
         upload_path: str | None = None,
-        expiration: ExpirationTime | None = None,
+        **kwargs: Any,
     ) -> str:
         """
         Synchronously upload a file to litterbox.catbox.moe.
@@ -208,7 +228,7 @@ class LitterboxProvider(ProviderClient, Provider):
             unique: Ignored for this provider
             force: Ignored for this provider
             upload_path: Ignored for this provider
-            expiration: Optional expiration time, defaults to provider default
+            **kwargs: Additional provider-specific arguments
 
         Returns:
             str: URL to the uploaded file
@@ -216,15 +236,23 @@ class LitterboxProvider(ProviderClient, Provider):
         Raises:
             RuntimeError: If the upload fails
         """
-        file_path = Path(local_path) if isinstance(local_path, str) else local_path
+        file_path = Path(str(local_path))
 
-        result = await self.async_upload_file(
-            file_path,
-            remote_path,
-            unique=unique,
-            force=force,
-            upload_path=upload_path,
-            expiration=expiration,
+        # Use asyncio.run to run the async upload
+        import asyncio
+
+        result: UploadResult = asyncio.run(
+            cast(
+                Coroutine[Any, Any, UploadResult],
+                self.async_upload_file(
+                    file_path,
+                    remote_path,
+                    unique=unique,
+                    force=force,
+                    upload_path=upload_path,
+                    **kwargs,
+                ),
+            )
         )
         return result.url
 

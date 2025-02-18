@@ -8,6 +8,8 @@ Protocol definitions for upload providers.
 from typing import Any, ClassVar, Protocol, TypedDict, runtime_checkable
 from pathlib import Path
 
+from twat_fs.upload_providers.types import UploadResult
+
 
 class ProviderHelp(TypedDict):
     """Type for provider help messages."""
@@ -20,6 +22,8 @@ class ProviderHelp(TypedDict):
 class ProviderClient(Protocol):
     """Protocol defining the interface for upload providers."""
 
+    provider_name: str
+
     def upload_file(
         self,
         local_path: str | Path,
@@ -28,6 +32,7 @@ class ProviderClient(Protocol):
         unique: bool = False,
         force: bool = False,
         upload_path: str | None = None,
+        **kwargs: Any,
     ) -> str:
         """Upload a file and return its public URL."""
         ...
@@ -40,8 +45,9 @@ class ProviderClient(Protocol):
         unique: bool = False,
         force: bool = False,
         upload_path: str | None = None,
-    ) -> Any:
-        """Asynchronously upload a file and return its result."""
+        **kwargs: Any,
+    ) -> UploadResult:
+        """Asynchronously upload a file and return its result with timing metrics."""
         ...
 
 
@@ -50,6 +56,7 @@ class Provider(Protocol):
     """Protocol defining what a provider module must implement."""
 
     PROVIDER_HELP: ClassVar[ProviderHelp]
+    provider_name: str
 
     @classmethod
     def get_credentials(cls) -> Any | None:
@@ -79,6 +86,7 @@ class Provider(Protocol):
         unique: bool = False,
         force: bool = False,
         upload_path: str | None = None,
+        **kwargs: Any,
     ) -> str:
         """
         Upload a file using this provider.
@@ -89,6 +97,7 @@ class Provider(Protocol):
             unique: If True, ensures unique filename
             force: If True, overwrites existing file
             upload_path: Custom upload path
+            **kwargs: Additional provider-specific arguments
 
         Returns:
             str: URL to the uploaded file
@@ -106,7 +115,8 @@ class Provider(Protocol):
         unique: bool = False,
         force: bool = False,
         upload_path: str | None = None,
-    ) -> Any:
+        **kwargs: Any,
+    ) -> UploadResult:
         """
         Asynchronously upload a file using this provider.
 
@@ -116,9 +126,10 @@ class Provider(Protocol):
             unique: If True, ensures unique filename
             force: If True, overwrites existing file
             upload_path: Custom upload path
+            **kwargs: Additional provider-specific arguments
 
         Returns:
-            Any: Provider-specific upload result
+            UploadResult: Upload result with URL and timing metrics
 
         Raises:
             FileNotFoundError: If the file doesn't exist

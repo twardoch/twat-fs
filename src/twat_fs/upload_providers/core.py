@@ -11,7 +11,7 @@ import functools
 import time
 from enum import Enum
 from pathlib import Path
-from typing import TypeVar, ParamSpec, cast
+from typing import TypeVar, ParamSpec, cast, NamedTuple
 from collections.abc import Callable, Awaitable
 import aiohttp
 from loguru import logger
@@ -26,6 +26,31 @@ P = ParamSpec("P")
 URL_CHECK_TIMEOUT = 30.0  # seconds
 MAX_REDIRECTS = 5
 USER_AGENT = "twat-fs/1.0"
+
+
+class TimingMetrics(NamedTuple):
+    """Timing metrics for upload operations."""
+
+    start_time: float
+    end_time: float
+    total_duration: float
+    read_duration: float
+    upload_duration: float
+    validation_duration: float
+    provider: str
+
+    @property
+    def as_dict(self) -> dict[str, float | str]:
+        """Convert timing metrics to a dictionary."""
+        return {
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "total_duration": self.total_duration,
+            "read_duration": self.read_duration,
+            "upload_duration": self.upload_duration,
+            "validation_duration": self.validation_duration,
+            "provider": self.provider,
+        }
 
 
 class RetryStrategy(str, Enum):
@@ -338,3 +363,93 @@ def with_url_validation(
         return validated_url
 
     return wrapper
+
+
+def with_timing(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+    """
+    Decorator to add timing metrics to upload operations.
+
+    This decorator will track:
+    - Total operation duration
+    - File read duration
+    - Upload duration
+    - URL validation duration
+    """
+
+    @functools.wraps(func)
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        start_time = time.time()
+        read_start = time.time()
+
+        # Get file path from args or kwargs
+        file_path = next(
+            (arg for arg in args if isinstance(arg, (str, Path))),
+            kwargs.get("local_path") or kwargs.get("file_path"),
+        )
+
+        # Get provider name from instance or module
+        provider_name = (
+            getattr(args[0], "provider_name", None)
+            if args
+            else kwargs.get("provider", "unknown")
+        )
+
+        # Track file read time
+        if file_path:
+            path = Path(str(file_path))
+            if path.exists():
+                with open(path, "rb") as f:
+                    _ = f.read()  # Read file to measure read time
+        read_duration = time.time() - read_start
+
+        # Track upload time
+        upload_start = time.time()
+        result = await func(*args, **kwargs)
+        upload_duration = time.time() - upload_start
+
+        # Track validation time if result has a URL
+        validation_start = time.time()
+        if isinstance(result, UploadResult):
+            url = result.url
+        elif isinstance(result, str):
+            url = result
+        else:
+            url = None
+
+        if url:
+            try:
+                await validate_url(url)
+            except Exception:
+                pass
+        validation_duration = time.time() - validation_start
+
+        end_time = time.time()
+        total_duration = end_time - start_time
+
+        # Create timing metrics
+        metrics = TimingMetrics(
+            start_time=start_time,
+            end_time=end_time,
+            total_duration=total_duration,
+            read_duration=read_duration,
+            upload_duration=upload_duration,
+            validation_duration=validation_duration,
+            provider=str(provider_name),
+        )
+
+        # Attach metrics to result if it's an UploadResult
+        if isinstance(result, UploadResult):
+            result.metadata["timing"] = metrics.as_dict
+
+        # Log timing information
+        logger.info(
+            f"Upload timing for {provider_name}: "
+            f"total={total_duration:.2f}s, "
+            f"read={read_duration:.2f}s, "
+            f"upload={upload_duration:.2f}s, "
+            f"validation={validation_duration:.2f}s"
+        )
+
+        return result
+
+    return cast(Callable[P, Awaitable[T]], wrapper)

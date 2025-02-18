@@ -89,7 +89,7 @@ class TermbinProvider(SimpleProviderBase):
                 msg = f"Invalid response from termbin: {url}"
                 raise RetryableError(msg, "termbin")
 
-            logger.info(f"Successfully uploaded to termbin: {url}")
+            logger.debug(f"Successfully uploaded to termbin: {url}")
             return UploadResult(
                 url=url,
                 success=True,
@@ -97,11 +97,11 @@ class TermbinProvider(SimpleProviderBase):
                 metadata={"provider": "termbin"},
             )
 
-        except (socket.timeout, socket.error) as e:
+        except (TimeoutError, OSError) as e:
             msg = f"Connection error: {e}"
             raise RetryableError(msg, "termbin") from e
         except Exception as e:
-            if isinstance(e, (RetryableError, NonRetryableError)):
+            if isinstance(e, RetryableError | NonRetryableError):
                 raise
             msg = f"Upload failed: {e}"
             raise NonRetryableError(msg, "termbin") from e
