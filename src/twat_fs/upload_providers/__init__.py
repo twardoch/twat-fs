@@ -55,7 +55,10 @@ class ProviderClient(Protocol):
     """Protocol defining what a provider client must implement."""
 
     def upload_file(
-        self, local_path: str | Path, remote_path: str | Path | None = None
+        self,
+        local_path: str | Path,
+        remote_path: str | Path | None = None,
+        **kwargs: Any,
     ) -> str:
         """
         Upload a file to the provider's storage.
@@ -63,6 +66,7 @@ class ProviderClient(Protocol):
         Args:
             local_path: Path to the file to upload
             remote_path: Optional remote path to use
+            **kwargs: Additional provider-specific options
 
         Returns:
             str: URL to the uploaded file

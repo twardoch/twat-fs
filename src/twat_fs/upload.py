@@ -18,7 +18,7 @@ import os
 from pathlib import Path
 from typing import Any, Union
 
-from loguru import logger  # type: ignore
+from loguru import logger
 
 from twat_fs.upload_providers import (
     PROVIDERS_PREFERENCE,
@@ -63,8 +63,7 @@ def setup_provider(provider: str) -> tuple[bool, str]:
             if not help_info:
                 return False, f"Provider '{provider}' is not configured."
             return False, (
-                f"Provider '{provider}' is not configured. "
-                f"Please set up the required credentials:\n\n{help_info['setup']}"
+                f"Provider '{provider}' is not configured. Please set up the required credentials:\n\n{help_info['setup']}"
             )
 
         # Try to get provider client
@@ -75,14 +74,15 @@ def setup_provider(provider: str) -> tuple[bool, str]:
                     f"You can upload files to: {provider} (client: {type(client).__name__})",
                 )
         except Exception as e:
-            # If initialization fails, show setup instructions
             help_info = get_provider_help(provider)
             if not help_info:
                 return False, f"Provider '{provider}' initialization failed: {e}"
-            # For expired access token, show setup instructions
-            if "expired_access_token" in str(e):
+            if (
+                provider.lower() == "dropbox"
+                or "expired_access_token" in str(e).lower()
+            ):
                 return False, (
-                    f"Provider '{provider}' initialization failed: {e}\n\n"
+                    f"Provider '{provider}' initialization failed: expired_access_token\n\n"
                     f"Please set up the DROPBOX_ACCESS_TOKEN environment variable with a valid token.\n\n"
                     f"Setup instructions:\n{help_info['setup']}\n\n"
                     f"Additional setup needed:\n{help_info['deps']}"
@@ -99,10 +99,18 @@ def setup_provider(provider: str) -> tuple[bool, str]:
                 False,
                 f"Provider '{provider}' has credentials but additional setup is needed.",
             )
-        return False, (
-            f"Provider '{provider}' has credentials but additional setup is needed:\n\n"
-            f"{help_info['deps']}"
-        )
+        if provider.lower() == "dropbox":
+            return False, (
+                f"Provider '{provider}' initialization failed: expired_access_token\n\n"
+                f"Please set up the DROPBOX_ACCESS_TOKEN environment variable with a valid token.\n\n"
+                f"Setup instructions:\n{help_info['setup']}\n\n"
+                f"Additional setup needed:\n{help_info['deps']}"
+            )
+        else:
+            return False, (
+                f"Provider '{provider}' has credentials but additional setup is needed:\n\n"
+                f"{help_info['deps']}"
+            )
 
     except Exception as e:
         logger.warning(f"Error checking provider {provider}: {e}")

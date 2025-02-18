@@ -9,16 +9,50 @@
 # this_file: cleanup.py
 
 """
-Cleanup tool for managing repository tasks.
-Provides functionality for updating, checking, and pushing changes.
+Cleanup tool for managing repository tasks and maintaining code quality.
 
-Usage:
-    cleanup.py update  # Update and commit changes
-    cleanup.py push    # Push changes to remote
-    cleanup.py status  # Show current status
+This script provides a comprehensive set of commands for repository maintenance:
+
+When to use each command:
+
+- `cleanup.py status`: Use this FIRST when starting work to check the current state
+  of the repository. It shows file structure, git status, and runs all code quality
+  checks. Run this before making any changes to ensure you're starting from a clean state.
+
+- `cleanup.py venv`: Run this when setting up the project for the first time or if
+  your virtual environment is corrupted/missing. Creates a new virtual environment
+  using uv.
+
+- `cleanup.py install`: Use after `venv` or when dependencies have changed. Installs
+  the package and all development dependencies in editable mode.
+
+- `cleanup.py update`: Run this when you've made changes and want to commit them.
+  It will:
+  1. Show current status (like `status` command)
+  2. Stage and commit any changes with a generic message
+  Use this for routine maintenance commits.
+
+- `cleanup.py push`: Run this after `update` when you want to push your committed
+  changes to the remote repository.
+
+Workflow Example:
+1. Start work: `cleanup.py status`
+2. Make changes to code
+3. Commit changes: `cleanup.py update`
+4. Push to remote: `cleanup.py push`
+
+The script maintains a CLEANUP.log file that records all operations with timestamps.
+It also includes content from README.md at the start and TODO.md at the end of logs
+for context.
+
+Required Files:
+- LOG.md: Project changelog
+- README.md: Project documentation
+- TODO.md: Pending tasks and future plans
 """
 
 import subprocess
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -140,8 +174,16 @@ class Cleanup:
         log_message("Setting up virtual environment")
         try:
             run_command(["uv", "venv"])
-            log_message("Virtual environment created. Please activate it with:")
-            log_message("source .venv/bin/activate")
+            # Activate the virtual environment
+            venv_path = self.workspace / ".venv" / "bin" / "activate"
+            if venv_path.exists():
+                os.environ["VIRTUAL_ENV"] = str(self.workspace / ".venv")
+                os.environ["PATH"] = (
+                    f"{self.workspace / '.venv' / 'bin'}{os.pathsep}{os.environ['PATH']}"
+                )
+                log_message("Virtual environment created and activated")
+            else:
+                log_message("Virtual environment created but activation failed")
         except Exception as e:
             log_message(f"Failed to create virtual environment: {e}")
 
