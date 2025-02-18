@@ -31,7 +31,8 @@ async def upload_file(file_path: str, service: str = "bash") -> str:
     if result.success:
         return result.url
     else:
-        raise Exception(f"Upload failed: {result.error}")
+        msg = f"Upload failed: {result.error}"
+        raise Exception(msg)
 
 
 def main(file_path: str, service: str = "bash"):

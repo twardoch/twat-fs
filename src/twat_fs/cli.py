@@ -13,7 +13,6 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import NoReturn
 
 import fire
 from loguru import logger
@@ -21,7 +20,6 @@ from rich.console import Console
 
 from twat_fs.upload import (
     PROVIDERS_PREFERENCE,
-    ProviderStatus,
     setup_provider as _setup_provider,
     setup_providers as _setup_providers,
     upload_file as _upload_file,
@@ -60,33 +58,30 @@ def parse_provider_list(provider: str) -> list[str] | None:
 class UploadProviderCommands:
     """Commands for managing upload providers."""
 
-    def status(self, provider_id: str | None = None, online: bool = False) -> NoReturn:
+    def status(self, provider_id: str | None = None, online: bool = False) -> None:
         """
-        Show status information for a specific provider or all providers.
+        Show provider setup status.
 
         Args:
             provider_id: Optional provider ID to show status info for.
-                       If not provided, shows info for all providers.
-            online: If True, performs an online test by uploading and downloading a small file.
+            online: If True, run online tests to verify provider functionality.
         """
         console = Console(stderr=True)  # Use stderr for error messages
 
         if provider_id:
-            # For a specific provider, print only the provider ID to stdout if it's ready
             result = _setup_provider(provider_id, verbose=True, online=online)
-            if result.status == ProviderStatus.READY:
-                sys.exit(0)
-            else:
+            if result.success:
                 console.print(
-                    f"\n[red]Error:[/red] Provider '{provider_id}' is not ready"
+                    f"\n[green]Provider {provider_id} is ready to use[/green]"
                 )
-                console.print(f"[red]Reason:[/red] {result.message}")
-                if result.details:
-                    console.print("\n[yellow]Setup Instructions:[/yellow]")
-                    console.print(result.details)
-                sys.exit(1)  # Provider not ready
+            else:
+                console.print(f"\n[red]Provider {provider_id} is not ready[/red]")
+                console.print(f"\n[yellow]Reason:[/yellow] {result.explanation}")
+                console.print("\n[yellow]Setup Instructions:[/yellow]")
+                console.print(
+                    result.help_info.get("setup", "No setup instructions available")
+                )
         else:
-            # For all providers, show detailed status info
             _setup_providers(verbose=True, online=online)
 
     def list(self, online: bool = False) -> None:
@@ -103,7 +98,7 @@ class UploadProviderCommands:
             if provider.lower() == "simple":
                 continue  # Skip the base provider
             result = _setup_provider(provider, verbose=False, online=online)
-            if result.status == ProviderStatus.READY:
+            if result.success:
                 active_providers.append(provider)
 
         # Print each active provider ID, one per line, to stdout
@@ -160,7 +155,7 @@ class TwatFS:
                 logger.error(f"File not found: {file_path}")
                 sys.exit(1)
 
-            url = _upload_file(
+            return _upload_file(
                 file_path,
                 provider=provider,
                 unique=unique,
@@ -168,7 +163,6 @@ class TwatFS:
                 upload_path=remote_path,
                 fragile=fragile,
             )
-            return url
         except Exception as e:
             logger.error(f"Upload failed: {e}")
             sys.exit(1)

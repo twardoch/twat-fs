@@ -7,6 +7,8 @@ Tests for the upload functionality.
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch, AsyncMock
+from collections.abc import Generator
+from typing import NamedTuple
 
 import pytest
 from botocore.exceptions import ClientError
@@ -27,63 +29,47 @@ from twat_fs.upload_providers import (
 )
 from twat_fs.upload_providers.core import RetryableError, NonRetryableError
 
+
+class ProviderSetupResult(NamedTuple):
+    """Result of provider setup check."""
+
+    success: bool
+    explanation: str
+
+
 # Test data
 TEST_FILE = Path(__file__).parent / "data" / "test.txt"
 TEST_URL = "https://example.com/test.txt"
 
 
 @pytest.fixture
-def test_file(tmp_path: Path) -> Path:
+def test_file(tmp_path: Path) -> Generator[Path, None, None]:
     """Create a temporary test file."""
     file_path = tmp_path / "test.txt"
     file_path.write_text("test content")
-    return file_path
+    yield file_path
+    file_path.unlink()
 
 
 @pytest.fixture
-def mock_fal_provider() -> MagicMock:
+def mock_fal_provider() -> Generator[MagicMock, None, None]:
     """Mock FAL provider."""
-    with patch("twat_fs.upload_providers.fal.get_credentials") as mock_creds:
-        with patch("twat_fs.upload_providers.fal.get_provider") as mock_provider:
-            mock_creds.return_value = "test_key"
-            client = MagicMock()
-            client.upload_file.return_value = TEST_URL
-            mock_provider.return_value = client
-            yield client.upload_file
+    with patch("twat_fs.upload_providers.fal.FalProvider") as mock:
+        yield mock
 
 
 @pytest.fixture
-def mock_dropbox_provider() -> MagicMock:
+def mock_dropbox_provider() -> Generator[MagicMock, None, None]:
     """Mock Dropbox provider."""
-    with patch("twat_fs.upload_providers.dropbox.upload_file") as mock_upload:
-        with patch("twat_fs.upload_providers.dropbox.get_credentials") as mock_creds:
-            with patch(
-                "twat_fs.upload_providers.dropbox.get_provider"
-            ) as mock_provider:
-                mock_upload.return_value = TEST_URL
-                mock_creds.return_value = {"access_token": "test_token"}
-                mock_provider.return_value = MagicMock()
-                yield mock_upload
+    with patch("twat_fs.upload_providers.dropbox.DropboxProvider") as mock:
+        yield mock
 
 
 @pytest.fixture
-def mock_s3_provider() -> MagicMock:
+def mock_s3_provider() -> Generator[MagicMock, None, None]:
     """Mock S3 provider."""
-    with patch("twat_fs.upload_providers.s3.get_credentials") as mock_creds:
-        with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
-            mock_creds.return_value = {
-                "bucket": "test-bucket",
-                "endpoint_url": None,
-                "path_style": False,
-                "role_arn": None,
-                "aws_access_key_id": "test_key",
-                "aws_secret_access_key": "test_secret",
-                "aws_session_token": None,
-            }
-            client = MagicMock()
-            client.upload_file.return_value = TEST_URL
-            mock_provider.return_value = client
-            yield client.upload_file
+    with patch("twat_fs.upload_providers.s3.S3Provider") as mock:
+        yield mock
 
 
 class TestProviderSetup:
@@ -92,19 +78,19 @@ class TestProviderSetup:
     def test_setup_working_provider(self, mock_s3_provider: MagicMock) -> None:
         """Test setup check for a working provider."""
         assert mock_s3_provider is not None  # Verify fixture is used
-        success, explanation = setup_provider("s3")
-        assert success is True
-        assert "You can upload files to: s3" in explanation
+        result = setup_provider("s3")
+        assert result.success is True
+        assert "You can upload files to: s3" in result.explanation
 
     def test_setup_missing_credentials(self) -> None:
         """Test setup check when credentials are missing."""
         with patch("twat_fs.upload_providers.s3.get_credentials") as mock_creds:
             mock_creds.return_value = None
-            success, explanation = setup_provider("s3")
-            assert success is False
-            assert "not configured" in explanation
-            assert "AWS_S3_BUCKET" in explanation
-            assert "AWS_ACCESS_KEY_ID" in explanation
+            result = setup_provider("s3")
+            assert result.success is False
+            assert "not configured" in result.explanation
+            assert "AWS_S3_BUCKET" in result.explanation
+            assert "AWS_ACCESS_KEY_ID" in result.explanation
 
     def test_setup_missing_dependencies(self) -> None:
         """Test setup check when dependencies are missing."""
@@ -116,15 +102,16 @@ class TestProviderSetup:
                     "aws_secret_access_key": "test_secret",
                 }
                 mock_provider.return_value = None
-                success, explanation = setup_provider("s3")
-                assert success is False
-                assert "additional setup is needed" in explanation
-                assert "boto3" in explanation
+                result = setup_provider("s3")
+                assert result.success is False
+                assert "additional setup is needed" in result.explanation
+                assert "boto3" in result.explanation
 
     def test_setup_invalid_provider(self) -> None:
         """Test setup check for an invalid provider."""
-        with pytest.raises(KeyError):
-            setup_provider("invalid")
+        result = setup_provider("invalid")
+        assert result.success is False
+        assert "Provider not found" in result.explanation
 
     def test_setup_all_providers(
         self,
@@ -141,16 +128,19 @@ class TestProviderSetup:
         assert len(results) == len(PROVIDERS_PREFERENCE)
 
         # Check S3 result
-        assert results["s3"][0] is True  # success
-        assert "You can upload files to: s3" in results["s3"][1]  # explanation
+        s3_result = results["s3"]
+        assert s3_result.success is True
+        assert "You can upload files to: s3" in s3_result.explanation
 
         # Check Dropbox result
-        assert results["dropbox"][0] is True
-        assert "You can upload files to: dropbox" in results["dropbox"][1]
+        dropbox_result = results["dropbox"]
+        assert dropbox_result.success is True
+        assert "You can upload files to: dropbox" in dropbox_result.explanation
 
         # Check FAL result
-        assert results["fal"][0] is True
-        assert "You can upload files to: fal" in results["fal"][1]
+        fal_result = results["fal"]
+        assert fal_result.success is True
+        assert "You can upload files to: fal" in fal_result.explanation
 
     def test_setup_all_providers_with_failures(self) -> None:
         """Test checking setup status when some providers fail."""
@@ -173,16 +163,59 @@ class TestProviderSetup:
             results = setup_providers()
 
             # Check S3 result (missing credentials)
-            assert results["s3"][0] is False
-            assert "not configured" in results["s3"][1]
+            s3_result = results["s3"]
+            assert s3_result.success is False
+            assert "not configured" in s3_result.explanation
 
             # Check Dropbox result (missing dependencies)
-            assert results["dropbox"][0] is False
-            assert "Additional setup needed" in results["dropbox"][1]
+            dropbox_result = results["dropbox"]
+            assert dropbox_result.success is False
+            assert "Additional setup needed" in dropbox_result.explanation
 
             # Check FAL result (working)
-            assert results["fal"][0] is True
-            assert "client: MagicMock" in results["fal"][1]
+            fal_result = results["fal"]
+            assert fal_result.success is True
+            assert "client: MagicMock" in fal_result.explanation
+
+    def test_setup_provider_success(self) -> None:
+        """Test setup_provider with a valid provider."""
+        result = setup_provider("simple")
+        assert result.success is True
+        assert "You can upload files to: simple" in result.explanation
+
+    def test_setup_provider_failure(self) -> None:
+        """Test setup_provider with an invalid provider."""
+        result = setup_provider("invalid")
+        assert result.success is False
+        assert "Provider not found" in result.explanation.lower()
+        assert "setup" in result.explanation.lower()
+
+    def test_setup_provider_dropbox(self) -> None:
+        """Test setup_provider with Dropbox."""
+        result = setup_provider("dropbox")
+        # Test should pass if either:
+        # 1. Provider is properly configured (success is True)
+        # 2. Provider needs setup (success is False and explanation contains setup instructions)
+        assert result.success is True or (
+            result.success is False
+            and "DROPBOX_ACCESS_TOKEN" in result.explanation
+            and "setup" in result.explanation.lower()
+        )
+
+    def test_setup_all_providers_check(self) -> None:
+        """Test checking setup status for all providers."""
+        results = setup_providers()
+
+        # We can still test individual providers
+        for provider in PROVIDERS_PREFERENCE:
+            if provider.lower() == "simple":
+                continue
+            result = results[provider]
+            # At least one provider should be available or have setup instructions
+            assert result.success or (
+                "not configured" in result.explanation
+                or "setup" in result.explanation.lower()
+            )
 
 
 class TestProviderAuth:
@@ -231,8 +264,8 @@ class TestProviderAuth:
 
         with patch("boto3.client") as mock_client:
             mock_s3 = mock_client.return_value
-            mock_s3.list_buckets.return_value = {"Buckets": []}
-            provider = s3.get_provider(creds)
+            mock_s3.head_bucket.return_value = True
+            provider = s3.get_provider()
             assert provider is not None
 
     def test_s3_auth_without_credentials(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -258,11 +291,11 @@ class TestProviderAuth:
 
         with patch("boto3.client") as mock_client:
             mock_s3 = mock_client.return_value
-            mock_s3.list_buckets.side_effect = ClientError(
+            mock_s3.head_bucket.side_effect = ClientError(
                 {"Error": {"Code": "InvalidAccessKeyId", "Message": "Invalid key"}},
-                "ListBuckets",
+                "HeadBucket",
             )
-            provider = s3.get_provider(creds)
+            provider = s3.get_provider()
             assert provider is None
 
 

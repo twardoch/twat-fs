@@ -1,11 +1,3 @@
-#!/usr/bin/env python
-# /// script
-# dependencies = [
-#   "loguru",
-#   "fire",
-#   "rich",
-# ]
-# ///
 # this_file: src/twat_fs/upload.py
 
 """
@@ -16,8 +8,7 @@ using different providers.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Union
-from collections.abc import Sequence
+from typing import Any, TYPE_CHECKING
 from dataclasses import dataclass
 from enum import Enum, auto
 import hashlib
@@ -39,8 +30,11 @@ from twat_fs.upload_providers import (
 )
 from twat_fs.upload_providers.core import with_retry, RetryStrategy
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
 # Type for provider specification - can be a single provider name or a list of providers
-ProviderType = Union[str, list[str], None]
+ProviderType = str | list[str] | None
 
 
 class ProviderStatus(Enum):
@@ -55,9 +49,9 @@ class ProviderStatus(Enum):
 class ProviderInfo:
     """Information about a provider's setup status."""
 
-    status: ProviderStatus
-    message: str
-    details: str = ""
+    success: bool
+    explanation: str
+    help_info: dict[str, str]
     timing: dict[str, float] | None = None
 
 
@@ -110,24 +104,24 @@ def _test_provider_online(
 
             if not result:
                 end_time = time.time()
-                timing_metrics = {
+                timing_metrics: dict[str, float] = {
                     "start_time": start_time,
                     "end_time": end_time,
                     "total_duration": end_time - start_time,
                     "read_duration": read_duration,
                     "upload_duration": upload_duration,
                     "validation_duration": 0.0,
-                    "provider": provider_name,
+                    "provider": float(hash(provider_name)),
                 }
                 return False, "Upload failed", timing_metrics
 
             # Extract URL and timing metrics
             if isinstance(result, UploadResult):
                 url = result.url
-                timing_metrics = result.metadata.get("timing")
+                timing_metrics = result.metadata.get("timing", {})
             else:
                 url = result
-                timing_metrics = None
+                timing_metrics = {}
 
             # Add a small delay to allow for propagation
             time.sleep(1.0)
@@ -151,7 +145,7 @@ def _test_provider_online(
                     "read_duration": read_duration,
                     "upload_duration": upload_duration,
                     "validation_duration": validation_duration,
-                    "provider": provider_name,
+                    "provider": float(hash(provider_name)),
                 }
                 return (
                     False,
@@ -168,7 +162,7 @@ def _test_provider_online(
                 "read_duration": read_duration,
                 "upload_duration": time.time() - upload_start,
                 "validation_duration": 0.0,
-                "provider": provider_name,
+                "provider": float(hash(provider_name)),
             }
             if "401" in str(e) or "authentication" in str(e).lower():
                 return False, f"Authentication required: {e}", timing_metrics
@@ -182,7 +176,7 @@ def _test_provider_online(
                 "read_duration": read_duration,
                 "upload_duration": upload_duration,
                 "validation_duration": time.time() - validation_start,
-                "provider": provider_name,
+                "provider": float(hash(provider_name)),
             }
             return False, f"URL validation failed: {e}", timing_metrics
 
@@ -190,7 +184,7 @@ def _test_provider_online(
         max_retries = 3
         retry_delay = 2  # seconds
         last_error = None
-        verification_start = time.time()
+        time.time()
 
         for attempt in range(max_retries):
             try:
@@ -210,7 +204,7 @@ def _test_provider_online(
                                 "read_duration": read_duration,
                                 "upload_duration": upload_duration,
                                 "validation_duration": validation_duration,
-                                "provider": provider_name,
+                                "provider": float(hash(provider_name)),
                             }
                         return True, "Online test passed successfully", timing_metrics
                     else:
@@ -237,7 +231,7 @@ def _test_provider_online(
                 "read_duration": read_duration,
                 "upload_duration": upload_duration,
                 "validation_duration": validation_duration,
-                "provider": provider_name,
+                "provider": float(hash(provider_name)),
             }
         return False, last_error or "Download failed after retries", timing_metrics
 
@@ -247,14 +241,12 @@ def _test_provider_online(
             "start_time": start_time,
             "end_time": end_time,
             "total_duration": end_time - start_time,
-            "read_duration": read_duration,
-            "upload_duration": time.time() - upload_start
-            if "upload_start" in locals()
-            else 0.0,
+            "read_duration": 0.0,
+            "upload_duration": 0.0,
             "validation_duration": 0.0,
-            "provider": provider_name,
+            "provider": float(hash(provider_name)),
         }
-        return False, f"Online test failed: {e}", timing_metrics
+        return False, f"Unexpected error: {e}", timing_metrics
 
 
 def setup_provider(
@@ -275,9 +267,9 @@ def setup_provider(
         # Skip the 'simple' provider as it's just a base class
         if provider.lower() == "simple":
             return ProviderInfo(
-                ProviderStatus.NOT_AVAILABLE,
+                False,
                 f"Provider '{provider}' is not available.",
-                "This is a base provider and should not be used directly.",
+                {},
             )
 
         # Import provider module
@@ -286,14 +278,15 @@ def setup_provider(
             help_info = get_provider_help(provider)
             if not help_info:
                 return ProviderInfo(
-                    ProviderStatus.NOT_AVAILABLE,
+                    False,
                     f"Provider '{provider}' is not available.",
+                    {},
                 )
             setup_info = help_info.get("setup", "")
             return ProviderInfo(
-                ProviderStatus.NOT_AVAILABLE,
+                False,
                 f"Provider '{provider}' is not available.",
-                setup_info if verbose else "",
+                {"setup": setup_info},
             )
 
         # Get help info for notes about retention
@@ -303,9 +296,7 @@ def setup_provider(
             setup_info = help_info.get("setup", "").lower()
             if "no setup required" in setup_info:
                 # Extract any retention information
-                if "deleted after" in setup_info:
-                    retention_note = setup_info[setup_info.find("note:") :].strip()
-                elif "only works with" in setup_info:
+                if "deleted after" in setup_info or "only works with" in setup_info:
                     retention_note = setup_info[setup_info.find("note:") :].strip()
 
         # Try to get provider client
@@ -314,9 +305,9 @@ def setup_provider(
             if not client:
                 setup_info = help_info.get("setup", "") if help_info else ""
                 return ProviderInfo(
-                    ProviderStatus.NEEDS_CONFIG,
+                    False,
                     f"Provider '{provider}' needs configuration.",
-                    setup_info if verbose else "",
+                    {"setup": setup_info},
                 )
 
             provider_class = client.__class__
@@ -335,38 +326,33 @@ def setup_provider(
             # A provider is ready if it has either:
             # 1. Both async_upload_file and upload_file methods
             # 2. Just the upload_file method
-            if has_async and has_sync:
+            if has_async and has_sync or has_sync:
                 provider_info = ProviderInfo(
-                    ProviderStatus.READY,
+                    True,
                     f"{provider} ({type(client).__name__})"
                     + (f" - {retention_note}" if retention_note else ""),
-                )
-            elif has_sync:
-                provider_info = ProviderInfo(
-                    ProviderStatus.READY,
-                    f"{provider} ({type(client).__name__})"
-                    + (f" - {retention_note}" if retention_note else ""),
+                    {},
                 )
             else:
                 setup_info = help_info.get("setup", "") if help_info else ""
                 provider_info = ProviderInfo(
-                    ProviderStatus.NEEDS_CONFIG,
+                    False,
                     f"Provider '{provider}' needs configuration.",
-                    setup_info if verbose else "",
+                    {"setup": setup_info},
                 )
 
-            if online and provider_info.status == ProviderStatus.READY:
+            if online and provider_info.success:
                 online_status, message, timing = _test_provider_online(provider)
                 if not online_status:
                     provider_info = ProviderInfo(
-                        ProviderStatus.NOT_AVAILABLE,
+                        False,
                         message,
-                        provider_info.details if verbose else "",
+                        provider_info.help_info,
                     )
                 else:
                     provider_info.timing = timing
-                    provider_info.message = (
-                        f"{provider_info.message}\nOnline test passed successfully"
+                    provider_info.explanation = (
+                        f"{provider_info.explanation}\nOnline test passed successfully"
                     )
                     logger.debug(
                         f"Provider {provider} online test passed with timing: {timing}"
@@ -378,74 +364,58 @@ def setup_provider(
             logger.error(f"Error setting up provider {provider}: {e}")
             setup_info = help_info.get("setup", "") if help_info else ""
             return ProviderInfo(
-                ProviderStatus.NEEDS_CONFIG,
+                False,
                 f"Provider '{provider}' setup failed: {e}",
-                setup_info if verbose else "",
+                {"setup": setup_info},
             )
 
     except Exception as e:
         logger.error(f"Unexpected error setting up provider {provider}: {e}")
         return ProviderInfo(
-            ProviderStatus.NOT_AVAILABLE,
+            False,
             f"Provider '{provider}' failed: {e}",
+            {},
         )
 
 
-def setup_providers(verbose: bool = False, online: bool = False) -> None:
+def setup_providers(
+    verbose: bool = False, online: bool = False
+) -> dict[str, ProviderInfo]:
     """
-    Check all providers' setup status and display results.
+    Check setup status for all providers.
 
     Args:
-        verbose: Whether to include detailed setup instructions
-        online: Whether to perform online tests
+        verbose: If True, print detailed status information
+        online: If True, test providers by uploading a test file
+
+    Returns:
+        dict[str, ProviderInfo]: Dictionary mapping provider names to their setup status
     """
     console = Console()
-
-    # Create columns for the table
-    columns = [
-        Column("Provider", no_wrap=True, width=12),
-        Column("Status", no_wrap=True, width=15),
-        Column("Message", width=40),
-    ]
-    if online:
-        columns.append(Column("Time (s)", width=10, no_wrap=True))
-
-    # Create a table for results
     table = Table(
-        *columns,
-        title="Provider Status",
-        title_style="bold magenta",
-        show_lines=True,
-        expand=True,
+        Column("Provider", style="cyan"),
+        Column("Status", style="green"),
+        Column("Details", style="yellow"),
+        title="Provider Setup Status",
     )
 
-    # Add providers in preference order
+    results: dict[str, ProviderInfo] = {}
+
     for provider in PROVIDERS_PREFERENCE:
-        info = setup_provider(provider, verbose, online=online)
-        status_color = {
-            ProviderStatus.READY: "green",
-            ProviderStatus.NEEDS_CONFIG: "yellow",
-            ProviderStatus.NOT_AVAILABLE: "red",
-        }[info.status]
+        result = setup_provider(provider, verbose=verbose, online=online)
+        results[provider] = result
 
-        timing_str = ""
-        if online and info.timing:
-            logger.debug(f"Timing info for {provider}: {info.timing}")
-            timing_str = f"{info.timing['total_duration']:.2f}"
-            logger.debug(f"Timing string for {provider}: {timing_str}")
+        if verbose:
+            table.add_row(
+                provider,
+                "[green]Ready[/green]" if result.success else "[red]Not Ready[/red]",
+                result.explanation,
+            )
 
-        row = [
-            provider,
-            info.status.name,
-            info.message + ("\n" + info.details if verbose and info.details else ""),
-        ]
-        if online:
-            row.append(timing_str)
-            logger.debug(f"Row for {provider}: {row}")
+    if verbose:
+        console.print(table)
 
-        table.add_row(*row, style=status_color)
-
-    console.print(table)
+    return results
 
 
 def _get_provider_module(provider: str) -> Provider | None:
@@ -686,10 +656,7 @@ def upload_file(
     # Determine provider list
     providers = []
     if provider:
-        if isinstance(provider, str):
-            providers = [provider]
-        else:
-            providers = list(provider)
+        providers = [provider] if isinstance(provider, str) else list(provider)
     else:
         providers = PROVIDERS_PREFERENCE
 
@@ -728,4 +695,71 @@ def upload_file(
             upload_path=upload_path,
             fragile=fragile,
             tried_providers={providers[0]},
+        )
+
+
+def _try_upload_with_fallback(
+    provider: str,
+    local_path: str | Path,
+    remote_path: str | Path | None = None,
+    *,
+    unique: bool = False,
+    force: bool = False,
+    upload_path: str | None = None,
+    tried_providers: set[str] | None = None,
+    **kwargs: Any,
+) -> UploadResult:
+    """
+    Try to upload a file with fallback to other providers.
+
+    Args:
+        provider: Provider to try first
+        local_path: Path to the file to upload
+        remote_path: Optional remote path to use
+        unique: If True, ensures unique filename
+        force: If True, overwrites existing file
+        upload_path: Custom upload path
+        tried_providers: Set of providers that have been tried
+        **kwargs: Additional provider-specific arguments
+
+    Returns:
+        UploadResult: Upload result with URL and metadata
+
+    Raises:
+        RuntimeError: If all providers fail
+    """
+    # Track which providers we've tried
+    tried = tried_providers or set()
+    tried.add(provider)
+
+    try:
+        # Try the current provider
+        return _try_upload_with_provider(
+            provider,
+            local_path,
+            remote_path=remote_path,
+            unique=unique,
+            force=force,
+            upload_path=upload_path,
+            **kwargs,
+        )
+    except Exception as e:
+        logger.warning(f"Provider {provider} failed: {e}")
+
+        # Try remaining providers in preference order
+        remaining = [p for p in PROVIDERS_PREFERENCE if p not in tried]
+        if not remaining:
+            msg = "All providers failed"
+            raise RuntimeError(msg)
+
+        # Try next provider with fallback
+        return _try_upload_with_fallback(
+            remaining[0],
+            local_path,
+            remote_path=remote_path,
+            unique=unique,
+            force=force,
+            upload_path=upload_path,
+            tried_providers=tried,
+            **kwargs,
         )

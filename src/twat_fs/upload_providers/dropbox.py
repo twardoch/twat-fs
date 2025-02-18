@@ -1,32 +1,33 @@
-#!/usr/bin/env -S uv run
-# /// script
-# dependencies = [
-#   "dropbox",
-#   "python-dotenv",
-#   "tenacity",
-#   "loguru",
-# ]
-# ///
 # this_file: src/twat_fs/upload_providers/dropbox.py
 
 """
-Dropbox provider for file uploads.
-This module provides functionality to upload files to Dropbox and get shareable links.
-Supports optional force and unique upload modes, chunked uploads for large files, and custom upload paths.
+Dropbox file upload provider.
+Supports authenticated uploads to Dropbox.
 """
 
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any
+
+from twat_fs.upload_providers.core import (
+    convert_to_upload_result,
+)
+
+
+from datetime import datetime, timezone
+from typing import TypedDict, TYPE_CHECKING
 from urllib import parse
 
 import dropbox  # type: ignore
 from dropbox.exceptions import AuthError
 from dotenv import load_dotenv
 from loguru import logger
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+if TYPE_CHECKING:
+    from twat_fs.upload_providers.types import UploadResult
 
 # Provider-specific help messages
 PROVIDER_HELP = {
@@ -92,13 +93,7 @@ class DropboxClient:
                     self.credentials["refresh_token"] and self.credentials["app_key"]
                 ):
                     logger.debug(
-                        "\n".join(
-                            [
-                                "Cannot refresh token:",
-                                "- Missing refresh token or app key",
-                                "- Set DROPBOX_REFRESH_TOKEN and DROPBOX_APP_KEY to enable automatic refresh",
-                            ]
-                        )
+                        "Cannot refresh token:\n- Missing refresh token or app key\n- Set DROPBOX_REFRESH_TOKEN and DROPBOX_APP_KEY to enable automatic refresh"
                     )
                     return
                 logger.debug("Access token expired, attempting refresh")
@@ -117,7 +112,7 @@ class DropboxClient:
         force: bool = False,
         unique: bool = False,
         upload_path: str = DEFAULT_UPLOAD_PATH,
-    ) -> str:
+    ) -> UploadResult:
         """Upload a file to Dropbox and return its URL."""
         logger.debug(f"Starting upload process for {file_path}")
 
@@ -173,7 +168,7 @@ class DropboxClient:
                 raise DropboxUploadError(msg)
 
             logger.debug(f"Successfully uploaded to Dropbox: {url}")
-            return url
+            return convert_to_upload_result(url)
 
         except DropboxFileExistsError:
             raise
@@ -223,15 +218,7 @@ def get_provider() -> DropboxClient | None:
             if "expired_access_token" in str(e):
                 if not (credentials["refresh_token"] and credentials["app_key"]):
                     logger.warning(
-                        "\n".join(
-                            [
-                                "Dropbox token has expired and cannot be refreshed automatically.",
-                                "To enable automatic token refresh:",
-                                "1. Set DROPBOX_REFRESH_TOKEN environment variable",
-                                "2. Set DROPBOX_APP_KEY environment variable",
-                                "For now, please generate a new access token.",
-                            ]
-                        )
+                        "Dropbox token has expired and cannot be refreshed automatically.\nTo enable automatic token refresh:\n1. Set DROPBOX_REFRESH_TOKEN environment variable\n2. Set DROPBOX_APP_KEY environment variable\nFor now, please generate a new access token."
                     )
                 else:
                     logger.error(
@@ -256,7 +243,7 @@ def upload_file(
     force: bool = False,
     unique: bool = False,
     upload_path: str = DEFAULT_UPLOAD_PATH,
-) -> str:
+) -> UploadResult:
     """
     Upload a file to Dropbox and return its URL.
 
@@ -268,7 +255,7 @@ def upload_file(
         upload_path: Custom base upload path
 
     Returns:
-        str: URL to the uploaded file
+        UploadResult: URL to the uploaded file
 
     Raises:
         ValueError: If upload fails or credentials are invalid
@@ -380,8 +367,19 @@ def _get_download_url(url: str) -> str | None:
 
 
 def _get_share_url(dbx: dropbox.Dropbox, db_path: str) -> str:
-    """Get a shareable link for the uploaded file."""
-    from tenacity import retry, stop_after_attempt, wait_exponential
+    """
+    Get a shareable URL for a file in Dropbox.
+
+    Args:
+        dbx: Dropbox client instance
+        db_path: Path to the file in Dropbox
+
+    Returns:
+        str: Direct download URL for the file
+
+    Raises:
+        DropboxUploadError: If URL creation fails
+    """
 
     @retry(
         stop=stop_after_attempt(3),
@@ -391,14 +389,22 @@ def _get_share_url(dbx: dropbox.Dropbox, db_path: str) -> str:
         try:
             shared_link = dbx.sharing_create_shared_link_with_settings(db_path)
             # Convert to direct download URL
-            url = shared_link.url.replace("?dl=0", "?dl=1")
+            url = str(shared_link.url).replace("?dl=0", "?dl=1")
             logger.debug(f"Created share URL: {url}")
             return url
         except Exception as e:
             logger.error(f"Failed to create share URL: {e}")
             raise
 
-    return get_url()
+    try:
+        url = get_url()
+        if not isinstance(url, str):
+            msg = f"Expected string URL but got {type(url)}"
+            raise DropboxUploadError(msg)
+        return url
+    except Exception as e:
+        msg = f"Failed to create share URL: {e}"
+        raise DropboxUploadError(msg) from e
 
 
 def _ensure_upload_directory(dbx: Any, upload_path: str) -> None:

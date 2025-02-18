@@ -1,10 +1,3 @@
-#!/usr/bin/env python
-# /// script
-# dependencies = [
-#   "boto3",
-#   "loguru",
-# ]
-# ///
 # this_file: src/twat_fs/upload_providers/s3.py
 
 """
@@ -16,10 +9,15 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import boto3
 from loguru import logger
+from twat_fs.upload_providers.core import convert_to_upload_result
+from botocore.config import Config
+
+if TYPE_CHECKING:
+    from twat_fs.upload_providers.types import UploadResult
 
 # Provider-specific help messages
 PROVIDER_HELP = {
@@ -101,8 +99,6 @@ def get_provider(creds: dict[str, Any] | None = None):
     if creds.get("endpoint_url"):
         client_kwargs["endpoint_url"] = creds["endpoint_url"]
     if creds.get("path_style"):
-        from boto3.session import Config
-
         client_kwargs["config"] = Config(s3={"addressing_style": "path"})
 
     try:
@@ -122,23 +118,16 @@ def get_provider(creds: dict[str, Any] | None = None):
 def upload_file(
     local_path: str | Path,
     remote_path: str | Path | None = None,
-    *,  # Force keyword arguments for boolean flags
-    unique: bool = False,  # Ignored for S3
-    force: bool = False,  # Ignored for S3
-    upload_path: str | None = None,  # Ignored for S3
-) -> str:
+) -> UploadResult:
     """
     Upload a file to AWS S3, handling multipart uploads for large files.
 
     Args:
         local_path: Path to the file to upload
         remote_path: Optional remote path/key to use in S3
-        unique: Whether to ensure unique filenames (ignored for S3)
-        force: Whether to overwrite existing files (ignored for S3)
-        upload_path: Custom base upload path (ignored for S3)
 
     Returns:
-        str: URL to the uploaded file
+        UploadResult: Upload result with URL and metadata
 
     Raises:
         ValueError: If upload fails or credentials are missing
@@ -161,9 +150,19 @@ def upload_file(
             client.upload_fileobj(f, creds["bucket"], key)
 
         # Return the URL to the uploaded file
-        if creds.get("endpoint_url"):
-            return f"{creds['endpoint_url']}/{creds['bucket']}/{key}"
-        return f"https://s3.amazonaws.com/{creds['bucket']}/{key}"
+        url = (
+            f"{creds['endpoint_url']}/{creds['bucket']}/{key}"
+            if creds.get("endpoint_url")
+            else f"https://s3.amazonaws.com/{creds['bucket']}/{key}"
+        )
+        return convert_to_upload_result(
+            url,
+            metadata={
+                "provider": "s3",
+                "bucket": creds["bucket"],
+                "key": key,
+            },
+        )
     except Exception as e:
         logger.warning(f"S3 upload failed: {e}")
         msg = "S3 upload failed"

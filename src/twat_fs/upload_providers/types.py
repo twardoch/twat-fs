@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # this_file: src/twat_fs/upload_providers/types.py
 
 """

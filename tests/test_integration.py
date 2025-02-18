@@ -62,9 +62,9 @@ class TestS3Integration:
 
     def test_s3_setup(self):
         """Test S3 provider setup check."""
-        success, explanation = setup_provider("s3")
-        assert success is True
-        assert "You can upload files to: s3" in explanation
+        result = setup_provider("s3")
+        assert result.success is True
+        assert "You can upload files to: s3" in result.explanation
 
     def test_s3_upload_small_file(self):
         """Test uploading a small file to S3."""
@@ -95,14 +95,14 @@ class TestDropboxIntegration:
 
     def test_dropbox_setup(self) -> None:
         """Test Dropbox setup."""
-        success, explanation = setup_provider("dropbox")
+        result = setup_provider("dropbox")
         # Test should pass if either:
         # 1. Provider is properly configured (success is True)
         # 2. Provider needs setup (success is False and explanation contains setup instructions)
-        assert success is True or (
-            success is False
-            and "DROPBOX_ACCESS_TOKEN" in explanation
-            and "setup" in explanation.lower()
+        assert result.success is True or (
+            result.success is False
+            and "DROPBOX_ACCESS_TOKEN" in result.explanation
+            and "setup" in result.explanation.lower()
         )
 
     def test_dropbox_upload_small_file(self) -> None:
@@ -112,7 +112,8 @@ class TestDropboxIntegration:
             assert url.startswith("https://")
         except ValueError as e:
             # Test should pass if error is due to expired credentials or not configured
-            assert "Failed to initialize Dropbox client" in str(e) and (
+            assert "Failed to initialize Dropbox client" in str(e)
+            assert (
                 "expired_access_token" in str(e) or "not configured" in str(e)
             )
 
@@ -123,7 +124,8 @@ class TestDropboxIntegration:
             assert url.startswith("https://")
         except ValueError as e:
             # Test should pass if error is due to expired credentials or not configured
-            assert "Failed to initialize Dropbox client" in str(e) and (
+            assert "Failed to initialize Dropbox client" in str(e)
+            assert (
                 "expired_access_token" in str(e) or "not configured" in str(e)
             )
 
@@ -163,14 +165,19 @@ class TestSetupIntegration:
 
     def test_setup_all_providers(self) -> None:
         """Test checking setup status for all providers."""
-        results = setup_providers()
-        assert len(results) == len(PROVIDERS_PREFERENCE)
+        # setup_providers() returns None, we just check it runs without errors
+        setup_providers()
 
-        # At least one provider should be available
-        assert any(
-            result[0] or "not configured" in result[1] or "setup" in result[1].lower()
-            for result in results.values()
-        )
+        # We can still test individual providers
+        for provider in PROVIDERS_PREFERENCE:
+            if provider.lower() == "simple":
+                continue
+            result = setup_provider(provider)
+            # At least one provider should be available or have setup instructions
+            assert result.success or (
+                "not configured" in result.explanation
+                or "setup" in result.explanation.lower()
+            )
 
 
 class TestCatboxIntegration:
@@ -201,16 +208,16 @@ class TestCatboxIntegration:
     )
     def test_catbox_authenticated_upload(self, small_file):
         """Test authenticated upload to Catbox."""
-        url = upload_file(small_file, provider="catbox")
-        assert url.startswith("https://files.catbox.moe/")
+        result = upload_file(small_file, provider="catbox")
+        assert result.url.startswith("https://files.catbox.moe/")
 
         # Try to delete the file
-        filename = url.split("/")[-1]
+        filename = result.url.split("/")[-1]
         provider = catbox.get_provider()
         assert provider is not None
 
-        result = provider.delete_files([filename])
-        assert result is True
+        success = provider.delete_files([filename])
+        assert success is True
 
 
 class TestLitterboxIntegration:

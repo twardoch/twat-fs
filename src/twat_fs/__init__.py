@@ -1,4 +1,3 @@
-#!/usr/bin/env -S uv run
 # this_file: src/twat_fs/__init__.py
 
 """

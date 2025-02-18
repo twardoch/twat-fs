@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # this_file: src/twat_fs/upload_providers/catbox.py
 
 """
@@ -7,9 +6,19 @@ Supports both anonymous and authenticated uploads, as well as URL-based uploads.
 API documentation: https://catbox.moe/tools.php
 """
 
+from __future__ import annotations
+
+from typing import Any
+
 import os
 from pathlib import Path
-from typing import TypedDict, ClassVar
+from typing import (
+    TypedDict,
+    ClassVar,
+    TypeVar,
+    ParamSpec,
+    cast,
+)
 import aiohttp
 import requests
 import time
@@ -17,14 +26,18 @@ import time
 from twat_fs.upload_providers.protocols import ProviderClient, Provider, ProviderHelp
 from twat_fs.upload_providers.types import UploadResult
 from twat_fs.upload_providers.core import (
+    convert_to_upload_result,
     with_async_retry,
-    validate_file,
     async_to_sync,
     with_url_validation,
     with_timing,
     RetryableError,
     NonRetryableError,
 )
+
+# Type variables for generic functions
+T = TypeVar("T", covariant=True)
+P = ParamSpec("P")
 
 CATBOX_API_URL = "https://catbox.moe/user/api.php"
 
@@ -67,51 +80,46 @@ class CatboxProvider(ProviderClient, Provider):
         return cls(cls.get_credentials())
 
     @with_url_validation
-    @with_async_retry(
-        max_attempts=3,
-        exceptions=(aiohttp.ClientError, RetryableError),
-    )
     @with_timing
     async def async_upload_file(
         self,
-        file_path: Path,
+        file_path: str | Path,
         remote_path: str | Path | None = None,
         *,
         unique: bool = False,
         force: bool = False,
         upload_path: str | None = None,
+        **kwargs: Any,
     ) -> UploadResult:
         """
         Upload a file to catbox.moe.
 
         Args:
-            file_path: Local path to the file
-            remote_path: Ignored for Catbox
-            unique: If True, ensures unique filename (not supported by Catbox)
-            force: If True, overwrites existing file (not supported by Catbox)
-            upload_path: Custom upload path (not supported by Catbox)
+            file_path: Path to the file to upload
+            remote_path: Ignored for this provider
+            unique: Ignored for this provider
+            force: Ignored for this provider
+            upload_path: Ignored for this provider
+            **kwargs: Additional provider-specific arguments
 
         Returns:
-            UploadResult with the public URL
+            UploadResult: Upload result with URL and metadata
 
         Raises:
             FileNotFoundError: If the file doesn't exist
             RetryableError: For temporary failures that can be retried
             NonRetryableError: For permanent failures
         """
-        file_path = Path(file_path) if isinstance(file_path, str) else file_path
+        file_path = Path(str(file_path))
         if not file_path.exists():
             msg = f"File not found: {file_path}"
             raise FileNotFoundError(msg)
 
         data = aiohttp.FormData()
         data.add_field("reqtype", "fileupload")
-
-        # Add userhash if authenticated
         if self.userhash:
-            data.add_field("userhash", str(self.userhash))
+            data.add_field("userhash", self.userhash)
 
-        # Add the file - use async context manager to ensure proper cleanup
         try:
             # Read file content first
             with open(str(file_path), "rb") as f:
@@ -129,13 +137,15 @@ class CatboxProvider(ProviderClient, Provider):
                 try:
                     async with session.post(CATBOX_API_URL, data=data) as response:
                         if response.status == 503:
-                            error_text = await response.text()
-                            msg = f"Service temporarily unavailable (status 503): {error_text}"
+                            msg = "Service temporarily unavailable"
+                            raise RetryableError(msg, "catbox")
+                        elif response.status == 404:
+                            msg = "API endpoint not found - service may be down or API has changed"
                             raise RetryableError(msg, "catbox")
                         elif response.status != 200:
                             error_text = await response.text()
                             msg = f"Upload failed with status {response.status}: {error_text}"
-                            if response.status in (400, 401, 403, 404):
+                            if response.status in (400, 401, 403):
                                 raise NonRetryableError(msg, "catbox")
                             raise RetryableError(msg, "catbox")
 
@@ -144,11 +154,11 @@ class CatboxProvider(ProviderClient, Provider):
                             msg = f"Invalid response from server: {url}"
                             raise NonRetryableError(msg, "catbox")
 
-                        return UploadResult(
-                            url=url,
+                        return convert_to_upload_result(
+                            url,
                             metadata={
-                                "provider": "catbox",
-                                "userhash": self.userhash is not None,
+                                "provider": self.provider_name,
+                                "authenticated": bool(self.userhash),
                             },
                         )
 
@@ -207,11 +217,11 @@ class CatboxProvider(ProviderClient, Provider):
                         msg = f"Invalid response from server: {url}"
                         raise NonRetryableError(msg, "catbox")
 
-                    return UploadResult(
-                        url=url,
+                    return convert_to_upload_result(
+                        url,
                         metadata={
                             "provider": "catbox",
-                            "userhash": self.userhash is not None,
+                            "authenticated": bool(self.userhash),
                         },
                     )
 
@@ -244,27 +254,23 @@ class CatboxProvider(ProviderClient, Provider):
         data = aiohttp.FormData()
         data.add_field("reqtype", "deletefiles")
         data.add_field("userhash", str(self.userhash))
-        data.add_field("files", " ".join(str(f) for f in files))
+        data.add_field("files", ",".join(files))
 
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.post(CATBOX_API_URL, data=data) as response:
-                    if response.status == 429:  # Rate limit
-                        error_text = await response.text()
-                        msg = f"Rate limited: {error_text}"
+                    if response.status != 200:
+                        msg = f"Deletion failed with status {response.status}"
                         raise RetryableError(msg, "catbox")
-                    elif response.status != 200:
-                        error_text = await response.text()
-                        msg = f"File deletion failed: {error_text}"
-                        raise NonRetryableError(msg, "catbox")
-                    return True
+
+                    result = await response.text()
+                    return result == "success"
+
             except aiohttp.ClientError as e:
-                msg = f"Connection error: {e!s}"
+                msg = f"Deletion failed: {e}"
                 raise RetryableError(msg, "catbox") from e
 
-    @validate_file
-    @async_to_sync
-    async def upload_file(
+    def upload_file(
         self,
         local_path: str | Path,
         remote_path: str | Path | None = None,
@@ -272,36 +278,80 @@ class CatboxProvider(ProviderClient, Provider):
         unique: bool = False,
         force: bool = False,
         upload_path: str | None = None,
-    ) -> str:
+        **kwargs: Any,
+    ) -> UploadResult:
         """
         Synchronously upload a file to catbox.moe.
 
         Args:
-            local_path: Path to the local file
-            remote_path: Ignored for Catbox
-            unique: If True, ensures unique filename (not supported by Catbox)
-            force: If True, overwrites existing file (not supported by Catbox)
-            upload_path: Custom upload path (not supported by Catbox)
+            local_path: Path to the file to upload
+            remote_path: Ignored for this provider
+            unique: Ignored for this provider
+            force: Ignored for this provider
+            upload_path: Ignored for this provider
+            **kwargs: Additional provider-specific arguments
 
         Returns:
-            The public URL of the uploaded file
+            UploadResult: Upload result with URL and metadata
 
         Raises:
             FileNotFoundError: If the file doesn't exist
             RetryableError: For temporary failures that can be retried
             NonRetryableError: For permanent failures
         """
-        result = await self.async_upload_file(
-            Path(local_path) if isinstance(local_path, str) else local_path,
-            remote_path,
-            unique=unique,
-            force=force,
-            upload_path=upload_path,
+        return cast(
+            UploadResult,
+            async_to_sync(self.async_upload_file)(
+                local_path,
+                remote_path,
+                unique=unique,
+                force=force,
+                upload_path=upload_path,
+                **kwargs,
+            ),
         )
-        return result.url
+
+    def delete_files(self, files: list[str]) -> bool:
+        """
+        Synchronously delete files from catbox.moe.
+
+        Args:
+            files: List of filenames to delete
+
+        Returns:
+            True if deletion was successful
+
+        Raises:
+            NonRetryableError: If not authenticated or deletion fails
+            RetryableError: If connection issues occur
+        """
+        result: bool = async_to_sync(self.async_delete_files)(files)
+        return result
+
+    def upload_url(
+        self, url: str, *, unique: bool = False, force: bool = False
+    ) -> UploadResult:
+        """
+        Synchronously upload a file from a URL to catbox.moe.
+
+        Args:
+            url: The URL to upload from
+            unique: If True, ensures unique filename (not supported by Catbox)
+            force: If True, overwrites existing file (not supported by Catbox)
+
+        Returns:
+            UploadResult: Upload result with URL and metadata
+
+        Raises:
+            RetryableError: For temporary failures that can be retried
+            NonRetryableError: For permanent failures
+        """
+        result: UploadResult = async_to_sync(self.async_upload_url)(
+            url, unique=unique, force=force
+        )
+        return result
 
 
-# Module-level functions to implement the Provider protocol
 def get_credentials() -> CatboxCredentials | None:
     """Get provider credentials from environment."""
     return CatboxProvider.get_credentials()
@@ -313,40 +363,28 @@ def get_provider() -> ProviderClient | None:
 
 
 def upload_file(
-    local_path: str | Path,
-    remote_path: str | Path | None = None,
-    *,
-    unique: bool = False,
-    force: bool = False,
-    upload_path: str | None = None,
-) -> str:
+    local_path: str | Path, remote_path: str | Path | None = None
+) -> UploadResult:
     """
-    Upload a file and return its URL.
+    Upload a file to catbox.moe.
 
     Args:
         local_path: Path to the file to upload
-        remote_path: Optional remote path (ignored for this provider)
-        unique: If True, ensures unique filename (not supported by Catbox)
-        force: If True, overwrites existing file (not supported by Catbox)
-        upload_path: Custom upload path (not supported by Catbox)
+        remote_path: Ignored for this provider
 
     Returns:
-        str: URL to the uploaded file
+        UploadResult: Upload result with URL and metadata
 
     Raises:
-        ValueError: If upload fails
+        FileNotFoundError: If the file doesn't exist
+        RetryableError: For temporary failures that can be retried
+        NonRetryableError: For permanent failures
     """
     provider = get_provider()
     if not provider:
-        msg = "Failed to initialize provider"
-        raise ValueError(msg)
-    return provider.upload_file(
-        local_path,
-        remote_path,
-        unique=unique,
-        force=force,
-        upload_path=upload_path,
-    )
+        msg = "Failed to initialize Catbox provider"
+        raise NonRetryableError(msg, "catbox")
+    return provider.upload_file(local_path, remote_path)
 
 
 def upload_catbox(file_path: Path, max_retries: int = 3, backoff: int = 2) -> str:

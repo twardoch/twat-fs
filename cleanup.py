@@ -102,7 +102,6 @@ def log_message(message: str) -> None:
     log_line = f"{timestamp} - {message}\n"
     with LOG_FILE.open("a") as f:
         f.write(log_line)
-    print(message)
 
 
 def run_command(cmd: list[str], check: bool = True) -> subprocess.CompletedProcess:

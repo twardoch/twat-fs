@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # this_file: src/twat_fs/upload_providers/protocols.py
 
 """
@@ -33,13 +32,13 @@ class ProviderClient(Protocol):
         force: bool = False,
         upload_path: str | None = None,
         **kwargs: Any,
-    ) -> str:
+    ) -> UploadResult:
         """Upload a file and return its public URL."""
         ...
 
     async def async_upload_file(
         self,
-        file_path: Path,
+        file_path: str | Path,
         remote_path: str | Path | None = None,
         *,
         unique: bool = False,
@@ -87,7 +86,7 @@ class Provider(Protocol):
         force: bool = False,
         upload_path: str | None = None,
         **kwargs: Any,
-    ) -> str:
+    ) -> UploadResult:
         """
         Upload a file using this provider.
 
@@ -100,7 +99,7 @@ class Provider(Protocol):
             **kwargs: Additional provider-specific arguments
 
         Returns:
-            str: URL to the uploaded file
+            UploadResult: Upload result with URL and timing metrics
 
         Raises:
             ValueError: If upload fails
@@ -109,7 +108,7 @@ class Provider(Protocol):
 
     async def async_upload_file(
         self,
-        file_path: Path,
+        file_path: str | Path,
         remote_path: str | Path | None = None,
         *,
         unique: bool = False,

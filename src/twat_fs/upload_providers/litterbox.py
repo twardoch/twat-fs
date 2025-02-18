@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # this_file: src/twat_fs/upload_providers/litterbox.py
 
 """
@@ -7,23 +6,29 @@ Supports temporary file uploads with configurable expiration times.
 API documentation: https://litterbox.catbox.moe/tools.php
 """
 
+from twat_fs.upload_providers.types import UploadResult
 import os
 from pathlib import Path
-from typing import Any, ClassVar, cast
-from collections.abc import Callable
-from collections.abc import Coroutine, Awaitable
+from typing import Any, ClassVar, cast, TypeVar, ParamSpec
+from collections.abc import Callable, Awaitable
 from functools import wraps
 import aiohttp
 from loguru import logger
 
 from twat_fs.upload_providers.protocols import ProviderClient, Provider, ProviderHelp
-from twat_fs.upload_providers.types import ExpirationTime, UploadResult
+from twat_fs.upload_providers.types import ExpirationTime
 from twat_fs.upload_providers.core import (
+    convert_to_upload_result,
     with_url_validation,
     with_timing,
     RetryableError,
     NonRetryableError,
+    async_to_sync,
 )
+
+# Type variables for generic functions
+T = TypeVar("T")
+P = ParamSpec("P")
 
 LITTERBOX_API_URL = "https://litterbox.catbox.moe/resources/internals/api.php"
 
@@ -36,19 +41,29 @@ Optional: Set LITTERBOX_DEFAULT_EXPIRATION environment variable to change expira
 
 
 def _ensure_coroutine(
-    func: Callable[..., Awaitable[UploadResult]],
-) -> Callable[..., Coroutine[Any, Any, UploadResult]]:
-    """Ensure the function returns a Coroutine type."""
+    func: Callable[P, Awaitable[str | UploadResult]],
+) -> Callable[P, Awaitable[UploadResult]]:
+    """
+    Ensure the function returns a Coroutine type.
+
+    Args:
+        func: The async function to wrap
+
+    Returns:
+        A wrapped function that ensures UploadResult return type
+    """
 
     @wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> UploadResult:
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> UploadResult:
         result = await func(*args, **kwargs)
+        if isinstance(result, str):
+            return convert_to_upload_result(result)
         if not isinstance(result, UploadResult):
-            msg = f"Expected UploadResult, got {type(result)}"
+            msg = f"Expected UploadResult or str, got {type(result)}"
             raise RuntimeError(msg)
         return result
 
-    return cast(Callable[..., Coroutine[Any, Any, UploadResult]], wrapper)
+    return wrapper
 
 
 class LitterboxProvider(ProviderClient, Provider):
@@ -114,7 +129,7 @@ class LitterboxProvider(ProviderClient, Provider):
     @with_timing
     async def async_upload_file(
         self,
-        file_path: Path,
+        file_path: str | Path,
         remote_path: str | Path | None = None,
         *,
         unique: bool = False,
@@ -192,8 +207,8 @@ class LitterboxProvider(ProviderClient, Provider):
                             msg = f"Invalid response from server: {url}"
                             raise NonRetryableError(msg, "litterbox")
 
-                        return UploadResult(
-                            url=url,
+                        return convert_to_upload_result(
+                            url,
                             metadata={
                                 "expiration": expiration.value,
                                 "provider": self.provider_name,
@@ -217,7 +232,7 @@ class LitterboxProvider(ProviderClient, Provider):
         force: bool = False,
         upload_path: str | None = None,
         **kwargs: Any,
-    ) -> str:
+    ) -> UploadResult:
         """
         Synchronously upload a file to litterbox.catbox.moe.
 
@@ -230,30 +245,24 @@ class LitterboxProvider(ProviderClient, Provider):
             **kwargs: Additional provider-specific arguments
 
         Returns:
-            str: URL to the uploaded file
+            UploadResult: Upload result with URL and metadata
 
         Raises:
-            RuntimeError: If the upload fails
+            FileNotFoundError: If the file doesn't exist
+            RetryableError: For temporary failures that can be retried
+            NonRetryableError: For permanent failures
         """
-        file_path = Path(str(local_path))
-
-        # Use asyncio.run to run the async upload
-        import asyncio
-
-        result: UploadResult = asyncio.run(
-            cast(
-                Coroutine[Any, Any, UploadResult],
-                self.async_upload_file(
-                    file_path,
-                    remote_path,
-                    unique=unique,
-                    force=force,
-                    upload_path=upload_path,
-                    **kwargs,
-                ),
-            )
+        return cast(
+            UploadResult,
+            async_to_sync(self.async_upload_file)(
+                local_path,
+                remote_path,
+                unique=unique,
+                force=force,
+                upload_path=upload_path,
+                **kwargs,
+            ),
         )
-        return result.url
 
 
 def get_credentials() -> dict[str, Any] | None:
@@ -271,23 +280,25 @@ def upload_file(
     remote_path: str | Path | None = None,
     *,
     expiration: ExpirationTime | None = None,
-) -> str:
+) -> UploadResult:
     """
-    Upload a file and return its URL.
+    Upload a file to litterbox.catbox.moe.
 
     Args:
         local_path: Path to the file to upload
-        remote_path: Optional remote path (ignored for this provider)
-        expiration: Optional expiration time, defaults to provider default
+        remote_path: Ignored for this provider
+        expiration: Optional expiration time for the upload
 
     Returns:
-        str: URL to the uploaded file
+        UploadResult: Upload result with URL and metadata
 
     Raises:
-        ValueError: If upload fails
+        FileNotFoundError: If the file doesn't exist
+        RetryableError: For temporary failures that can be retried
+        NonRetryableError: For permanent failures
     """
     provider = get_provider()
     if not provider:
-        msg = "Failed to initialize provider"
-        raise ValueError(msg)
+        msg = "Failed to initialize Litterbox provider"
+        raise NonRetryableError(msg, "litterbox")
     return provider.upload_file(local_path, remote_path, expiration=expiration)

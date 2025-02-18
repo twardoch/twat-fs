@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-# /// script
-# dependencies = []
-# ///
 # this_file: src/twat_fs/upload_providers/__init__.py
 
 """

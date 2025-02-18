@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-# /// script
-# dependencies = ["requests"]
-# ///
 # this_file: src/twat_fs/upload_providers/pixeldrain.py
 
 """
@@ -9,14 +5,18 @@ Pixeldrain.com upload provider.
 A simple provider that uploads files to pixeldrain.com.
 """
 
+from twat_fs.upload_providers.types import UploadResult
+
 import requests
 from pathlib import Path
-from typing import BinaryIO, cast
+from typing import BinaryIO, cast, ClassVar
 import time
 
 from loguru import logger
 
-from twat_fs.upload_providers.simple import SimpleProviderBase, UploadResult
+from twat_fs.upload_providers.simple import BaseProvider, UploadResult
+from twat_fs.upload_providers.core import convert_to_upload_result
+
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
 
 # Provider help messages
@@ -26,8 +26,11 @@ PROVIDER_HELP: ProviderHelp = {
 }
 
 
-class PixeldrainProvider(SimpleProviderBase):
+class PixeldrainProvider(BaseProvider):
     """Provider for pixeldrain.com uploads"""
+
+    PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
+    provider_name: str = "pixeldrain"
 
     def __init__(self) -> None:
         super().__init__()
@@ -103,9 +106,11 @@ class PixeldrainProvider(SimpleProviderBase):
                     logger.debug(f"Successfully uploaded to pixeldrain.com: {url}")
                     return UploadResult(
                         url=url,
-                        success=True,
-                        raw_response=data,
-                        metadata={"provider": "pixeldrain"},
+                        metadata={
+                            "provider": "pixeldrain",
+                            "success": True,
+                            "raw_response": data,
+                        },
                     )
 
                 except requests.RequestException as e:
@@ -124,26 +129,47 @@ class PixeldrainProvider(SimpleProviderBase):
             logger.error(f"Failed to upload to pixeldrain.com: {e}")
             return UploadResult(
                 url="",
-                success=False,
-                error=str(e),
-                metadata={"provider": "pixeldrain"},
+                metadata={
+                    "provider": "pixeldrain",
+                    "success": False,
+                    "error": str(e),
+                },
             )
+
+    @classmethod
+    def get_credentials(cls) -> None:
+        """Simple providers don't need credentials"""
+        return convert_to_upload_result(None)
+
+    @classmethod
+    def get_provider(cls) -> ProviderClient | None:
+        """Initialize and return the provider client."""
+        return cast(ProviderClient, cls())
+
+    def _get_file_url(self, file_id: str | None) -> str | None:
+        """Get the URL for a file ID."""
+        if not file_id:
+            return None
+        return f"https://pixeldrain.com/u/{file_id}"
 
 
 # Module-level functions to implement the Provider protocol
 def get_credentials() -> None:
     """Simple providers don't need credentials"""
-    return None
+    return PixeldrainProvider.get_credentials()
 
 
 def get_provider() -> ProviderClient | None:
     """Return an instance of the provider"""
-    return cast(ProviderClient, PixeldrainProvider())
+    return PixeldrainProvider.get_provider()
 
 
-def upload_file(local_path: str | Path, remote_path: str | Path | None = None) -> str:
+def upload_file(
+    local_path: str | Path,
+    remote_path: str | Path | None = None,
+) -> UploadResult:
     """
-    Upload a file and return its URL.
+    Upload a file and return convert_to_upload_result(its URL.
 
     Args:
         local_path: Path to the file to upload

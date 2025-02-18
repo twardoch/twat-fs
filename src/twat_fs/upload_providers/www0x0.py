@@ -1,7 +1,3 @@
-#!/usr/bin/env python3
-# /// script
-# dependencies = ["requests"]
-# ///
 # this_file: src/twat_fs/upload_providers/www0x0.py
 
 """
@@ -11,13 +7,16 @@ A simple provider that uploads files to 0x0.st.
 
 import requests
 from pathlib import Path
-from typing import BinaryIO, ClassVar
+from typing import BinaryIO, ClassVar, cast
 
 from loguru import logger
 
-from twat_fs.upload_providers.simple import SimpleProviderBase, UploadResult
+from twat_fs.upload_providers.simple import BaseProvider, UploadResult
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
-from twat_fs.upload_providers.core import RetryableError, NonRetryableError
+from twat_fs.upload_providers.core import (
+    RetryableError,
+    NonRetryableError,
+)
 
 # Provider help messages
 PROVIDER_HELP: ProviderHelp = {
@@ -26,10 +25,11 @@ PROVIDER_HELP: ProviderHelp = {
 }
 
 
-class Www0x0Provider(SimpleProviderBase):
+class Www0x0Provider(BaseProvider):
     """Provider for 0x0.st uploads"""
 
     PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
+    provider_name: str = "www0x0"
 
     def __init__(self) -> None:
         super().__init__()
@@ -70,9 +70,11 @@ class Www0x0Provider(SimpleProviderBase):
             logger.debug(f"Successfully uploaded to 0x0.st: {url}")
             return UploadResult(
                 url=url,
-                success=True,
-                raw_response=response.text,
-                metadata={"provider": "www0x0"},
+                metadata={
+                    "provider": "www0x0",
+                    "success": True,
+                    "raw_response": response.text,
+                },
             )
 
         except requests.Timeout as e:
@@ -83,7 +85,14 @@ class Www0x0Provider(SimpleProviderBase):
             raise RetryableError(msg, "www0x0") from e
         except Exception as e:
             msg = f"Upload failed: {e}"
-            raise NonRetryableError(msg, "www0x0") from e
+            return UploadResult(
+                url="",
+                metadata={
+                    "provider": "www0x0",
+                    "success": False,
+                    "error": str(e),
+                },
+            )
 
     @classmethod
     def get_credentials(cls) -> None:
@@ -92,8 +101,8 @@ class Www0x0Provider(SimpleProviderBase):
 
     @classmethod
     def get_provider(cls) -> ProviderClient | None:
-        """Return an instance of this provider"""
-        return cls()
+        """Initialize and return the provider client."""
+        return cast(ProviderClient, cls())
 
 
 # Module-level functions to implement the Provider protocol
@@ -107,7 +116,10 @@ def get_provider() -> ProviderClient | None:
     return Www0x0Provider.get_provider()
 
 
-def upload_file(local_path: str | Path, remote_path: str | Path | None = None) -> str:
+def upload_file(
+    local_path: str | Path,
+    remote_path: str | Path | None = None,
+) -> UploadResult:
     """
     Upload a file and return its URL.
 
@@ -116,7 +128,7 @@ def upload_file(local_path: str | Path, remote_path: str | Path | None = None) -
         remote_path: Optional remote path (ignored for simple providers)
 
     Returns:
-        str: URL to the uploaded file
+        UploadResult: URL of the uploaded file
 
     Raises:
         ValueError: If upload fails

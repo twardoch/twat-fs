@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-# /// script
-# dependencies = ["requests"]
-# ///
 # this_file: src/twat_fs/upload_providers/filebin.py
 
 """
@@ -10,16 +6,19 @@ A simple provider that uploads files to filebin.net.
 Files are automatically deleted after 6 days.
 """
 
+from twat_fs.upload_providers.types import UploadResult
+
 import requests
 from pathlib import Path
-from typing import BinaryIO, cast
+from typing import BinaryIO, cast, ClassVar
 import time
 import random
 import string
 
 from loguru import logger
 
-from twat_fs.upload_providers.simple import SimpleProviderBase, UploadResult
+from twat_fs.upload_providers.simple import BaseProvider, UploadResult
+
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
 
 # Provider help messages
@@ -29,8 +28,11 @@ PROVIDER_HELP: ProviderHelp = {
 }
 
 
-class FilebinProvider(SimpleProviderBase):
+class FilebinProvider(BaseProvider):
     """Provider for filebin.net uploads"""
+
+    PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
+    provider_name: str = "filebin"
 
     def __init__(self) -> None:
         super().__init__()
@@ -84,9 +86,11 @@ class FilebinProvider(SimpleProviderBase):
                         )
                         return UploadResult(
                             url=str(file_url),
-                            success=True,
-                            raw_response=response.text,
-                            metadata={"provider": "filebin"},
+                            metadata={
+                                "provider": "filebin",
+                                "success": True,
+                                "raw_response": response.text,
+                            },
                         )
 
                     last_error = f"Upload failed with status {response.status_code}: {response.text}"
@@ -110,10 +114,22 @@ class FilebinProvider(SimpleProviderBase):
             logger.error(f"Failed to upload to filebin.net: {e}")
             return UploadResult(
                 url="",
-                success=False,
-                error=str(e),
-                metadata={"provider": "filebin"},
+                metadata={
+                    "provider": "filebin",
+                    "success": False,
+                    "error": str(e),
+                },
             )
+
+    @classmethod
+    def get_credentials(cls) -> None:
+        """Simple providers don't need credentials"""
+        return None
+
+    @classmethod
+    def get_provider(cls) -> ProviderClient | None:
+        """Initialize and return the provider client."""
+        return cast(ProviderClient, cls())
 
 
 # Module-level functions to implement the Provider protocol
@@ -124,10 +140,12 @@ def get_credentials() -> None:
 
 def get_provider() -> ProviderClient | None:
     """Return an instance of the provider"""
-    return cast(ProviderClient, FilebinProvider())
+    return FilebinProvider.get_provider()
 
 
-def upload_file(local_path: str | Path, remote_path: str | Path | None = None) -> str:
+def upload_file(
+    local_path: str | Path, remote_path: str | Path | None = None
+) -> UploadResult:
     """
     Upload a file and return its URL.
 
@@ -136,10 +154,7 @@ def upload_file(local_path: str | Path, remote_path: str | Path | None = None) -
         remote_path: Optional remote path (ignored for simple providers)
 
     Returns:
-        str: URL to the uploaded file
-
-    Raises:
-        ValueError: If upload fails
+        UploadResult: URL of the uploaded file
     """
     provider = get_provider()
     if not provider:

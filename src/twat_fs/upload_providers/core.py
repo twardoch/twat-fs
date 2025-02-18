@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # this_file: src/twat_fs/upload_providers/core.py
 
 """
@@ -11,7 +10,14 @@ import functools
 import time
 from enum import Enum
 from pathlib import Path
-from typing import TypeVar, ParamSpec, cast, NamedTuple
+from typing import (
+    TypeVar,
+    ParamSpec,
+    NamedTuple,
+    Any,
+    overload,
+    Protocol,
+)
 from collections.abc import Callable, Awaitable
 import aiohttp
 from loguru import logger
@@ -19,13 +25,72 @@ from loguru import logger
 from twat_fs.upload_providers.types import UploadResult
 
 # Type variables for generic decorators
-T = TypeVar("T")
+T = TypeVar("T", covariant=True)
+R = TypeVar("R", str, UploadResult, covariant=True)
 P = ParamSpec("P")
 
 # Constants for URL validation
-URL_CHECK_TIMEOUT = 30.0  # seconds
+URL_CHECK_TIMEOUT = aiohttp.ClientTimeout(total=30.0)  # seconds
 MAX_REDIRECTS = 5
 USER_AGENT = "twat-fs/1.0"
+
+
+class UploadCallable(Protocol[P, T]):
+    """Protocol for upload functions."""
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T: ...
+
+
+class AsyncUploadCallable(Protocol[P, T]):
+    """Protocol for async upload functions."""
+
+    async def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T: ...
+
+
+@overload
+def convert_to_upload_result(result: str) -> UploadResult: ...
+
+
+@overload
+def convert_to_upload_result(
+    result: str, *, metadata: dict[str, Any]
+) -> UploadResult: ...
+
+
+@overload
+def convert_to_upload_result(
+    result: str, *, provider: str, metadata: dict[str, Any]
+) -> UploadResult: ...
+
+
+@overload
+def convert_to_upload_result(result: UploadResult) -> UploadResult: ...
+
+
+@overload
+def convert_to_upload_result(result: dict[str, Any]) -> UploadResult: ...
+
+
+def convert_to_upload_result(
+    result: str | UploadResult | dict[str, Any],
+    *,
+    provider: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> UploadResult:
+    """Convert various result types to UploadResult."""
+    if isinstance(result, UploadResult):
+        if metadata:
+            result.metadata.update(metadata)
+        return result
+    if isinstance(result, str):
+        meta = metadata or {}
+        if provider:
+            meta["provider"] = provider
+        return UploadResult(url=result, metadata=meta)
+    if isinstance(result, dict):
+        return UploadResult(**result)
+    msg = f"Cannot convert {type(result)} to UploadResult"
+    raise TypeError(msg)
 
 
 class TimingMetrics(NamedTuple):
@@ -67,22 +132,12 @@ def with_retry(
     max_delay: float = 30.0,
     strategy: RetryStrategy = RetryStrategy.EXPONENTIAL,
     exceptions: tuple[type[Exception], ...] = (Exception,),
-) -> Callable[[Callable[P, T]], Callable[P, T]]:
+) -> Callable[[UploadCallable[P, T]], UploadCallable[P, T]]:
     """
     Decorator for retrying upload operations with configurable backoff.
-
-    Args:
-        max_attempts: Maximum number of retry attempts
-        initial_delay: Initial delay between retries in seconds
-        max_delay: Maximum delay between retries in seconds
-        strategy: Retry strategy to use
-        exceptions: Tuple of exceptions to catch and retry on
-
-    Returns:
-        Decorated function that implements retry logic
     """
 
-    def decorator(func: Callable[P, T]) -> Callable[P, T]:
+    def decorator(func: UploadCallable[P, T]) -> UploadCallable[P, T]:
         @functools.wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             last_exception = None
@@ -124,13 +179,12 @@ def with_async_retry(
     max_delay: float = 30.0,
     strategy: RetryStrategy = RetryStrategy.EXPONENTIAL,
     exceptions: tuple[type[Exception], ...] = (Exception,),
-) -> Callable[[Callable[P, T]], Callable[P, T]]:
+) -> Callable[[AsyncUploadCallable[P, T]], AsyncUploadCallable[P, T]]:
     """
     Decorator for retrying async upload operations with configurable backoff.
-    Similar to with_retry but for async functions.
     """
 
-    def decorator(func: Callable[P, T]) -> Callable[P, T]:
+    def decorator(func: AsyncUploadCallable[P, T]) -> AsyncUploadCallable[P, T]:
         @functools.wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             last_exception = None
@@ -160,15 +214,14 @@ def with_async_retry(
             assert last_exception is not None  # for type checker
             raise last_exception
 
-        return cast(Callable[P, T], wrapper)
+        return wrapper
 
     return decorator
 
 
-def validate_file(func: Callable[P, T]) -> Callable[P, T]:
+def validate_file(func: UploadCallable[P, T]) -> UploadCallable[P, T]:
     """
     Decorator to validate file existence and permissions before upload.
-    Common validation used by most providers.
     """
 
     @functools.wraps(func)
@@ -183,7 +236,7 @@ def validate_file(func: Callable[P, T]) -> Callable[P, T]:
             msg = "No file path provided"
             raise ValueError(msg)
 
-        path = Path(file_path)
+        path = Path(str(file_path))  # Explicitly convert to string
         if not path.exists():
             msg = f"File not found: {path}"
             raise FileNotFoundError(msg)
@@ -191,34 +244,29 @@ def validate_file(func: Callable[P, T]) -> Callable[P, T]:
             msg = f"Not a file: {path}"
             raise ValueError(msg)
         if not path.stat().st_size:
-            msg = f"File is empty: {path}"
+            msg = f"Empty file: {path}"
             raise ValueError(msg)
-        if not path.stat().st_mode & 0o444:
-            msg = f"File not readable: {path}"
-            raise PermissionError(msg)
 
         return func(*args, **kwargs)
 
     return wrapper
 
 
-def sync_to_async(func: Callable[P, T]) -> Callable[P, T]:
+def sync_to_async(func: UploadCallable[P, T]) -> AsyncUploadCallable[P, T]:
     """
-    Decorator to convert a synchronous upload function to async.
-    Useful for providers that need to implement both sync and async interfaces.
+    Convert a synchronous upload function to an async one.
     """
 
     @functools.wraps(func)
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         return await asyncio.to_thread(func, *args, **kwargs)
 
-    return cast(Callable[P, T], wrapper)
+    return wrapper
 
 
-def async_to_sync(func: Callable[P, T]) -> Callable[P, T]:
+def async_to_sync(func: AsyncUploadCallable[P, T]) -> UploadCallable[P, T]:
     """
-    Decorator to convert an async upload function to sync.
-    Useful for providers that implement async upload but need to provide sync interface.
+    Convert an async upload function to a synchronous one.
     """
 
     @functools.wraps(func)
@@ -229,80 +277,60 @@ def async_to_sync(func: Callable[P, T]) -> Callable[P, T]:
 
 
 class UploadError(Exception):
-    """Base exception for upload errors."""
+    """Base class for upload errors."""
 
     def __init__(self, message: str, provider: str | None = None) -> None:
+        """Initialize with message and optional provider name."""
         super().__init__(message)
         self.provider = provider
 
 
 class RetryableError(UploadError):
-    """Exception indicating the upload should be retried."""
+    """Error that can be retried (e.g., network issues)."""
 
-    pass
 
 
 class NonRetryableError(UploadError):
-    """Exception indicating the upload should not be retried."""
-
-    pass
+    """Error that should not be retried (e.g., invalid credentials)."""
 
 
-async def validate_url(url: str, timeout: float = URL_CHECK_TIMEOUT) -> bool:
+
+async def validate_url(
+    url: str, timeout: aiohttp.ClientTimeout = URL_CHECK_TIMEOUT
+) -> bool:
     """
-    Validate that a URL is accessible by making a GET request.
+    Validate that a URL is accessible.
 
     Args:
-        url: The URL to validate
-        timeout: Timeout in seconds for the request
+        url: URL to validate
+        timeout: Request timeout
 
     Returns:
-        bool: True if URL is valid and accessible
+        bool: True if URL is accessible, False otherwise
 
     Raises:
-        RetryableError: If the validation should be retried (e.g., timeout)
-        NonRetryableError: If the URL is invalid or inaccessible
+        RetryableError: If validation fails due to temporary issues
+        NonRetryableError: If validation fails due to permanent issues
     """
-    async with aiohttp.ClientSession() as session:
-        try:
-            # Configure client session with appropriate headers and settings
-            headers = {
-                "User-Agent": USER_AGENT,
-                "Accept": "*/*",
-            }
-
-            async with session.get(
-                url,
-                headers=headers,
-                timeout=timeout,
-                allow_redirects=True,
-                max_redirects=MAX_REDIRECTS,
-            ) as response:
-                # Consider any 2xx or 3xx status as success
-                if 200 <= response.status < 400:
-                    return True
-                if response.status in (401, 403, 404, 410):
-                    msg = f"URL not accessible (status {response.status})"
-                    raise NonRetryableError(msg)
-                # Treat all other status codes as retryable
-                msg = f"URL validation failed (status {response.status})"
-                raise RetryableError(msg)
-
-        except aiohttp.ClientError as e:
-            if isinstance(e, aiohttp.ClientConnectorError):
-                msg = f"Connection error: {e}"
-                raise RetryableError(msg)
-            if isinstance(e, aiohttp.ClientTimeout):
-                msg = f"Timeout error: {e}"
-                raise RetryableError(msg)
-            msg = f"Client error: {e}"
-            raise NonRetryableError(msg)
-        except asyncio.TimeoutError as e:
-            msg = f"Timeout error: {e}"
+    try:
+        async with aiohttp.ClientSession(
+            timeout=timeout,
+            headers={"User-Agent": USER_AGENT},
+        ) as session, session.head(
+            url,
+            allow_redirects=True,
+            max_redirects=MAX_REDIRECTS,
+        ) as response:
+            if response.status in (200, 201, 202, 203, 204):
+                return True
+            if response.status in (401, 403, 404):
+                msg = f"URL validation failed with status {response.status}"
+                raise NonRetryableError(msg)
+            msg = f"URL validation failed with status {response.status}"
             raise RetryableError(msg)
-        except Exception as e:
-            msg = f"Unexpected error: {e}"
-            raise NonRetryableError(msg)
+    except aiohttp.ClientError as e:
+        msg = f"URL validation failed: {e}"
+        raise RetryableError(msg) from e
 
 
 @with_async_retry(
@@ -312,144 +340,73 @@ async def validate_url(url: str, timeout: float = URL_CHECK_TIMEOUT) -> bool:
     strategy=RetryStrategy.EXPONENTIAL,
     exceptions=(RetryableError, aiohttp.ClientError),
 )
-async def ensure_url_accessible(url: str) -> str:
+async def ensure_url_accessible(url: str) -> UploadResult:
     """
-    Ensure a URL is accessible with retries.
-    Returns the URL if successful, raises an error if not.
+    Ensure a URL is accessible, with retries.
 
     Args:
-        url: The URL to validate
+        url: URL to validate
 
     Returns:
-        str: The validated URL
+        UploadResult: Upload result with validated URL
 
     Raises:
-        NonRetryableError: If the URL is invalid or inaccessible after retries
+        RetryableError: If validation fails after retries
+        NonRetryableError: If validation fails permanently
     """
     if await validate_url(url):
-        return url
-    msg = "URL validation failed after retries"
-    raise NonRetryableError(msg)
+        return convert_to_upload_result(url)
+    msg = "URL validation failed"
+    raise RetryableError(msg)
 
 
 def with_url_validation(
     func: Callable[P, Awaitable[str | UploadResult]],
-) -> Callable[P, Awaitable[str | UploadResult]]:
+) -> Callable[P, Awaitable[UploadResult]]:
     """
     Decorator to validate URLs after upload.
-    Should be applied to async upload methods that return a URL or UploadResult.
 
     Args:
         func: Async function that returns a URL or UploadResult
 
     Returns:
-        Decorated function that validates the URL after upload
+        Callable: Wrapped function that ensures URL is accessible
     """
 
     @functools.wraps(func)
-    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> str | UploadResult:
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> UploadResult:
         result = await func(*args, **kwargs)
-        # Add a small delay before validation to allow for propagation
-        await asyncio.sleep(1.0)
-
-        # Extract URL from result
-        url = result.url if isinstance(result, UploadResult) else result
-        validated_url = await ensure_url_accessible(url)
-
-        # Return same type as input
-        if isinstance(result, UploadResult):
-            result.url = validated_url
-            return result
-        return validated_url
+        if isinstance(result, str):
+            return await ensure_url_accessible(result)
+        return result
 
     return wrapper
 
 
 def with_timing(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
     """
-    Decorator to add timing metrics to upload operations.
+    Decorator to add timing metrics to upload results.
 
-    This decorator will track:
-    - Total operation duration
-    - File read duration
-    - Upload duration
-    - URL validation duration
+    Args:
+        func: Async function to time
+
+    Returns:
+        Callable: Wrapped function that includes timing metrics
     """
 
     @functools.wraps(func)
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         start_time = time.time()
-        read_start = time.time()
-
-        # Get file path from args or kwargs
-        file_path = next(
-            (arg for arg in args if isinstance(arg, str | Path)),
-            kwargs.get("local_path") or kwargs.get("file_path"),
-        )
-
-        # Get provider name from instance or module
-        provider_name = (
-            getattr(args[0], "provider_name", None)
-            if args
-            else kwargs.get("provider", "unknown")
-        )
-
-        # Track file read time
-        if file_path:
-            path = Path(str(file_path))
-            if path.exists():
-                with open(path, "rb") as f:
-                    _ = f.read()  # Read file to measure read time
-        read_duration = time.time() - read_start
-
-        # Track upload time
-        upload_start = time.time()
         result = await func(*args, **kwargs)
-        upload_duration = time.time() - upload_start
-
-        # Track validation time if result has a URL
-        validation_start = time.time()
-        if isinstance(result, UploadResult):
-            url = result.url
-        elif isinstance(result, str):
-            url = result
-        else:
-            url = None
-
-        if url:
-            try:
-                await validate_url(url)
-            except Exception:
-                pass
-        validation_duration = time.time() - validation_start
-
         end_time = time.time()
-        total_duration = end_time - start_time
 
-        # Create timing metrics
-        metrics = TimingMetrics(
-            start_time=start_time,
-            end_time=end_time,
-            total_duration=total_duration,
-            read_duration=read_duration,
-            upload_duration=upload_duration,
-            validation_duration=validation_duration,
-            provider=str(provider_name),
-        )
-
-        # Attach metrics to result if it's an UploadResult
         if isinstance(result, UploadResult):
-            result.metadata["timing"] = metrics.as_dict
-
-        # Log timing information
-        logger.info(
-            f"Upload timing for {provider_name}: "
-            f"total={total_duration:.2f}s, "
-            f"read={read_duration:.2f}s, "
-            f"upload={upload_duration:.2f}s, "
-            f"validation={validation_duration:.2f}s"
-        )
+            result.metadata["timing"] = {
+                "start_time": start_time,
+                "end_time": end_time,
+                "total_duration": end_time - start_time,
+            }
 
         return result
 
-    return cast(Callable[P, Awaitable[T]], wrapper)
+    return wrapper

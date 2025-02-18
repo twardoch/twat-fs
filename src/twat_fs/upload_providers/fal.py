@@ -1,10 +1,3 @@
-#!/usr/bin/env python
-# /// script
-# dependencies = [
-#   "fal-client",
-#   "loguru",
-# ]
-# ///
 # this_file: src/twat_fs/upload_providers/fal.py
 
 """
@@ -13,23 +6,27 @@ This module provides functionality to upload files to FAL's storage service.
 """
 
 from __future__ import annotations
-
+from typing import Any
 import os
-from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, TYPE_CHECKING
 
 import fal_client  # type: ignore
 from loguru import logger  # type: ignore
 
 from twat_fs.upload_providers.protocols import Provider, ProviderClient, ProviderHelp
-from twat_fs.upload_providers.types import UploadResult
 from twat_fs.upload_providers.core import (
+    convert_to_upload_result,
     with_url_validation,
     with_async_retry,
     RetryableError,
     NonRetryableError,
     validate_file,
+    async_to_sync,
 )
+
+if TYPE_CHECKING:
+    from twat_fs.upload_providers.types import UploadResult
+    from pathlib import Path
 
 # Provider-specific help messages
 PROVIDER_HELP: ProviderHelp = {
@@ -44,11 +41,12 @@ PROVIDER_HELP: ProviderHelp = {
 }
 
 
-class FalProvider(Provider):
+class FalProvider(ProviderClient, Provider):
     """Provider for uploading files to FAL."""
 
     # Class variable for provider help
     PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
+    provider_name = "fal"
 
     def __init__(self, key: str) -> None:
         """Initialize the FAL provider with the given API key."""
@@ -93,12 +91,13 @@ class FalProvider(Provider):
     )
     async def async_upload_file(
         self,
-        file_path: Path,
+        file_path: str | Path,
         remote_path: str | Path | None = None,
         *,
         unique: bool = False,
         force: bool = False,
         upload_path: str | None = None,
+        **kwargs: Any,
     ) -> UploadResult:
         """
         Upload a file using FAL.
@@ -109,9 +108,10 @@ class FalProvider(Provider):
             unique: Whether to ensure unique filenames (ignored for FAL)
             force: Whether to overwrite existing files (ignored for FAL)
             upload_path: Base path for uploads (ignored for FAL)
+            **kwargs: Additional provider-specific arguments
 
         Returns:
-            UploadResult with the public URL
+            UploadResult: Upload result with URL and metadata
 
         Raises:
             FileNotFoundError: If the file doesn't exist
@@ -155,10 +155,10 @@ class FalProvider(Provider):
                 msg = "FAL upload failed - empty URL in response"
                 raise RetryableError(msg, "fal")
 
-            return UploadResult(
-                url=result_str,
+            return convert_to_upload_result(
+                result_str,
                 metadata={
-                    "provider": "fal",
+                    "provider": self.provider_name,
                 },
             )
 
@@ -177,7 +177,8 @@ class FalProvider(Provider):
         unique: bool = False,
         force: bool = False,
         upload_path: str | None = None,
-    ) -> str:
+        **kwargs: Any,
+    ) -> UploadResult:
         """
         Upload a file using FAL.
 
@@ -187,29 +188,25 @@ class FalProvider(Provider):
             unique: Whether to ensure unique filenames (ignored for FAL)
             force: Whether to overwrite existing files (ignored for FAL)
             upload_path: Base path for uploads (ignored for FAL)
+            **kwargs: Additional provider-specific arguments
 
         Returns:
-            str: URL to the uploaded file
+            UploadResult: Upload result with URL and metadata
 
         Raises:
-            ValueError: If upload fails
             FileNotFoundError: If the file doesn't exist
+            RetryableError: For temporary failures that can be retried
+            NonRetryableError: For permanent failures
         """
-        import asyncio
-
-        try:
-            result = asyncio.run(
-                self.async_upload_file(
-                    Path(local_path),
-                    remote_path,
-                    unique=unique,
-                    force=force,
-                    upload_path=upload_path,
-                )
-            )
-            return result.url
-        except (RetryableError, NonRetryableError) as e:
-            raise ValueError(str(e)) from e
+        result: UploadResult = async_to_sync(self.async_upload_file)(
+            local_path,
+            remote_path,
+            unique=unique,
+            force=force,
+            upload_path=upload_path,
+            **kwargs,
+        )
+        return result
 
 
 # Module-level functions that delegate to the FalProvider class
@@ -236,18 +233,33 @@ def upload_file(
     unique: bool = False,
     force: bool = False,
     upload_path: str | None = None,
-) -> str:
+) -> UploadResult:
     """
     Upload a file using FAL.
     Delegates to FalProvider.upload_file().
+
+    Args:
+        local_path: Path to the file to upload
+        remote_path: Optional remote path (ignored for FAL)
+        unique: Whether to ensure unique filenames (ignored for FAL)
+        force: Whether to overwrite existing files (ignored for FAL)
+        upload_path: Base path for uploads (ignored for FAL)
+
+    Returns:
+        UploadResult: Upload result with URL and metadata
+
+    Raises:
+        FileNotFoundError: If the file doesn't exist
+        RetryableError: For temporary failures that can be retried
+        NonRetryableError: For permanent failures
     """
     provider = get_provider()
     if not provider:
         msg = "FAL provider not configured"
-        raise ValueError(msg)
+        raise NonRetryableError(msg, "fal")
     return provider.upload_file(
         local_path,
-        remote_path=remote_path,
+        remote_path,
         unique=unique,
         force=force,
         upload_path=upload_path,
