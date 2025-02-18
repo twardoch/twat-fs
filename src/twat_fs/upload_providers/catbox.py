@@ -85,29 +85,36 @@ class CatboxProvider(ProviderClient):
             data.add_field("userhash", self.userhash)
 
         # Add the file
-        data.add_field(
-            "fileToUpload",
-            open(file_path, "rb"),
-            filename=file_path.name,
-            content_type="application/octet-stream",
-        )
+        with open(file_path, "rb") as f:
+            data.add_field(
+                "fileToUpload",
+                f,
+                filename=file_path.name,
+                content_type="application/octet-stream",
+            )
 
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.post(CATBOX_API_URL, data=data) as response:
-                    if response.status == 429:  # Rate limit
-                        error_text = await response.text()
-                        msg = f"Rate limited: {error_text}"
+                    if response.status != 200:
+                        msg = f"Upload failed with status {response.status}"
                         raise RetryableError(msg, "catbox")
-                    elif response.status != 200:
-                        error_text = await response.text()
-                        msg = f"Upload failed: {error_text}"
-                        raise NonRetryableError(msg, "catbox")
 
                     url = await response.text()
-                    return UploadResult(url=url.strip())
+                    if not url.startswith("http"):
+                        msg = f"Invalid response from server: {url}"
+                        raise NonRetryableError(msg, "catbox")
+
+                    return UploadResult(
+                        url=url,
+                        metadata={
+                            "provider": "catbox",
+                            "userhash": self.userhash is not None,
+                        },
+                    )
+
             except aiohttp.ClientError as e:
-                msg = f"Connection error: {e!s}"
+                msg = f"Upload failed: {e}"
                 raise RetryableError(msg, "catbox") from e
 
     @with_url_validation
@@ -147,19 +154,25 @@ class CatboxProvider(ProviderClient):
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.post(CATBOX_API_URL, data=data) as response:
-                    if response.status == 429:  # Rate limit
-                        error_text = await response.text()
-                        msg = f"Rate limited: {error_text}"
+                    if response.status != 200:
+                        msg = f"Upload failed with status {response.status}"
                         raise RetryableError(msg, "catbox")
-                    elif response.status != 200:
-                        error_text = await response.text()
-                        msg = f"URL upload failed: {error_text}"
+
+                    url = await response.text()
+                    if not url.startswith("http"):
+                        msg = f"Invalid response from server: {url}"
                         raise NonRetryableError(msg, "catbox")
 
-                    result_url = await response.text()
-                    return UploadResult(url=result_url.strip())
+                    return UploadResult(
+                        url=url,
+                        metadata={
+                            "provider": "catbox",
+                            "userhash": self.userhash is not None,
+                        },
+                    )
+
             except aiohttp.ClientError as e:
-                msg = f"Connection error: {e!s}"
+                msg = f"Upload failed: {e}"
                 raise RetryableError(msg, "catbox") from e
 
     @with_async_retry(

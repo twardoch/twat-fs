@@ -58,7 +58,7 @@ class SimpleProviderBase(ABC, Provider):
     }
 
     @contextmanager
-    def _open_file(self, file_path: Path) -> Generator[BinaryIO, None, None]:
+    def _open_file(self, file_path: Path) -> Generator[BinaryIO]:
         """Safely open and close a file"""
         file = None
         try:

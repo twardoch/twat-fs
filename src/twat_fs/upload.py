@@ -170,24 +170,44 @@ def _try_upload_with_provider(
     force: bool = False,
     upload_path: str | None = None,
 ) -> str:
-    """Try uploading with a specific provider."""
-    provider_module = get_provider_module(provider_name)
-    if not provider_module:
-        msg = f"Provider {provider_name} not available"
-        raise NonRetryableError(msg, provider_name)
+    """
+    Try to upload a file using a specific provider.
 
-    provider = provider_module.get_provider()
+    Args:
+        provider_name: Name of the provider to use
+        file_path: Path to the file to upload
+        remote_path: Optional remote path to use
+        unique: If True, ensure unique filename
+        force: If True, overwrite existing file
+        upload_path: Optional custom upload path
+
+    Returns:
+        str: URL to the uploaded file
+
+    Raises:
+        ValueError: If provider is not available or upload fails
+    """
+    provider = _get_provider_module(provider_name)
     if not provider:
-        msg = f"Failed to initialize {provider_name} provider"
-        raise NonRetryableError(msg, provider_name)
+        msg = f"Provider {provider_name} is not available"
+        raise ValueError(msg)
 
-    return provider.upload_file(
-        file_path,
-        remote_path,
-        unique=unique,
-        force=force,
-        upload_path=upload_path,
-    )
+    client = provider.get_provider()
+    if not client:
+        msg = f"Provider {provider_name} is not properly configured"
+        raise ValueError(msg)
+
+    try:
+        return client.upload_file(
+            local_path=file_path,
+            remote_path=remote_path,
+            unique=unique,
+            force=force,
+            upload_path=upload_path,
+        )
+    except Exception as e:
+        msg = f"An error occurred while uploading with {provider_name}: {e}"
+        raise ValueError(msg) from e
 
 
 def _try_next_provider(
@@ -270,7 +290,7 @@ def upload_file(
         msg = f"File not found: {path}"
         raise FileNotFoundError(msg)
     if not path.is_file():
-        msg = f"Path is not a file: {path}"
+        msg = f"{path} is a directory"
         raise ValueError(msg)
 
     # Determine provider list

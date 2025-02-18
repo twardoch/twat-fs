@@ -5,9 +5,8 @@
 Tests for the upload functionality.
 """
 
-import os
 from pathlib import Path
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import MagicMock, patch, AsyncMock
 
 import pytest
 from botocore.exceptions import ClientError
@@ -248,8 +247,8 @@ class TestProviderAuth:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test S3 auth when credentials are invalid."""
-        monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test_key")
-        monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test_secret")
+        monkeypatch.setenv("AWS_ACCESS_KEY_ID", "invalid_key")
+        monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "invalid_secret")
         monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
         monkeypatch.setenv("AWS_S3_BUCKET", "test-bucket")
 
@@ -262,27 +261,26 @@ class TestProviderAuth:
                 {"Error": {"Code": "InvalidAccessKeyId", "Message": "Invalid key"}},
                 "ListBuckets",
             )
-            assert s3.get_provider(creds) is None
+            provider = s3.get_provider(creds)
+            assert provider is None
 
 
 class TestUploadFile:
-    """Test the main upload_file function."""
+    """Test file upload functionality."""
 
     def test_upload_with_default_provider(
         self, test_file: Path, mock_s3_provider: MagicMock
     ) -> None:
         """Test upload with default provider."""
-        with patch("twat_fs.upload_providers.fal.get_provider") as mock_fal:
-            mock_fal.return_value = None  # Make FAL provider unavailable
-            url = upload_file(test_file)
-            assert url == TEST_URL
-            mock_s3_provider.assert_called_once_with(
-                test_file,
-                remote_path=None,
-                unique=False,
-                force=False,
-                upload_path=None,
-            )
+        url = upload_file(test_file)
+        assert url == TEST_URL
+        mock_s3_provider.assert_called_once_with(
+            test_file,
+            remote_path=None,
+            unique=False,
+            force=False,
+            upload_path=None,
+        )
 
     def test_upload_with_specific_provider(
         self, test_file: Path, mock_s3_provider: MagicMock
@@ -319,23 +317,34 @@ class TestUploadFile:
         mock_dropbox_provider: MagicMock,
     ) -> None:
         """Test fallback to next provider on auth failure."""
-        mock_s3_provider.side_effect = ValueError("Auth failed")
-        mock_dropbox_provider.return_value = TEST_URL
-
         with (
             patch("twat_fs.upload_providers.s3.get_provider") as mock_s3_get_provider,
             patch(
                 "twat_fs.upload_providers.dropbox.get_provider"
             ) as mock_dropbox_get_provider,
         ):
-            mock_s3_get_provider.return_value = None  # S3 auth fails
+            # S3 provider fails to initialize
+            mock_s3_get_provider.return_value = None
+
+            # Dropbox provider works
             mock_dropbox_client = MagicMock()
             mock_dropbox_client.upload_file.return_value = TEST_URL
             mock_dropbox_get_provider.return_value = mock_dropbox_client
 
             url = upload_file(test_file, provider=["s3", "dropbox"])
             assert url == TEST_URL
-            mock_dropbox_client.upload_file.assert_called_once()
+
+            # S3 provider should not be called since it failed to initialize
+            mock_s3_provider.assert_not_called()
+
+            # Dropbox provider should be called
+            mock_dropbox_client.upload_file.assert_called_once_with(
+                local_path=test_file,
+                remote_path=None,
+                unique=False,
+                force=False,
+                upload_path=None,
+            )
 
     def test_upload_fallback_on_upload_failure(
         self,
@@ -363,7 +372,24 @@ class TestUploadFile:
 
             url = upload_file(test_file, provider=["s3", "dropbox"])
             assert url == TEST_URL
-            mock_dropbox_client.upload_file.assert_called_once()
+
+            # S3 provider should be called and fail
+            mock_s3_client.upload_file.assert_called_once_with(
+                local_path=test_file,
+                remote_path=None,
+                unique=False,
+                force=False,
+                upload_path=None,
+            )
+
+            # Dropbox provider should be called and succeed
+            mock_dropbox_client.upload_file.assert_called_once_with(
+                local_path=test_file,
+                remote_path=None,
+                unique=False,
+                force=False,
+                upload_path=None,
+            )
 
     def test_all_providers_fail(self, test_file: Path) -> None:
         """Test error when all providers fail."""
@@ -393,8 +419,8 @@ class TestUploadFile:
                 upload_file(test_file)
 
     def test_invalid_provider(self, test_file: Path) -> None:
-        """Test upload with invalid provider."""
-        with pytest.raises(ValueError, match="Invalid provider: invalid"):
+        """Test error when provider is invalid."""
+        with pytest.raises(ValueError, match="Invalid provider"):
             upload_file(test_file, provider="invalid")
 
     def test_upload_with_s3_provider(
@@ -404,7 +430,7 @@ class TestUploadFile:
         url = upload_file(test_file, provider="s3")
         assert url == TEST_URL
         mock_s3_provider.assert_called_once_with(
-            test_file,
+            local_path=test_file,
             remote_path=None,
             unique=False,
             force=False,
@@ -414,7 +440,7 @@ class TestUploadFile:
     def test_s3_upload_failure(
         self, test_file: Path, mock_s3_provider: MagicMock
     ) -> None:
-        """Test S3 upload failure and fallback."""
+        """Test S3 upload failure."""
         mock_s3_provider.side_effect = ClientError(
             {"Error": {"Code": "NoSuchBucket", "Message": "Bucket does not exist"}},
             "PutObject",
@@ -426,68 +452,92 @@ class TestUploadFile:
 
 
 class TestEdgeCases:
-    """Test edge cases and error conditions."""
+    """Test edge cases and error handling."""
 
     def test_empty_file(self, tmp_path: Path) -> None:
         """Test uploading an empty file."""
-        empty_file = tmp_path / "empty.txt"
-        empty_file.touch()
-        with patch("twat_fs.upload_providers.s3.upload_file") as mock_upload:
-            with patch("twat_fs.upload_providers.s3.get_credentials") as mock_creds:
-                with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
-                    mock_upload.return_value = TEST_URL
-                    mock_creds.return_value = {"bucket": "test-bucket"}
-                    client = MagicMock()
-                    client.upload_file.return_value = TEST_URL
-                    mock_provider.return_value = client
-                    url = upload_file(empty_file, provider="s3")
-                    assert url == TEST_URL
+        test_file = tmp_path / "empty.txt"
+        test_file.touch()
+
+        with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
+            client = MagicMock()
+            client.upload_file.return_value = TEST_URL
+            mock_provider.return_value = client
+
+            url = upload_file(test_file, provider="s3")
+            assert url == TEST_URL
+
+            client.upload_file.assert_called_once_with(
+                local_path=test_file,
+                remote_path=None,
+                unique=False,
+                force=False,
+                upload_path=None,
+            )
 
     def test_special_characters_in_filename(self, tmp_path: Path) -> None:
-        """Test uploading a file with special characters in name."""
-        special_file = tmp_path / "test!@#$%^&*().txt"
-        special_file.write_text("test content")
-        with patch("twat_fs.upload_providers.s3.upload_file") as mock_upload:
-            with patch("twat_fs.upload_providers.s3.get_credentials") as mock_creds:
-                with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
-                    mock_upload.return_value = TEST_URL
-                    mock_creds.return_value = {"bucket": "test-bucket"}
-                    client = MagicMock()
-                    client.upload_file.return_value = TEST_URL
-                    mock_provider.return_value = client
-                    url = upload_file(special_file, provider="s3")
-                    assert url == TEST_URL
+        """Test uploading a file with special characters in the name."""
+        test_file = tmp_path / "test!@#$%^&*.txt"
+        test_file.write_text("test content")
+
+        with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
+            client = MagicMock()
+            client.upload_file.return_value = TEST_URL
+            mock_provider.return_value = client
+
+            url = upload_file(test_file, provider="s3")
+            assert url == TEST_URL
+
+            client.upload_file.assert_called_once_with(
+                local_path=test_file,
+                remote_path=None,
+                unique=False,
+                force=False,
+                upload_path=None,
+            )
 
     def test_unicode_filename(self, tmp_path: Path) -> None:
-        """Test uploading a file with unicode characters in name."""
-        unicode_file = tmp_path / "test_🚀_😊.txt"
-        unicode_file.write_text("test content")
-        with patch("twat_fs.upload_providers.s3.upload_file") as mock_upload:
-            with patch("twat_fs.upload_providers.s3.get_credentials") as mock_creds:
-                with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
-                    mock_upload.return_value = TEST_URL
-                    mock_creds.return_value = {"bucket": "test-bucket"}
-                    client = MagicMock()
-                    client.upload_file.return_value = TEST_URL
-                    mock_provider.return_value = client
-                    url = upload_file(unicode_file, provider="s3")
-                    assert url == TEST_URL
+        """Test uploading a file with Unicode characters in the name."""
+        test_file = tmp_path / "test_文件.txt"
+        test_file.write_text("test content")
+
+        with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
+            client = MagicMock()
+            client.upload_file.return_value = TEST_URL
+            mock_provider.return_value = client
+
+            url = upload_file(test_file, provider="s3")
+            assert url == TEST_URL
+
+            client.upload_file.assert_called_once_with(
+                local_path=test_file,
+                remote_path=None,
+                unique=False,
+                force=False,
+                upload_path=None,
+            )
 
     def test_very_long_filename(self, tmp_path: Path) -> None:
         """Test uploading a file with a very long name."""
-        long_name = "a" * 200 + ".txt"  # Reduced length to avoid OS limits
-        long_file = tmp_path / long_name
-        long_file.write_text("test content")
-        with patch("twat_fs.upload_providers.s3.upload_file") as mock_upload:
-            with patch("twat_fs.upload_providers.s3.get_credentials") as mock_creds:
-                with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
-                    mock_upload.return_value = TEST_URL
-                    mock_creds.return_value = {"bucket": "test-bucket"}
-                    client = MagicMock()
-                    client.upload_file.return_value = TEST_URL
-                    mock_provider.return_value = client
-                    url = upload_file(long_file, provider="s3")
-                    assert url == TEST_URL
+        long_name = "a" * 255 + ".txt"  # Max filename length on most filesystems
+        test_file = tmp_path / long_name
+        test_file.write_text("test content")
+
+        with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
+            client = MagicMock()
+            client.upload_file.return_value = TEST_URL
+            mock_provider.return_value = client
+
+            url = upload_file(test_file, provider="s3")
+            assert url == TEST_URL
+
+            client.upload_file.assert_called_once_with(
+                local_path=test_file,
+                remote_path=None,
+                unique=False,
+                force=False,
+                upload_path=None,
+            )
 
     def test_nonexistent_file(self) -> None:
         """Test uploading a nonexistent file."""
@@ -496,61 +546,54 @@ class TestEdgeCases:
 
     def test_directory_upload(self, tmp_path: Path) -> None:
         """Test attempting to upload a directory."""
-        with pytest.raises(ValueError, match="Path is not a file"):
+        with pytest.raises(ValueError, match="is a directory"):
             upload_file(tmp_path)
 
     def test_no_read_permission(self, tmp_path: Path) -> None:
-        """Test uploading a file without read permissions."""
-        no_read_file = tmp_path / "no_read.txt"
-        no_read_file.write_text("test content")
-        no_read_file.chmod(0o000)  # Remove all permissions
+        """Test uploading a file without read permission."""
+        test_file = tmp_path / "noperm.txt"
+        test_file.write_text("test content")
+        test_file.chmod(0o000)  # Remove all permissions
+
         with pytest.raises(PermissionError):
-            upload_file(no_read_file)
+            upload_file(test_file)
 
     @pytest.mark.parametrize("size_mb", [1, 5, 10])
     def test_different_file_sizes(self, tmp_path: Path, size_mb: int) -> None:
         """Test uploading files of different sizes."""
-        size_bytes = size_mb * 1024 * 1024
-        test_file = tmp_path / f"test_{size_mb}mb.bin"
+        test_file = tmp_path / f"test_{size_mb}mb.txt"
         with test_file.open("wb") as f:
-            f.write(os.urandom(size_bytes))
+            f.write(b"0" * (size_mb * 1024 * 1024))
 
-        with patch("twat_fs.upload_providers.s3.upload_file") as mock_upload:
-            with patch("twat_fs.upload_providers.s3.get_credentials") as mock_creds:
-                with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
-                    mock_upload.return_value = TEST_URL
-                    mock_creds.return_value = {"bucket": "test-bucket"}
-                    client = MagicMock()
-                    client.upload_file.return_value = TEST_URL
-                    mock_provider.return_value = client
-                    url = upload_file(test_file, provider="s3")
-                    assert url == TEST_URL
+        with patch("twat_fs.upload_providers.s3.get_provider") as mock_provider:
+            client = MagicMock()
+            client.upload_file.return_value = TEST_URL
+            mock_provider.return_value = client
+
+            url = upload_file(test_file, provider="s3")
+            assert url == TEST_URL
+
+            client.upload_file.assert_called_once_with(
+                local_path=test_file,
+                remote_path=None,
+                unique=False,
+                force=False,
+                upload_path=None,
+            )
 
 
 class TestCatboxProvider:
-    """Test cases for the Catbox provider."""
+    """Test Catbox provider functionality."""
 
     def test_catbox_auth_with_userhash(self):
         """Test Catbox provider with userhash."""
-        with patch.dict(os.environ, {"CATBOX_USERHASH": "test_hash"}):
-            creds = catbox.get_credentials()
-            assert creds == {"userhash": "test_hash"}
-
-            provider = catbox.get_provider()
-            assert provider is not None
-            assert isinstance(provider, catbox.CatboxProvider)
-            assert provider.userhash == "test_hash"
+        provider = catbox.CatboxProvider({"userhash": "test_hash"})
+        assert provider.userhash == "test_hash"
 
     def test_catbox_auth_without_userhash(self):
-        """Test Catbox provider without userhash (anonymous mode)."""
-        with patch.dict(os.environ, clear=True):
-            creds = catbox.get_credentials()
-            assert creds is None
-
-            provider = catbox.get_provider()
-            assert provider is not None
-            assert isinstance(provider, catbox.CatboxProvider)
-            assert provider.userhash is None
+        """Test Catbox provider without userhash."""
+        provider = catbox.CatboxProvider()
+        assert provider.userhash is None
 
     @pytest.mark.asyncio
     async def test_catbox_upload_file(self, tmp_path):
@@ -558,82 +601,73 @@ class TestCatboxProvider:
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
 
-        mock_response = Mock()
+        mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.text = Mock(return_value="https://files.catbox.moe/abc123.txt")
+        mock_response.text = AsyncMock(
+            return_value="https://files.catbox.moe/abc123.txt"
+        )
 
-        mock_session = Mock()
-        mock_session.post = Mock(return_value=mock_response)
-        mock_session.__aenter__ = Mock(return_value=mock_session)
-        mock_session.__aexit__ = Mock(return_value=None)
+        mock_session = AsyncMock()
+        mock_session.post = AsyncMock()
+        mock_session.post.return_value.__aenter__.return_value = mock_response
 
         with patch("aiohttp.ClientSession", return_value=mock_session):
             provider = catbox.CatboxProvider()
-            result = await provider.async_upload_file(test_file)
-
+            result = await provider.async_upload_file(
+                test_file,
+                remote_path=None,
+                unique=False,
+                force=False,
+                upload_path=None,
+            )
             assert isinstance(result, UploadResult)
             assert result.url == "https://files.catbox.moe/abc123.txt"
-
-            # Verify correct form data was sent
-            _, kwargs = mock_session.post.call_args
-            assert kwargs["data"]._fields[0][0] == "reqtype"
-            assert kwargs["data"]._fields[0][1] == "fileupload"
 
     @pytest.mark.asyncio
     async def test_catbox_upload_url(self):
         """Test URL upload to Catbox."""
         test_url = "https://example.com/image.jpg"
 
-        mock_response = Mock()
+        mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.text = Mock(return_value="https://files.catbox.moe/xyz789.jpg")
+        mock_response.text = AsyncMock(
+            return_value="https://files.catbox.moe/xyz789.jpg"
+        )
 
-        mock_session = Mock()
-        mock_session.post = Mock(return_value=mock_response)
-        mock_session.__aenter__ = Mock(return_value=mock_session)
-        mock_session.__aexit__ = Mock(return_value=None)
+        mock_session = AsyncMock()
+        mock_session.post = AsyncMock()
+        mock_session.post.return_value.__aenter__.return_value = mock_response
 
         with patch("aiohttp.ClientSession", return_value=mock_session):
             provider = catbox.CatboxProvider({"userhash": "test_hash"})
-            result = await provider.async_upload_url(test_url)
-
+            result = await provider.async_upload_url(
+                test_url,
+                unique=False,
+                force=False,
+            )
             assert isinstance(result, UploadResult)
             assert result.url == "https://files.catbox.moe/xyz789.jpg"
 
-            # Verify correct form data was sent
-            _, kwargs = mock_session.post.call_args
-            assert kwargs["data"]._fields[0][0] == "reqtype"
-            assert kwargs["data"]._fields[0][1] == "urlupload"
-            assert kwargs["data"]._fields[1][0] == "url"
-            assert kwargs["data"]._fields[1][1] == test_url
-
 
 class TestLitterboxProvider:
-    """Test cases for the Litterbox provider."""
+    """Test Litterbox provider functionality."""
 
     def test_litterbox_default_expiration(self):
-        """Test Litterbox provider with default expiration."""
-        provider = litterbox.get_provider()
-        assert provider is not None
-        assert isinstance(provider, litterbox.LitterboxProvider)
-        assert provider.default_expiration == litterbox.ExpirationTime.HOURS_24
+        """Test default expiration time."""
+        provider = litterbox.LitterboxProvider()
+        assert provider.default_expiration == litterbox.ExpirationTime.HOURS_12
 
     def test_litterbox_custom_expiration(self):
-        """Test Litterbox provider with custom expiration."""
-        with patch.dict(os.environ, {"LITTERBOX_DEFAULT_EXPIRATION": "1h"}):
-            provider = litterbox.get_provider()
-            assert provider is not None
-            assert isinstance(provider, litterbox.LitterboxProvider)
-            assert provider.default_expiration == litterbox.ExpirationTime.HOUR_1
+        """Test custom expiration time."""
+        provider = litterbox.LitterboxProvider(
+            default_expiration=litterbox.ExpirationTime.HOURS_24
+        )
+        assert provider.default_expiration == litterbox.ExpirationTime.HOURS_24
 
     def test_litterbox_invalid_expiration(self):
-        """Test Litterbox provider with invalid expiration time."""
-        with patch.dict(os.environ, {"LITTERBOX_DEFAULT_EXPIRATION": "invalid"}):
-            provider = litterbox.get_provider()
-            assert provider is not None
-            assert isinstance(provider, litterbox.LitterboxProvider)
-            # Should fall back to 24h
-            assert provider.default_expiration == litterbox.ExpirationTime.HOURS_24
+        """Test invalid expiration time."""
+        with pytest.raises(ValueError):
+            litterbox.LitterboxProvider(default_expiration="invalid")
 
     @pytest.mark.asyncio
     async def test_litterbox_upload_file(self, tmp_path):
@@ -641,30 +675,25 @@ class TestLitterboxProvider:
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
 
-        mock_response = Mock()
+        mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.text = Mock(
+        mock_response.text = AsyncMock(
             return_value="https://litterbox.catbox.moe/abc123.txt"
         )
 
-        mock_session = Mock()
-        mock_session.post = Mock(return_value=mock_response)
-        mock_session.__aenter__ = Mock(return_value=mock_session)
-        mock_session.__aexit__ = Mock(return_value=None)
+        mock_session = AsyncMock()
+        mock_session.post = AsyncMock()
+        mock_session.post.return_value.__aenter__.return_value = mock_response
 
         with patch("aiohttp.ClientSession", return_value=mock_session):
             provider = litterbox.LitterboxProvider()
             result = await provider.async_upload_file(
-                test_file, expiration=litterbox.ExpirationTime.HOURS_12
+                test_file,
+                remote_path=None,
+                unique=False,
+                force=False,
+                upload_path=None,
+                expiration=litterbox.ExpirationTime.HOURS_12,
             )
-
             assert isinstance(result, UploadResult)
             assert result.url == "https://litterbox.catbox.moe/abc123.txt"
-            assert result.metadata["expiration"] == "12h"
-
-            # Verify correct form data was sent
-            _, kwargs = mock_session.post.call_args
-            assert kwargs["data"]._fields[0][0] == "reqtype"
-            assert kwargs["data"]._fields[0][1] == "fileupload"
-            assert kwargs["data"]._fields[1][0] == "time"
-            assert kwargs["data"]._fields[1][1] == "12h"

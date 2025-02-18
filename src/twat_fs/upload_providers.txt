@@ -4,22 +4,25 @@
 ├── __init__.py
 ├── bashupload.py
 ├── catbox.py
+├── core.py
 ├── dropbox.py
 ├── fal.py
 ├── litterbox.py
+├── protocols.py
 ├── s3.py
 ├── simple.py
 ├── termbin.py
+├── types.py
 ├── uguu.py
 └── www0x0.py
 
-1 directory, 11 files
+1 directory, 14 files
 
 
 
 # Folder: .
 
-## File: __init__.py (Size: 5.68 KB)
+## File: __init__.py (Size: 1.84 KB)
 
 ```
 #!/usr/bin/env python
@@ -35,208 +38,78 @@ Upload provider registry and base classes.
 from __future__ import annotations
 
 import importlib
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Literal,
-    Protocol,
-    TypedDict,
-    runtime_checkable,
-    ClassVar,
-)
+from typing import TYPE_CHECKING
 
 from loguru import logger
+
+from .core import RetryableError, NonRetryableError, UploadError
+from .protocols import ProviderClient, Provider, ProviderHelp
+from .types import ExpirationTime, UploadResult
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-
-@runtime_checkable
-class ProviderClient(Protocol):
-    """Protocol defining the interface for upload providers."""
-
-    def upload_file(
-        self,
-        local_path: str | Path,
-        remote_path: str | Path | None = None,
-        *,
-        unique: bool = False,
-        force: bool = False,
-        upload_path: str | None = None,
-    ) -> str:
-        """Upload a file and return its public URL."""
-        ...
-
-
-class UploadResult:
-    """Result of an upload operation."""
-
-    def __init__(self, url: str, metadata: dict[str, Any] | None = None) -> None:
-        """Initialize upload result."""
-        self.url = url
-        self.metadata = metadata or {}
-
-
-# Order of preference for providers when none specified
+# List of available providers in order of preference
 PROVIDERS_PREFERENCE = [
-    "catbox",  # Anonymous uploads, permanent
-    "litterbox",  # Anonymous uploads, temporary
-    "dropbox",  # Authenticated, permanent
-    "s3",  # Authenticated, permanent
-    "fal",  # Authenticated, permanent
-    "www0x0",  # Anonymous uploads, permanent
-    "uguu",  # Anonymous uploads, temporary
-    "bashupload",  # Anonymous uploads, permanent
-    "termbin",  # Anonymous uploads, text-only
+    "catbox",
+    "litterbox",
+    "dropbox",
+    "s3",
+    "fal",
+    "bashupload",
+    "termbin",
+    "uguu",
+    "www0x0",
+    "simple",
 ]
 
-# Map of provider module names to their import paths
-PROVIDER_MODULES = {
-    "catbox": "twat_fs.upload_providers.catbox",
-    "litterbox": "twat_fs.upload_providers.litterbox",
-    "dropbox": "twat_fs.upload_providers.dropbox",
-    "s3": "twat_fs.upload_providers.s3",
-    "fal": "twat_fs.upload_providers.fal",
-    "www0x0": "twat_fs.upload_providers.www0x0",
-    "uguu": "twat_fs.upload_providers.uguu",
-    "bashupload": "twat_fs.upload_providers.bashupload",
-    "termbin": "twat_fs.upload_providers.termbin",
-}
-
-# Provider help messages
-PROVIDER_HELP = {
-    "catbox": """
-Catbox.moe File Upload Provider
-
-Configuration:
-- Optional: Set CATBOX_USERHASH for authenticated uploads
-- No configuration needed for anonymous uploads
-
-Features:
-- Anonymous uploads (default)
-- Authenticated uploads with user hash
-- URL-based uploads
-- File deletion (authenticated only)
-""",
-    "litterbox": """
-Litterbox.catbox.moe Temporary File Upload Provider
-
-Configuration:
-- Optional: Set LITTERBOX_DEFAULT_EXPIRATION to '1h', '12h', '24h', or '72h'
-- Defaults to '24h' if not specified
-
-Features:
-- Anonymous uploads only
-- Configurable expiration times
-- Files automatically deleted after expiration
-""",
-    # ... existing help messages ...
-}
-
-# Create ProviderType from PROVIDERS_PREFERENCE to ensure they stay in sync
-ProviderType = Literal[tuple(PROVIDERS_PREFERENCE)]  # type: ignore
-
-
-class ProviderHelp(TypedDict):
-    """Type for provider help messages."""
-
-    setup: str
-    deps: str
-
-
-@runtime_checkable
-class Provider(Protocol):
-    """Protocol defining what a provider module must implement."""
-
-    PROVIDER_HELP: ClassVar[ProviderHelp]
-
-    @classmethod
-    def get_credentials(cls) -> Any | None:
-        """
-        Get provider credentials from environment.
-
-        Returns:
-            Optional[Any]: Provider-specific credentials or None if not configured
-        """
-        ...
-
-    @classmethod
-    def get_provider(cls) -> ProviderClient | None:
-        """
-        Initialize and return the provider client.
-
-        Returns:
-            Optional[ProviderClient]: Provider client if successful, None otherwise
-        """
-        ...
-
-    def upload_file(
-        self, local_path: str | Path, remote_path: str | Path | None = None
-    ) -> str:
-        """
-        Upload a file using this provider.
-
-        Args:
-            local_path: Path to the file to upload
-            remote_path: Optional remote path to use
-
-        Returns:
-            str: URL to the uploaded file
-
-        Raises:
-            ValueError: If upload fails
-        """
-        ...
-
-
-# Provider module cache
-_provider_modules: dict[str, Provider] = {}
+__all__ = [
+    "PROVIDERS_PREFERENCE",
+    "ExpirationTime",
+    "NonRetryableError",
+    "Provider",
+    "ProviderClient",
+    "ProviderHelp",
+    "RetryableError",
+    "UploadError",
+    "UploadResult",
+    "get_provider_help",
+    "get_provider_module",
+]
 
 
 def get_provider_module(provider: str) -> Provider | None:
     """
-    Get a provider module, loading it if necessary.
-    Uses a cache to avoid repeated imports.
+    Get the provider module for a given provider name.
 
     Args:
-        provider: Name of the provider to load
+        provider: Name of the provider to get
 
     Returns:
-        The provider module or None if import fails
-
-    Raises:
-        KeyError: If the provider is not in PROVIDERS_PREFERENCE
+        Optional[Provider]: Provider module if found and properly configured
     """
-    logger.debug(f"Getting provider module: {provider}")
-    if provider not in PROVIDERS_PREFERENCE:
-        msg = f"Invalid provider: {provider}"
-        logger.error(msg)
-        raise KeyError(msg)
-
-    if provider not in _provider_modules:
-        try:
-            logger.debug(f"Importing provider module: {provider}")
-            module = importlib.import_module(f"twat_fs.upload_providers.{provider}")
-            if isinstance(module, Provider):
-                logger.debug(f"Successfully loaded provider module: {provider}")
-                _provider_modules[provider] = module
-            else:
-                logger.warning(
-                    f"Module {provider} does not implement the Provider protocol"
-                )
-                return None
-        except ImportError as e:
-            logger.debug(f"Failed to import provider {provider}: {e}")
-            return None
-    return _provider_modules[provider]
+    try:
+        module = importlib.import_module(f".{provider}", __package__)
+        return module
+    except ImportError as e:
+        logger.debug(f"Failed to import provider {provider}: {e}")
+        return None
 
 
 def get_provider_help(provider: str) -> ProviderHelp | None:
-    """Get help messages for a specific provider."""
+    """
+    Get help information for a provider.
+
+    Args:
+        provider: Name of the provider to get help for
+
+    Returns:
+        Optional[ProviderHelp]: Help information if provider exists
+    """
     module = get_provider_module(provider)
-    if not module:
+    if module is None:
         return None
-    return module.PROVIDER_HELP if hasattr(module, "PROVIDER_HELP") else None
+    return getattr(module, "PROVIDER_HELP", None)
 ```
 
 ## File: bashupload.py (Size: 3.52 KB)
@@ -355,7 +228,7 @@ def upload_file(local_path: str | Path, remote_path: str | Path | None = None) -
     return provider.upload_file(local_path, remote_path)
 ```
 
-## File: catbox.py (Size: 6.76 KB)
+## File: catbox.py (Size: 9.09 KB)
 
 ```
 #!/usr/bin/env python3
@@ -369,12 +242,20 @@ API documentation: https://catbox.moe/tools.php
 
 import os
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import TypedDict
 import aiohttp
-import asyncio
 from loguru import logger
 
 from . import ProviderClient, UploadResult
+from .core import (
+    with_async_retry,
+    with_retry,
+    validate_file,
+    async_to_sync,
+    with_url_validation,
+    RetryableError,
+    NonRetryableError,
+)
 
 CATBOX_API_URL = "https://catbox.moe/user/api.php"
 
@@ -393,6 +274,11 @@ class CatboxProvider(ProviderClient):
         self.credentials = credentials or {}
         self.userhash = self.credentials.get("userhash")
 
+    @with_url_validation
+    @with_async_retry(
+        max_attempts=3,
+        exceptions=(aiohttp.ClientError, RetryableError),
+    )
     async def async_upload_file(
         self,
         file_path: Path,
@@ -414,9 +300,15 @@ class CatboxProvider(ProviderClient):
 
         Returns:
             UploadResult with the public URL
+
+        Raises:
+            FileNotFoundError: If the file doesn't exist
+            RetryableError: For temporary failures that can be retried
+            NonRetryableError: For permanent failures
         """
         if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {file_path}")
+            msg = f"File not found: {file_path}"
+            raise FileNotFoundError(msg)
 
         data = aiohttp.FormData()
         data.add_field("reqtype", "fileupload")
@@ -426,25 +318,43 @@ class CatboxProvider(ProviderClient):
             data.add_field("userhash", self.userhash)
 
         # Add the file
-        data.add_field(
-            "fileToUpload",
-            open(file_path, "rb"),
-            filename=file_path.name,
-            content_type="application/octet-stream",
-        )
+        with open(file_path, "rb") as f:
+            data.add_field(
+                "fileToUpload",
+                f,
+                filename=file_path.name,
+                content_type="application/octet-stream",
+            )
 
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.post(CATBOX_API_URL, data=data) as response:
                     if response.status != 200:
-                        error_text = await response.text()
-                        raise RuntimeError(f"Upload failed: {error_text}")
+                        msg = f"Upload failed with status {response.status}"
+                        raise RetryableError(msg, "catbox")
 
                     url = await response.text()
-                    return UploadResult(url=url.strip())
-            except aiohttp.ClientError as e:
-                raise RuntimeError(f"Upload failed: {str(e)}") from e
+                    if not url.startswith("http"):
+                        msg = f"Invalid response from server: {url}"
+                        raise NonRetryableError(msg, "catbox")
 
+                    return UploadResult(
+                        url=url,
+                        metadata={
+                            "provider": "catbox",
+                            "userhash": self.userhash is not None,
+                        },
+                    )
+
+            except aiohttp.ClientError as e:
+                msg = f"Upload failed: {e}"
+                raise RetryableError(msg, "catbox") from e
+
+    @with_url_validation
+    @with_async_retry(
+        max_attempts=3,
+        exceptions=(aiohttp.ClientError, RetryableError),
+    )
     async def async_upload_url(
         self,
         url: str,
@@ -462,12 +372,15 @@ class CatboxProvider(ProviderClient):
 
         Returns:
             UploadResult with the public URL
+
+        Raises:
+            RetryableError: For temporary failures that can be retried
+            NonRetryableError: For permanent failures
         """
         data = aiohttp.FormData()
         data.add_field("reqtype", "urlupload")
         data.add_field("url", url)
 
-        # Add userhash if authenticated
         if self.userhash:
             data.add_field("userhash", self.userhash)
 
@@ -475,14 +388,30 @@ class CatboxProvider(ProviderClient):
             try:
                 async with session.post(CATBOX_API_URL, data=data) as response:
                     if response.status != 200:
-                        error_text = await response.text()
-                        raise RuntimeError(f"URL upload failed: {error_text}")
+                        msg = f"Upload failed with status {response.status}"
+                        raise RetryableError(msg, "catbox")
 
-                    result_url = await response.text()
-                    return UploadResult(url=result_url.strip())
+                    url = await response.text()
+                    if not url.startswith("http"):
+                        msg = f"Invalid response from server: {url}"
+                        raise NonRetryableError(msg, "catbox")
+
+                    return UploadResult(
+                        url=url,
+                        metadata={
+                            "provider": "catbox",
+                            "userhash": self.userhash is not None,
+                        },
+                    )
+
             except aiohttp.ClientError as e:
-                raise RuntimeError(f"URL upload failed: {str(e)}") from e
+                msg = f"Upload failed: {e}"
+                raise RetryableError(msg, "catbox") from e
 
+    @with_async_retry(
+        max_attempts=3,
+        exceptions=(aiohttp.ClientError, RetryableError),
+    )
     async def async_delete_files(self, files: list[str]) -> bool:
         """
         Delete files from catbox.moe (requires authentication).
@@ -494,10 +423,12 @@ class CatboxProvider(ProviderClient):
             True if deletion was successful
 
         Raises:
-            RuntimeError: If not authenticated or deletion fails
+            NonRetryableError: If not authenticated or deletion fails
+            RetryableError: If connection issues occur
         """
         if not self.userhash:
-            raise RuntimeError("Authentication required for file deletion")
+            msg = "Authentication required for file deletion"
+            raise NonRetryableError(msg, "catbox")
 
         data = aiohttp.FormData()
         data.add_field("reqtype", "deletefiles")
@@ -507,14 +438,22 @@ class CatboxProvider(ProviderClient):
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.post(CATBOX_API_URL, data=data) as response:
-                    if response.status != 200:
+                    if response.status == 429:  # Rate limit
                         error_text = await response.text()
-                        raise RuntimeError(f"File deletion failed: {error_text}")
+                        msg = f"Rate limited: {error_text}"
+                        raise RetryableError(msg, "catbox")
+                    elif response.status != 200:
+                        error_text = await response.text()
+                        msg = f"File deletion failed: {error_text}"
+                        raise NonRetryableError(msg, "catbox")
                     return True
             except aiohttp.ClientError as e:
-                raise RuntimeError(f"File deletion failed: {str(e)}") from e
+                msg = f"Connection error: {e!s}"
+                raise RetryableError(msg, "catbox") from e
 
-    def upload_file(
+    @validate_file
+    @async_to_sync
+    async def upload_file(
         self,
         local_path: str | Path,
         remote_path: str | Path | None = None,
@@ -535,21 +474,24 @@ class CatboxProvider(ProviderClient):
 
         Returns:
             The public URL of the uploaded file
+
+        Raises:
+            FileNotFoundError: If the file doesn't exist
+            RetryableError: For temporary failures that can be retried
+            NonRetryableError: For permanent failures
         """
-        local_path = Path(local_path)
-        result = asyncio.run(
-            self.async_upload_file(
-                local_path,
-                remote_path,
-                unique=unique,
-                force=force,
-                upload_path=upload_path,
-            )
+        result = await self.async_upload_file(
+            Path(local_path),
+            remote_path,
+            unique=unique,
+            force=force,
+            upload_path=upload_path,
         )
         return result.url
 
 
-def get_credentials() -> dict[str, Any] | None:
+@with_retry(max_attempts=3)
+def get_credentials() -> CatboxCredentials | None:
     """
     Get Catbox credentials from environment variables.
 
@@ -560,6 +502,7 @@ def get_credentials() -> dict[str, Any] | None:
     return {"userhash": userhash} if userhash else None
 
 
+@with_retry(max_attempts=3)
 def get_provider() -> ProviderClient | None:
     """
     Initialize and return the Catbox provider.
@@ -572,6 +515,343 @@ def get_provider() -> ProviderClient | None:
     except Exception as e:
         logger.error(f"Failed to initialize Catbox provider: {e}")
         return None
+```
+
+## File: core.py (Size: 10.17 KB)
+
+```
+#!/usr/bin/env python3
+# this_file: src/twat_fs/upload_providers/core.py
+
+"""
+Core utilities and decorators for upload providers.
+Provides common functionality for retrying uploads, handling errors, and managing async operations.
+"""
+
+import asyncio
+import functools
+import time
+from enum import Enum
+from pathlib import Path
+from typing import TypeVar, ParamSpec, cast
+from collections.abc import Callable, Awaitable
+import aiohttp
+from loguru import logger
+
+# Type variables for generic decorators
+T = TypeVar("T")
+P = ParamSpec("P")
+
+# Constants for URL validation
+URL_CHECK_TIMEOUT = 30.0  # seconds
+MAX_REDIRECTS = 5
+USER_AGENT = "twat-fs/1.0"
+
+
+class RetryStrategy(str, Enum):
+    """Retry strategies for upload attempts."""
+
+    EXPONENTIAL = "exponential"
+    LINEAR = "linear"
+    CONSTANT = "constant"
+
+
+def with_retry(
+    max_attempts: int = 3,
+    initial_delay: float = 1.0,
+    max_delay: float = 30.0,
+    strategy: RetryStrategy = RetryStrategy.EXPONENTIAL,
+    exceptions: tuple[type[Exception], ...] = (Exception,),
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    """
+    Decorator for retrying upload operations with configurable backoff.
+
+    Args:
+        max_attempts: Maximum number of retry attempts
+        initial_delay: Initial delay between retries in seconds
+        max_delay: Maximum delay between retries in seconds
+        strategy: Retry strategy to use
+        exceptions: Tuple of exceptions to catch and retry on
+
+    Returns:
+        Decorated function that implements retry logic
+    """
+
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
+        @functools.wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            last_exception = None
+            delay = initial_delay
+
+            for attempt in range(max_attempts):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    if attempt == max_attempts - 1:
+                        raise
+
+                    # Calculate next delay based on strategy
+                    if strategy == RetryStrategy.EXPONENTIAL:
+                        delay = min(initial_delay * (2**attempt), max_delay)
+                    elif strategy == RetryStrategy.LINEAR:
+                        delay = min(initial_delay * (attempt + 1), max_delay)
+                    else:  # CONSTANT
+                        delay = initial_delay
+
+                    logger.warning(
+                        f"Attempt {attempt + 1}/{max_attempts} failed: {e}. "
+                        f"Retrying in {delay:.1f}s..."
+                    )
+                    time.sleep(delay)
+
+            assert last_exception is not None  # for type checker
+            raise last_exception
+
+        return wrapper
+
+    return decorator
+
+
+def with_async_retry(
+    max_attempts: int = 3,
+    initial_delay: float = 1.0,
+    max_delay: float = 30.0,
+    strategy: RetryStrategy = RetryStrategy.EXPONENTIAL,
+    exceptions: tuple[type[Exception], ...] = (Exception,),
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    """
+    Decorator for retrying async upload operations with configurable backoff.
+    Similar to with_retry but for async functions.
+    """
+
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
+        @functools.wraps(func)
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            last_exception = None
+            delay = initial_delay
+
+            for attempt in range(max_attempts):
+                try:
+                    return await func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    if attempt == max_attempts - 1:
+                        raise
+
+                    if strategy == RetryStrategy.EXPONENTIAL:
+                        delay = min(initial_delay * (2**attempt), max_delay)
+                    elif strategy == RetryStrategy.LINEAR:
+                        delay = min(initial_delay * (attempt + 1), max_delay)
+                    else:  # CONSTANT
+                        delay = initial_delay
+
+                    logger.warning(
+                        f"Attempt {attempt + 1}/{max_attempts} failed: {e}. "
+                        f"Retrying in {delay:.1f}s..."
+                    )
+                    await asyncio.sleep(delay)
+
+            assert last_exception is not None  # for type checker
+            raise last_exception
+
+        return cast(Callable[P, T], wrapper)
+
+    return decorator
+
+
+def validate_file(func: Callable[P, T]) -> Callable[P, T]:
+    """
+    Decorator to validate file existence and permissions before upload.
+    Common validation used by most providers.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        # Extract file path from args or kwargs
+        file_path = next(
+            (arg for arg in args if isinstance(arg, str | Path)),
+            kwargs.get("local_path") or kwargs.get("file_path"),
+        )
+
+        if not file_path:
+            msg = "No file path provided"
+            raise ValueError(msg)
+
+        path = Path(file_path)
+        if not path.exists():
+            msg = f"File not found: {path}"
+            raise FileNotFoundError(msg)
+        if not path.is_file():
+            msg = f"Not a file: {path}"
+            raise ValueError(msg)
+        if not path.stat().st_size:
+            msg = f"File is empty: {path}"
+            raise ValueError(msg)
+        if not path.stat().st_mode & 0o444:
+            msg = f"File not readable: {path}"
+            raise PermissionError(msg)
+
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def sync_to_async(func: Callable[P, T]) -> Callable[P, T]:
+    """
+    Decorator to convert a synchronous upload function to async.
+    Useful for providers that need to implement both sync and async interfaces.
+    """
+
+    @functools.wraps(func)
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        return await asyncio.to_thread(func, *args, **kwargs)
+
+    return cast(Callable[P, T], wrapper)
+
+
+def async_to_sync(func: Callable[P, T]) -> Callable[P, T]:
+    """
+    Decorator to convert an async upload function to sync.
+    Useful for providers that implement async upload but need to provide sync interface.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        return asyncio.run(func(*args, **kwargs))
+
+    return wrapper
+
+
+class UploadError(Exception):
+    """Base exception for upload errors."""
+
+    def __init__(self, message: str, provider: str | None = None) -> None:
+        super().__init__(message)
+        self.provider = provider
+
+
+class RetryableError(UploadError):
+    """Exception indicating the upload should be retried."""
+
+    pass
+
+
+class NonRetryableError(UploadError):
+    """Exception indicating the upload should not be retried."""
+
+    pass
+
+
+async def validate_url(url: str, timeout: float = URL_CHECK_TIMEOUT) -> bool:
+    """
+    Validate that a URL is accessible by making a HEAD request.
+
+    Args:
+        url: The URL to validate
+        timeout: Timeout in seconds for the request
+
+    Returns:
+        bool: True if URL is valid and accessible
+
+    Raises:
+        RetryableError: If the validation should be retried (e.g., timeout)
+        NonRetryableError: If the URL is invalid or inaccessible
+    """
+    async with aiohttp.ClientSession() as session:
+        try:
+            # Configure client session with appropriate headers and settings
+            headers = {
+                "User-Agent": USER_AGENT,
+                "Accept": "*/*",
+            }
+
+            async with session.head(
+                url,
+                headers=headers,
+                timeout=timeout,
+                allow_redirects=True,
+                max_redirects=MAX_REDIRECTS,
+            ) as response:
+                # Check for various status codes
+                if response.status == 200:
+                    return True
+                elif response.status in (
+                    429,
+                    503,
+                    504,
+                ):  # Rate limit or temporary server issues
+                    msg = f"Server returned {response.status}"
+                    raise RetryableError(msg, None)
+                else:
+                    msg = f"URL validation failed with status {response.status}"
+                    raise NonRetryableError(msg, None)
+
+        except aiohttp.ClientError as e:
+            if isinstance(
+                e,
+                aiohttp.ServerTimeoutError
+                | aiohttp.ServerDisconnectedError
+                | aiohttp.ClientConnectorError,
+            ):
+                msg = f"Temporary connection error: {e}"
+                raise RetryableError(msg, None) from e
+            msg = f"URL validation failed: {e}"
+            raise NonRetryableError(msg, None) from e
+
+
+@with_async_retry(
+    max_attempts=3,
+    initial_delay=1.0,
+    max_delay=10.0,
+    strategy=RetryStrategy.EXPONENTIAL,
+    exceptions=(RetryableError, aiohttp.ClientError),
+)
+async def ensure_url_accessible(url: str) -> str:
+    """
+    Verify that a URL is accessible with retries.
+
+    Args:
+        url: The URL to validate
+
+    Returns:
+        str: The validated URL
+
+    Raises:
+        NonRetryableError: If the URL is invalid or inaccessible after retries
+    """
+    if await validate_url(url):
+        return url
+    msg = f"URL {url} is not accessible"
+    raise NonRetryableError(msg, None)
+
+
+def with_url_validation(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+    """
+    Decorator to validate URLs returned by upload functions.
+    Ensures the URL is accessible before returning it.
+
+    Args:
+        func: Async function that returns a URL or UploadResult
+
+    Returns:
+        Decorated function that validates the URL before returning
+    """
+
+    @functools.wraps(func)
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        result = await func(*args, **kwargs)
+
+        # Handle both string URLs and UploadResult objects
+        if isinstance(result, str):
+            return cast(T, await ensure_url_accessible(result))
+        elif hasattr(result, "url"):
+            # For UploadResult objects
+            result.url = await ensure_url_accessible(result.url)
+            return result
+        return result
+
+    return wrapper
 ```
 
 ## File: dropbox.py (Size: 18.84 KB)
@@ -1331,7 +1611,7 @@ def upload_file(
     )
 ```
 
-## File: litterbox.py (Size: 5.33 KB)
+## File: litterbox.py (Size: 5.35 KB)
 
 ```
 #!/usr/bin/env python3
@@ -1344,39 +1624,36 @@ API documentation: https://litterbox.catbox.moe/tools.php
 """
 
 import os
-from enum import Enum
 from pathlib import Path
 from typing import Any
 import aiohttp
 import asyncio
 from loguru import logger
 
-from . import ProviderClient, UploadResult
+from .protocols import ProviderClient
+from .types import ExpirationTime, UploadResult
 
 LITTERBOX_API_URL = "https://litterbox.catbox.moe/resources/internals/api.php"
-
-
-class ExpirationTime(str, Enum):
-    """Valid expiration times for Litterbox uploads."""
-
-    HOUR_1 = "1h"
-    HOURS_12 = "12h"
-    HOURS_24 = "24h"
-    HOURS_72 = "72h"
 
 
 class LitterboxProvider(ProviderClient):
     """Provider for litterbox.catbox.moe temporary file uploads."""
 
     def __init__(
-        self, default_expiration: ExpirationTime = ExpirationTime.HOURS_24
+        self, default_expiration: ExpirationTime = ExpirationTime.HOURS_12
     ) -> None:
         """
         Initialize the Litterbox provider.
 
         Args:
             default_expiration: Default expiration time for uploads
+
+        Raises:
+            ValueError: If the expiration time is invalid
         """
+        if not isinstance(default_expiration, ExpirationTime):
+            msg = f"Invalid expiration time: {default_expiration}"
+            raise ValueError(msg)
         self.default_expiration = default_expiration
 
     async def async_upload_file(
@@ -1390,53 +1667,57 @@ class LitterboxProvider(ProviderClient):
         expiration: ExpirationTime | None = None,
     ) -> UploadResult:
         """
-        Upload a file to litterbox.catbox.moe with expiration.
+        Upload a file to litterbox.catbox.moe.
 
         Args:
-            file_path: Local path to the file
-            remote_path: Ignored for Litterbox
-            unique: If True, ensures unique filename (not supported by Litterbox)
-            force: If True, overwrites existing file (not supported by Litterbox)
-            upload_path: Custom upload path (not supported by Litterbox)
-            expiration: Optional expiration time, defaults to instance default
+            file_path: Path to the file to upload
+            remote_path: Ignored for this provider
+            unique: Ignored for this provider
+            force: Ignored for this provider
+            upload_path: Ignored for this provider
+            expiration: Optional expiration time, defaults to provider default
 
         Returns:
-            UploadResult with the public URL
+            UploadResult: Upload result with URL and metadata
 
         Raises:
-            FileNotFoundError: If the file doesn't exist
             RuntimeError: If the upload fails
         """
         if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {file_path}")
+            msg = f"File not found: {file_path}"
+            raise RuntimeError(msg)
 
         expiration = expiration or self.default_expiration
-
         data = aiohttp.FormData()
         data.add_field("reqtype", "fileupload")
         data.add_field("time", expiration.value)
 
-        # Add the file
-        data.add_field(
-            "fileToUpload",
-            open(file_path, "rb"),
-            filename=file_path.name,
-            content_type="application/octet-stream",
-        )
+        with open(file_path, "rb") as f:
+            data.add_field("fileToUpload", f, filename=file_path.name)
 
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.post(LITTERBOX_API_URL, data=data) as response:
                     if response.status != 200:
-                        error_text = await response.text()
-                        raise RuntimeError(f"Upload failed: {error_text}")
+                        msg = f"Upload failed with status {response.status}"
+                        raise RuntimeError(msg)
 
                     url = await response.text()
+                    if not url.startswith("http"):
+                        msg = f"Invalid response from server: {url}"
+                        raise RuntimeError(msg)
+
                     return UploadResult(
-                        url=url.strip(), metadata={"expiration": expiration.value}
+                        url=url,
+                        metadata={
+                            "expiration": expiration.value,
+                            "provider": "litterbox",
+                        },
                     )
+
             except aiohttp.ClientError as e:
-                raise RuntimeError(f"Upload failed: {str(e)}") from e
+                msg = f"Upload failed: {e}"
+                raise RuntimeError(msg) from e
 
     def upload_file(
         self,
@@ -1452,17 +1733,22 @@ class LitterboxProvider(ProviderClient):
         Synchronously upload a file to litterbox.catbox.moe.
 
         Args:
-            local_path: Path to the local file
-            remote_path: Ignored for Litterbox
-            unique: If True, ensures unique filename (not supported by Litterbox)
-            force: If True, overwrites existing file (not supported by Litterbox)
-            upload_path: Custom upload path (not supported by Litterbox)
-            expiration: Optional expiration time, defaults to instance default
+            local_path: Path to the file to upload
+            remote_path: Ignored for this provider
+            unique: Ignored for this provider
+            force: Ignored for this provider
+            upload_path: Ignored for this provider
+            expiration: Optional expiration time, defaults to provider default
 
         Returns:
-            The public URL of the uploaded file
+            str: URL to the uploaded file
+
+        Raises:
+            RuntimeError: If the upload fails
         """
-        local_path = Path(local_path)
+        if isinstance(local_path, str):
+            local_path = Path(local_path)
+
         result = asyncio.run(
             self.async_upload_file(
                 local_path,
@@ -1478,34 +1764,115 @@ class LitterboxProvider(ProviderClient):
 
 def get_credentials() -> dict[str, Any] | None:
     """
-    Get Litterbox credentials (none required).
+    Get litterbox credentials from environment.
+    Currently no credentials are needed for litterbox.
 
     Returns:
-        None as Litterbox doesn't require authentication
+        None: Litterbox doesn't require credentials
     """
     return None
 
 
 def get_provider() -> ProviderClient | None:
     """
-    Initialize and return the Litterbox provider.
+    Initialize and return the litterbox provider.
 
     Returns:
-        Configured LitterboxProvider instance, or None if initialization fails
+        ProviderClient: Configured litterbox provider
     """
+    default_expiration = os.getenv("LITTERBOX_DEFAULT_EXPIRATION", "24h")
     try:
-        # Get default expiration from environment or use 24h
-        default_expiration = os.getenv("LITTERBOX_DEFAULT_EXPIRATION", "24h")
-        try:
-            expiration = ExpirationTime(default_expiration)
-        except ValueError:
-            logger.warning(f"Invalid expiration time '{default_expiration}', using 24h")
-            expiration = ExpirationTime.HOURS_24
+        expiration = ExpirationTime(default_expiration)
+    except ValueError:
+        logger.warning(
+            f"Invalid expiration time {default_expiration}, using 24h default"
+        )
+        expiration = ExpirationTime.HOURS_24
 
-        return LitterboxProvider(default_expiration=expiration)
-    except Exception as e:
-        logger.error(f"Failed to initialize Litterbox provider: {e}")
-        return None
+    return LitterboxProvider(default_expiration=expiration)
+```
+
+## File: protocols.py (Size: 1.81 KB)
+
+```
+#!/usr/bin/env python3
+# this_file: src/twat_fs/upload_providers/protocols.py
+
+"""
+Protocol definitions for upload providers.
+"""
+
+from typing import Any, ClassVar, Protocol, TypedDict, runtime_checkable
+from pathlib import Path
+
+
+class ProviderHelp(TypedDict):
+    """Type for provider help messages."""
+
+    setup: str
+    deps: str
+
+
+@runtime_checkable
+class ProviderClient(Protocol):
+    """Protocol defining the interface for upload providers."""
+
+    def upload_file(
+        self,
+        local_path: str | Path,
+        remote_path: str | Path | None = None,
+        *,
+        unique: bool = False,
+        force: bool = False,
+        upload_path: str | None = None,
+    ) -> str:
+        """Upload a file and return its public URL."""
+        ...
+
+
+@runtime_checkable
+class Provider(Protocol):
+    """Protocol defining what a provider module must implement."""
+
+    PROVIDER_HELP: ClassVar[ProviderHelp]
+
+    @classmethod
+    def get_credentials(cls) -> Any | None:
+        """
+        Get provider credentials from environment.
+
+        Returns:
+            Optional[Any]: Provider-specific credentials or None if not configured
+        """
+        ...
+
+    @classmethod
+    def get_provider(cls) -> ProviderClient | None:
+        """
+        Initialize and return the provider client.
+
+        Returns:
+            Optional[ProviderClient]: Provider client if successful, None otherwise
+        """
+        ...
+
+    def upload_file(
+        self, local_path: str | Path, remote_path: str | Path | None = None
+    ) -> str:
+        """
+        Upload a file using this provider.
+
+        Args:
+            local_path: Path to the file to upload
+            remote_path: Optional remote path to use
+
+        Returns:
+            str: URL to the uploaded file
+
+        Raises:
+            ValueError: If upload fails
+        """
+        ...
 ```
 
 ## File: s3.py (Size: 5.20 KB)
@@ -1934,6 +2301,44 @@ def upload_file(local_path: str | Path, remote_path: str | Path | None = None) -
         msg = "Failed to initialize provider"
         raise ValueError(msg)
     return provider.upload_file(local_path, remote_path)
+```
+
+## File: types.py (Size: 0.73 KB)
+
+```
+#!/usr/bin/env python3
+# this_file: src/twat_fs/upload_providers/types.py
+
+"""
+Common types used across upload providers.
+"""
+
+from enum import Enum
+from typing import Any
+
+
+class ExpirationTime(str, Enum):
+    """Valid expiration times for Litterbox uploads."""
+
+    HOUR_1 = "1h"
+    HOURS_12 = "12h"
+    HOURS_24 = "24h"
+    HOURS_72 = "72h"
+
+
+class UploadResult:
+    """Result of an upload operation."""
+
+    def __init__(self, url: str, metadata: dict[str, Any] | None = None) -> None:
+        """
+        Initialize an upload result.
+
+        Args:
+            url: The URL where the uploaded file can be accessed
+            metadata: Optional metadata about the upload
+        """
+        self.url = url
+        self.metadata = metadata or {}
 ```
 
 ## File: uguu.py (Size: 3.22 KB)

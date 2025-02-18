@@ -156,6 +156,7 @@ version-file = 'src/twat_fs/__version__.py'
 include = [
   'src/twat_fs/**/*.py',
   'src/twat/**/*.py',
+  'src/twat_fs/py.typed',
 ]
 packages = [
   'src/twat_fs',

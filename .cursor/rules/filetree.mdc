@@ -2,7 +2,7 @@
 description: File tree of the project
 globs: 
 ---
-[ 928]  .
+[ 960]  .
 ├── [  64]  .benchmarks
 ├── [  96]  .cursor
 │   └── [ 224]  rules
@@ -17,9 +17,10 @@ globs:
 ├── [3.5K]  .gitignore
 ├── [ 532]  .pre-commit-config.yaml
 ├── [1.0K]  LICENSE
-├── [6.6K]  LOG.md
+├── [6.7K]  LOG.md
 ├── [ 10K]  README.md
 ├── [7.5K]  TODO.md
+├── [ 34K]  TODO_FILEBIN_PIXELDRAIN.txt
 ├── [   7]  VERSION.txt
 ├── [ 11K]  cleanup.py
 ├── [ 160]  dist
@@ -28,33 +29,39 @@ globs:
 ├── [ 306]  filetree.sh
 ├── [6.9K]  pyproject.toml
 ├── [ 128]  src
-│   └── [ 352]  twat_fs
+│   └── [ 384]  twat_fs
 │       ├── [ 472]  __init__.py
 │       ├── [ 733]  __main__.py
 │       ├── [8.0K]  cli.py
-│       ├── [ 10K]  upload.py
-│       ├── [ 512]  upload_providers
-│       │   ├── [5.7K]  __init__.py
+│       ├── [   1]  py.typed
+│       ├── [ 11K]  upload.py
+│       ├── [ 640]  upload_providers
+│       │   ├── [2.1K]  __init__.py
 │       │   ├── [3.5K]  bashupload.py
-│       │   ├── [8.8K]  catbox.py
+│       │   ├── [9.1K]  catbox.py
 │       │   ├── [ 10K]  core.py
 │       │   ├── [ 19K]  dropbox.py
 │       │   ├── [4.8K]  fal.py
-│       │   ├── [5.4K]  litterbox.py
+│       │   ├── [2.7K]  filebin.py
+│       │   ├── [5.3K]  litterbox.py
+│       │   ├── [2.8K]  pixeldrain.py
+│       │   ├── [1.8K]  protocols.py
 │       │   ├── [5.2K]  s3.py
 │       │   ├── [3.9K]  simple.py
 │       │   ├── [3.0K]  termbin.py
+│       │   ├── [ 751]  types.py
 │       │   ├── [3.2K]  uguu.py
 │       │   └── [2.9K]  www0x0.py
-│       └── [ 64K]  upload_providers.txt
-├── [ 320]  tests
+│       └── [ 75K]  upload_providers.txt
+├── [ 352]  tests
 │   ├── [  63]  __init__.py
 │   ├── [  96]  data
 │   │   └── [ 100]  test.txt
+│   ├── [3.2K]  test_filebin_pixeldrain.py
 │   ├── [8.7K]  test_integration.py
 │   ├── [8.7K]  test_s3_advanced.py
 │   ├── [ 180]  test_twat_fs.py
-│   └── [ 27K]  test_upload.py
+│   └── [ 26K]  test_upload.py
 └── [382K]  uv.lock
 
-13 directories, 41 files
+13 directories, 48 files

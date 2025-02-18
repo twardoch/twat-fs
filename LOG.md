@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 0x0.st for general file uploads
   - uguu.se for temporary file uploads
   - bashupload.com for general file uploads
+  - filebin.net for temporary uploads (6-day expiration)
+  - pixeldrain.com for general file uploads
 - Added comprehensive error handling for all providers
 - Added type hints and docstrings throughout the codebase
 - Added provider fallback mechanism for failed uploads

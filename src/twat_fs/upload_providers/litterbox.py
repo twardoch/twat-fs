@@ -8,39 +8,36 @@ API documentation: https://litterbox.catbox.moe/tools.php
 """
 
 import os
-from enum import Enum
 from pathlib import Path
 from typing import Any
 import aiohttp
 import asyncio
 from loguru import logger
 
-from . import ProviderClient, UploadResult
+from .protocols import ProviderClient
+from .types import ExpirationTime, UploadResult
 
 LITTERBOX_API_URL = "https://litterbox.catbox.moe/resources/internals/api.php"
-
-
-class ExpirationTime(str, Enum):
-    """Valid expiration times for Litterbox uploads."""
-
-    HOUR_1 = "1h"
-    HOURS_12 = "12h"
-    HOURS_24 = "24h"
-    HOURS_72 = "72h"
 
 
 class LitterboxProvider(ProviderClient):
     """Provider for litterbox.catbox.moe temporary file uploads."""
 
     def __init__(
-        self, default_expiration: ExpirationTime = ExpirationTime.HOURS_24
+        self, default_expiration: ExpirationTime = ExpirationTime.HOURS_12
     ) -> None:
         """
         Initialize the Litterbox provider.
 
         Args:
             default_expiration: Default expiration time for uploads
+
+        Raises:
+            ValueError: If the expiration time is invalid
         """
+        if not isinstance(default_expiration, ExpirationTime):
+            msg = f"Invalid expiration time: {default_expiration}"
+            raise ValueError(msg)
         self.default_expiration = default_expiration
 
     async def async_upload_file(
@@ -54,55 +51,56 @@ class LitterboxProvider(ProviderClient):
         expiration: ExpirationTime | None = None,
     ) -> UploadResult:
         """
-        Upload a file to litterbox.catbox.moe with expiration.
+        Upload a file to litterbox.catbox.moe.
 
         Args:
-            file_path: Local path to the file
-            remote_path: Ignored for Litterbox
-            unique: If True, ensures unique filename (not supported by Litterbox)
-            force: If True, overwrites existing file (not supported by Litterbox)
-            upload_path: Custom upload path (not supported by Litterbox)
-            expiration: Optional expiration time, defaults to instance default
+            file_path: Path to the file to upload
+            remote_path: Ignored for this provider
+            unique: Ignored for this provider
+            force: Ignored for this provider
+            upload_path: Ignored for this provider
+            expiration: Optional expiration time, defaults to provider default
 
         Returns:
-            UploadResult with the public URL
+            UploadResult: Upload result with URL and metadata
 
         Raises:
-            FileNotFoundError: If the file doesn't exist
             RuntimeError: If the upload fails
         """
         if not file_path.exists():
             msg = f"File not found: {file_path}"
-            raise FileNotFoundError(msg)
+            raise RuntimeError(msg)
 
         expiration = expiration or self.default_expiration
-
         data = aiohttp.FormData()
         data.add_field("reqtype", "fileupload")
         data.add_field("time", expiration.value)
 
-        # Add the file
-        data.add_field(
-            "fileToUpload",
-            open(file_path, "rb"),
-            filename=file_path.name,
-            content_type="application/octet-stream",
-        )
+        with open(file_path, "rb") as f:
+            data.add_field("fileToUpload", f, filename=file_path.name)
 
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.post(LITTERBOX_API_URL, data=data) as response:
                     if response.status != 200:
-                        error_text = await response.text()
-                        msg = f"Upload failed: {error_text}"
+                        msg = f"Upload failed with status {response.status}"
                         raise RuntimeError(msg)
 
                     url = await response.text()
+                    if not url.startswith("http"):
+                        msg = f"Invalid response from server: {url}"
+                        raise RuntimeError(msg)
+
                     return UploadResult(
-                        url=url.strip(), metadata={"expiration": expiration.value}
+                        url=url,
+                        metadata={
+                            "expiration": expiration.value,
+                            "provider": "litterbox",
+                        },
                     )
+
             except aiohttp.ClientError as e:
-                msg = f"Upload failed: {e!s}"
+                msg = f"Upload failed: {e}"
                 raise RuntimeError(msg) from e
 
     def upload_file(
@@ -119,17 +117,22 @@ class LitterboxProvider(ProviderClient):
         Synchronously upload a file to litterbox.catbox.moe.
 
         Args:
-            local_path: Path to the local file
-            remote_path: Ignored for Litterbox
-            unique: If True, ensures unique filename (not supported by Litterbox)
-            force: If True, overwrites existing file (not supported by Litterbox)
-            upload_path: Custom upload path (not supported by Litterbox)
-            expiration: Optional expiration time, defaults to instance default
+            local_path: Path to the file to upload
+            remote_path: Ignored for this provider
+            unique: Ignored for this provider
+            force: Ignored for this provider
+            upload_path: Ignored for this provider
+            expiration: Optional expiration time, defaults to provider default
 
         Returns:
-            The public URL of the uploaded file
+            str: URL to the uploaded file
+
+        Raises:
+            RuntimeError: If the upload fails
         """
-        local_path = Path(local_path)
+        if isinstance(local_path, str):
+            local_path = Path(local_path)
+
         result = asyncio.run(
             self.async_upload_file(
                 local_path,
@@ -145,31 +148,29 @@ class LitterboxProvider(ProviderClient):
 
 def get_credentials() -> dict[str, Any] | None:
     """
-    Get Litterbox credentials (none required).
+    Get litterbox credentials from environment.
+    Currently no credentials are needed for litterbox.
 
     Returns:
-        None as Litterbox doesn't require authentication
+        None: Litterbox doesn't require credentials
     """
     return None
 
 
 def get_provider() -> ProviderClient | None:
     """
-    Initialize and return the Litterbox provider.
+    Initialize and return the litterbox provider.
 
     Returns:
-        Configured LitterboxProvider instance, or None if initialization fails
+        ProviderClient: Configured litterbox provider
     """
+    default_expiration = os.getenv("LITTERBOX_DEFAULT_EXPIRATION", "24h")
     try:
-        # Get default expiration from environment or use 24h
-        default_expiration = os.getenv("LITTERBOX_DEFAULT_EXPIRATION", "24h")
-        try:
-            expiration = ExpirationTime(default_expiration)
-        except ValueError:
-            logger.warning(f"Invalid expiration time '{default_expiration}', using 24h")
-            expiration = ExpirationTime.HOURS_24
+        expiration = ExpirationTime(default_expiration)
+    except ValueError:
+        logger.warning(
+            f"Invalid expiration time {default_expiration}, using 24h default"
+        )
+        expiration = ExpirationTime.HOURS_24
 
-        return LitterboxProvider(default_expiration=expiration)
-    except Exception as e:
-        logger.error(f"Failed to initialize Litterbox provider: {e}")
-        return None
+    return LitterboxProvider(default_expiration=expiration)
