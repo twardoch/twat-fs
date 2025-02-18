@@ -19,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Completed implementation of all simple upload providers:
   - catbox.moe for permanent uploads (new default)
   - litterbox.catbox.moe for temporary uploads
-  - termbin.com for text uploads
   - 0x0.st for general file uploads
   - uguu.se for temporary file uploads
   - bashupload.com for general file uploads
@@ -50,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved provider fallback mechanism with exponential backoff
 - Enhanced error messages with provider context
 - Removed Dropbox, S3, and Pixeldrain providers from provider preference, focusing on simpler providers that do not require authentication
+
+### Removed
+
+- Removed Termbin upload provider due to maintenance and reliability concerns
 
 ### Known Issues
 

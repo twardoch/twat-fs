@@ -5,7 +5,7 @@
 # this_file: src/twat_fs/upload_providers/simple.py
 
 """
-Base implementation for simple file upload providers like termbin, 0x0.st etc.
+Base implementation for simple file upload providers like 0x0.st etc.
 These providers typically just upload a file and return a URL, without auth or complex configuration.
 """
 

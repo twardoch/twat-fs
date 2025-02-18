@@ -28,7 +28,6 @@ PROVIDERS_PREFERENCE = [
     "litterbox",
     "fal",
     "bashupload",
-    "termbin",
     "uguu",
     "www0x0",
     "filebin",

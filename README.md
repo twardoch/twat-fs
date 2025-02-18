@@ -111,7 +111,6 @@ The following providers work out of the box with no configuration:
 * **www0x0.st**: General file uploads
 * **uguu.se**: Temporary file uploads
 * **bashupload.com**: General file uploads
-* **termbin.com**: Text-only uploads via netcat
 * **filebin.net**: Temporary file uploads (6-day expiration)
 * **pixeldrain.com**: General file uploads
 

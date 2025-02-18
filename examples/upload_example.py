@@ -17,7 +17,7 @@ async def upload_file(file_path: str, service: str = "bash") -> str:
 
     Args:
         file_path: Path to file to upload
-        service: Upload service to use ('bash', 'www0x0', 'uguu', 'termbin')
+        service: Upload service to use ('bash', 'www0x0', 'uguu')
 
     Returns:
         URL of uploaded file

@@ -398,7 +398,6 @@ class TestUploadFile:
             patch("twat_fs.upload_providers.fal.get_provider") as mock_fal,
             patch("twat_fs.upload_providers.dropbox.get_provider") as mock_dropbox,
             patch("twat_fs.upload_providers.s3.get_provider") as mock_s3,
-            patch("twat_fs.upload_providers.termbin.get_provider") as mock_termbin,
             patch("twat_fs.upload_providers.www0x0.get_provider") as mock_www0x0,
             patch("twat_fs.upload_providers.uguu.get_provider") as mock_uguu,
             patch(
@@ -409,7 +408,6 @@ class TestUploadFile:
             mock_fal.return_value = None
             mock_dropbox.return_value = None
             mock_s3.return_value = None
-            mock_termbin.return_value = None
             mock_www0x0.return_value = None
             mock_uguu.return_value = None
             mock_bashupload.return_value = None

@@ -119,7 +119,7 @@ https://v3.fal.media/files/penguin/HJ0VSEKNEScppttv4DM9r_VERSION.txt
      - Add missing type annotations, fix return types, and ensure a final return statement exists.
    
 3. **General Provider Implementations**
-   - For unused method arguments (e.g., `remote_path` in `bashupload.py`, `simple.py`, `termbin.py`, `uguu.py`, and `www0x0.py`), rename the parameter to `_remote_path` to signify it is intentionally unused.
+   - For unused method arguments (e.g., `remote_path` in `bashupload.py`, `simple.py`, `uguu.py`, and `www0x0.py`), rename the parameter to `_remote_path` to signify it is intentionally unused.
    - Verify that method names and signatures follow the provider contract consistently across all modules.
 
 > **Wait, but**  
