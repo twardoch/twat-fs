@@ -20,16 +20,15 @@ if TYPE_CHECKING:
 
 # List of available providers in order of preference
 PROVIDERS_PREFERENCE = [
-    "catbox",
     "litterbox",
-    "fal",
     "bashupload",
-    "uguu",
     "www0x0",
-    "filebin",
-    "dropbox",
+    "uguu",
+    "fal",
     "s3",
-    "simple",
+    "dropbox",
+    "catbox",
+    "filebin",
 ]
 
 __all__ = [

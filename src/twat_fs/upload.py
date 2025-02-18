@@ -67,7 +67,6 @@ def _test_provider_online(
     Returns:
         Tuple[bool, str, dict[str, float] | None]: (success, message, timing_metrics)
     """
-    from pathlib import Path
 
     test_file = Path(__file__).parent / "data" / "test.jpg"
     if not test_file.exists():
