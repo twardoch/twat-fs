@@ -9,8 +9,9 @@ Termbin upload provider.
 A simple provider that uploads text files to termbin.com using netcat.
 """
 
-import asyncio
+import socket
 from pathlib import Path
+from typing import BinaryIO
 
 from loguru import logger
 
@@ -32,35 +33,37 @@ class TermbinProvider(SimpleProviderBase):
         self.host = "termbin.com"
         self.port = 9999
 
-    async def async_upload_file(
-        self, file_path: Path, remote_path: str | Path | None = None
-    ) -> UploadResult:
+    def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """
-        Upload text file to termbin.com using netcat
+        Upload text file to termbin.com using socket
 
         Args:
-            file_path: Path to the file to upload
-            remote_path: Optional remote path (ignored as termbin.com doesn't support custom paths)
+            file: Open file handle to upload
 
         Returns:
             UploadResult containing the URL and status
         """
         try:
             # Read file content
-            with self._open_file(file_path) as f:
-                content = f.read()
+            content = file.read()
 
             # Connect to termbin.com
-            reader, writer = await asyncio.open_connection(self.host, self.port)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((self.host, self.port))
 
             # Send file content
-            writer.write(content)
-            await writer.drain()
+            sock.sendall(content)
+            sock.shutdown(socket.SHUT_WR)
 
             # Get response
-            response = await reader.read()
-            writer.close()
-            await writer.wait_closed()
+            response = b""
+            while True:
+                data = sock.recv(1024)
+                if not data:
+                    break
+                response += data
+
+            sock.close()
 
             # Parse URL from response
             url = response.decode().strip()

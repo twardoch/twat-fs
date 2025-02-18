@@ -2,7 +2,7 @@
 description: File tree of the project
 globs: 
 ---
-[ 960]  .
+[ 992]  .
 ├── [  64]  .benchmarks
 ├── [  96]  .cursor
 │   └── [ 224]  rules
@@ -17,7 +17,8 @@ globs:
 ├── [3.5K]  .gitignore
 ├── [ 532]  .pre-commit-config.yaml
 ├── [1.0K]  LICENSE
-├── [6.7K]  LOG.md
+├── [6.8K]  LOG.md
+├── [ 153]  MANIFEST.in
 ├── [ 10K]  README.md
 ├── [9.0K]  TODO.md
 ├── [ 34K]  TODO_FILEBIN_PIXELDRAIN.txt
@@ -29,29 +30,31 @@ globs:
 ├── [ 306]  filetree.sh
 ├── [6.9K]  pyproject.toml
 ├── [ 128]  src
-│   └── [ 384]  twat_fs
+│   └── [ 416]  twat_fs
 │       ├── [ 472]  __init__.py
 │       ├── [ 733]  __main__.py
-│       ├── [5.2K]  cli.py
+│       ├── [5.9K]  cli.py
+│       ├── [  96]  data
+│       │   └── [1.5K]  test.jpg
 │       ├── [   1]  py.typed
-│       ├── [ 15K]  upload.py
+│       ├── [ 20K]  upload.py
 │       ├── [ 640]  upload_providers
-│       │   ├── [2.2K]  __init__.py
-│       │   ├── [3.6K]  bashupload.py
-│       │   ├── [9.4K]  catbox.py
+│       │   ├── [3.6K]  __init__.py
+│       │   ├── [4.1K]  bashupload.py
+│       │   ├── [ 11K]  catbox.py
 │       │   ├── [ 10K]  core.py
 │       │   ├── [ 20K]  dropbox.py
-│       │   ├── [4.9K]  fal.py
-│       │   ├── [2.8K]  filebin.py
-│       │   ├── [5.7K]  litterbox.py
-│       │   ├── [2.9K]  pixeldrain.py
-│       │   ├── [1.8K]  protocols.py
+│       │   ├── [7.1K]  fal.py
+│       │   ├── [4.5K]  filebin.py
+│       │   ├── [7.9K]  litterbox.py
+│       │   ├── [5.2K]  pixeldrain.py
+│       │   ├── [3.2K]  protocols.py
 │       │   ├── [5.2K]  s3.py
-│       │   ├── [3.9K]  simple.py
+│       │   ├── [4.9K]  simple.py
 │       │   ├── [3.0K]  termbin.py
 │       │   ├── [ 751]  types.py
-│       │   ├── [3.3K]  uguu.py
-│       │   └── [3.0K]  www0x0.py
+│       │   ├── [2.8K]  uguu.py
+│       │   └── [3.8K]  www0x0.py
 │       └── [ 75K]  upload_providers.txt
 ├── [ 352]  tests
 │   ├── [  63]  __init__.py
@@ -64,4 +67,4 @@ globs:
 │   └── [ 26K]  test_upload.py
 └── [382K]  uv.lock
 
-13 directories, 48 files
+14 directories, 50 files

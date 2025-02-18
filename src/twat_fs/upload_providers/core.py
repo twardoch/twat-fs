@@ -251,31 +251,29 @@ async def validate_url(url: str, timeout: float = URL_CHECK_TIMEOUT) -> bool:
                 allow_redirects=True,
                 max_redirects=MAX_REDIRECTS,
             ) as response:
-                # Check for various status codes
-                if response.status == 200:
+                if response.status in (200, 201, 202, 203, 204):
                     return True
-                elif response.status in (
-                    429,
-                    503,
-                    504,
-                ):  # Rate limit or temporary server issues
-                    msg = f"Server returned {response.status}"
-                    raise RetryableError(msg, None)
-                else:
-                    msg = f"URL validation failed with status {response.status}"
-                    raise NonRetryableError(msg, None)
+                if response.status in (401, 403, 404, 410):
+                    msg = f"URL not accessible (status {response.status})"
+                    raise NonRetryableError(msg)
+                msg = f"URL validation failed (status {response.status})"
+                raise RetryableError(msg)
 
         except aiohttp.ClientError as e:
-            if isinstance(
-                e,
-                aiohttp.ServerTimeoutError
-                | aiohttp.ServerDisconnectedError
-                | aiohttp.ClientConnectorError,
-            ):
-                msg = f"Temporary connection error: {e}"
-                raise RetryableError(msg, None) from e
-            msg = f"URL validation failed: {e}"
-            raise NonRetryableError(msg, None) from e
+            if isinstance(e, aiohttp.ClientConnectorError):
+                msg = f"Connection error: {e}"
+                raise RetryableError(msg)
+            if isinstance(e, aiohttp.ClientTimeout):
+                msg = f"Timeout error: {e}"
+                raise RetryableError(msg)
+            msg = f"Client error: {e}"
+            raise NonRetryableError(msg)
+        except asyncio.TimeoutError as e:
+            msg = f"Timeout error: {e}"
+            raise RetryableError(msg)
+        except Exception as e:
+            msg = f"Unexpected error: {e}"
+            raise NonRetryableError(msg)
 
 
 @with_async_retry(
@@ -287,7 +285,8 @@ async def validate_url(url: str, timeout: float = URL_CHECK_TIMEOUT) -> bool:
 )
 async def ensure_url_accessible(url: str) -> str:
     """
-    Verify that a URL is accessible with retries.
+    Ensure a URL is accessible with retries.
+    Returns the URL if successful, raises an error if not.
 
     Args:
         url: The URL to validate
@@ -300,33 +299,29 @@ async def ensure_url_accessible(url: str) -> str:
     """
     if await validate_url(url):
         return url
-    msg = f"URL {url} is not accessible"
-    raise NonRetryableError(msg, None)
+    msg = "URL validation failed after retries"
+    raise NonRetryableError(msg)
 
 
-def with_url_validation(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+def with_url_validation(
+    func: Callable[P, Awaitable[str]],
+) -> Callable[P, Awaitable[str]]:
     """
-    Decorator to validate URLs returned by upload functions.
-    Ensures the URL is accessible before returning it.
+    Decorator to validate URLs after upload.
+    Should be applied to async upload methods that return a URL.
 
     Args:
-        func: Async function that returns a URL or UploadResult
+        func: Async function that returns a URL
 
     Returns:
-        Decorated function that validates the URL before returning
+        Decorated function that validates the URL after upload
     """
 
     @functools.wraps(func)
-    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-        result = await func(*args, **kwargs)
-
-        # Handle both string URLs and UploadResult objects
-        if isinstance(result, str):
-            return cast(T, await ensure_url_accessible(result))
-        elif hasattr(result, "url"):
-            # For UploadResult objects
-            result.url = await ensure_url_accessible(result.url)
-            return result
-        return result
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> str:
+        url = await func(*args, **kwargs)
+        # Add a small delay before validation to allow for propagation
+        await asyncio.sleep(1.0)
+        return await ensure_url_accessible(url)
 
     return wrapper

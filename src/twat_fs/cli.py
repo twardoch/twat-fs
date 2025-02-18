@@ -17,6 +17,7 @@ from typing import NoReturn
 
 import fire
 from loguru import logger
+from rich.console import Console
 
 from twat_fs.upload import (
     PROVIDERS_PREFERENCE,
@@ -34,7 +35,7 @@ log_level = os.getenv("LOGURU_LEVEL", "INFO").upper()
 logger.add(
     sys.stderr,
     level="WARNING",
-    format="<red>{message}</red>",
+    format="<red>Error: {message}</red>",
 )
 
 # Info and debug messages go to stdout, but only for non-error records
@@ -59,44 +60,57 @@ def parse_provider_list(provider: str) -> list[str] | None:
 class UploadProviderCommands:
     """Commands for managing upload providers."""
 
-    def setup(self, provider_id: str | None = None) -> NoReturn:
+    def status(self, provider_id: str | None = None, online: bool = False) -> NoReturn:
         """
-        Show setup information for a specific provider or all providers.
+        Show status information for a specific provider or all providers.
 
         Args:
-            provider_id: Optional provider ID to show setup info for.
+            provider_id: Optional provider ID to show status info for.
                        If not provided, shows info for all providers.
+            online: If True, performs an online test by uploading and downloading a small file.
         """
+        console = Console(stderr=True)  # Use stderr for error messages
+
         if provider_id:
             # For a specific provider, print only the provider ID to stdout if it's ready
-            result = _setup_provider(provider_id, verbose=True)
+            result = _setup_provider(provider_id, verbose=True, online=online)
             if result.status == ProviderStatus.READY:
                 sys.exit(0)
             else:
-                logger.error(
-                    f"Provider '{provider_id}' is not ready: {result.message}"
-                    + (f"\n{result.details}" if result.details else "")
+                console.print(
+                    f"\n[red]Error:[/red] Provider '{provider_id}' is not ready"
                 )
+                console.print(f"[red]Reason:[/red] {result.message}")
+                if result.details:
+                    console.print("\n[yellow]Setup Instructions:[/yellow]")
+                    console.print(result.details)
                 sys.exit(1)  # Provider not ready
         else:
-            # For all providers, show detailed setup info
-            _setup_providers(verbose=True)
+            # For all providers, show detailed status info
+            _setup_providers(verbose=True, online=online)
             sys.exit(0)
 
-    def list(self) -> NoReturn:
-        """List all available providers, printing active ones to stdout."""
-        active_found = False
-        for provider in PROVIDERS_PREFERENCE:
-            result = _setup_provider(provider, verbose=False)
-            if result.status == ProviderStatus.READY:
-                active_found = True
-            else:
-                logger.debug(f"Provider '{provider}' not ready: {result.message}")
+    def list(self, online: bool = False) -> None:
+        """List all available (ready) provider IDs, one per line. If --online is provided, run online tests.
+        In online mode, reconfigure logger so that info messages are printed to stderr."""
+        if online:
+            # Reconfigure logger to send all info messages to stderr
+            logger.remove()
+            logger.add(sys.stderr, level="INFO", format="{message}")
 
-        if not active_found:
-            logger.warning(
-                "No active providers found. Run 'upload_provider setup' for details."
-            )
+        active_providers = []
+
+        for provider in PROVIDERS_PREFERENCE:
+            if provider.lower() == "simple":
+                continue  # Skip the base provider
+            result = _setup_provider(provider, verbose=False, online=online)
+            if result.status == ProviderStatus.READY:
+                active_providers.append(provider)
+
+        # Print each active provider ID, one per line, to stdout
+        for provider in active_providers:
+            print(provider)
+
         sys.exit(0)
 
 
@@ -106,7 +120,7 @@ class TwatFS:
 
     Commands:
         upload              Upload a file using configured providers
-        upload_provider    Manage upload providers (setup, list)
+        upload_provider    Manage upload providers (status, list)
     """
 
     def __init__(self) -> None:
@@ -160,13 +174,21 @@ class TwatFS:
 
 def main() -> None:
     """Entry point for the CLI."""
-    fire.Fire(TwatFS)
+    if __name__ == "__main__":
+        fire.Fire(TwatFS)
+    else:
+        # When imported as a module
+        fire.Fire(TwatFS())
 
 
 # Backwards compatibility for the API
 upload_file = TwatFS().upload
-setup_provider = TwatFS().upload_provider.setup
+setup_provider = TwatFS().upload_provider.status
 
 
 def setup_providers():
-    return TwatFS().upload_provider.setup(None)
+    return TwatFS().upload_provider.status(None)
+
+
+if __name__ == "__main__":
+    main()

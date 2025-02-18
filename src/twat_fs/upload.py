@@ -20,6 +20,9 @@ from typing import Union
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
+import hashlib
+import requests
+import time
 
 from loguru import logger
 from rich.console import Console
@@ -32,6 +35,7 @@ from twat_fs.upload_providers import (
     Provider,
     RetryableError,
     NonRetryableError,
+    UploadResult,
 )
 from twat_fs.upload_providers.core import with_retry, RetryStrategy
 
@@ -56,13 +60,102 @@ class ProviderInfo:
     details: str = ""
 
 
-def setup_provider(provider: str, verbose: bool = False) -> ProviderInfo:
+def _test_provider_online(provider_name: str) -> tuple[bool, str]:
+    """
+    Test a provider by uploading and downloading a small file.
+
+    Args:
+        provider_name: Name of the provider to test
+
+    Returns:
+        Tuple[bool, str]: (success, message)
+    """
+    from pathlib import Path
+
+    test_file = Path(__file__).parent / "data" / "test.jpg"
+    if not test_file.exists():
+        return False, f"Test file not found: {test_file}"
+
+    try:
+        # Calculate original file hash
+        with open(test_file, "rb") as f:
+            original_hash = hashlib.sha256(f.read()).hexdigest()
+
+        # Upload the file
+        try:
+            url = _try_upload_with_provider(provider_name, str(test_file))
+            if not url:
+                return False, "Upload failed"
+
+            # Add a small delay to allow for propagation
+            time.sleep(1.0)
+
+            # Validate URL is accessible
+            response = requests.head(
+                url,
+                timeout=30,
+                allow_redirects=True,
+                headers={"User-Agent": "twat-fs/1.0"},
+            )
+            if response.status_code not in (200, 201, 202, 203, 204):
+                return (
+                    False,
+                    f"URL validation failed: status {response.status_code}",
+                )
+
+        except ValueError as e:
+            if "401" in str(e) or "authentication" in str(e).lower():
+                return False, f"Authentication required: {e}"
+            return False, f"Upload failed: {e}"
+        except requests.RequestException as e:
+            return False, f"URL validation failed: {e}"
+
+        # Download and verify the file with retries
+        max_retries = 3
+        retry_delay = 2  # seconds
+        last_error = None
+
+        for attempt in range(max_retries):
+            try:
+                response = requests.get(url, timeout=30)
+                if response.status_code == 200:
+                    # Calculate downloaded content hash
+                    downloaded_hash = hashlib.sha256(response.content).hexdigest()
+
+                    # Compare hashes
+                    if original_hash == downloaded_hash:
+                        return True, "Online test passed successfully"
+                    else:
+                        last_error = f"Content verification failed: original {original_hash}, downloaded {downloaded_hash}"
+                else:
+                    last_error = f"Download failed with status {response.status_code}"
+
+                # If we're not on the last attempt, wait before retrying
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+            except Exception as e:
+                last_error = f"Download attempt {attempt + 1} failed: {e}"
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+
+        return False, last_error or "Download failed after retries"
+
+    except Exception as e:
+        return False, f"Online test failed: {e}"
+
+
+def setup_provider(
+    provider: str, verbose: bool = False, online: bool = False
+) -> ProviderInfo:
     """
     Check a provider's setup status and return its information.
 
     Args:
         provider: Name of the provider to check
         verbose: Whether to include detailed setup instructions
+        online: Whether to perform an online test
 
     Returns:
         ProviderInfo: Provider status information
@@ -103,91 +196,113 @@ def setup_provider(provider: str, verbose: bool = False) -> ProviderInfo:
                 elif "only works with" in setup_info:
                     retention_note = setup_info[setup_info.find("note:") :].strip()
 
-        # Check if this is a simple provider (no setup required)
-        if (
-            help_info
-            and "setup" in help_info
-            and "no setup required" in help_info["setup"].lower()
-        ):
-            return ProviderInfo(
-                ProviderStatus.READY,
-                f"{provider} (SimpleProvider)"
-                + (f" - {retention_note}" if retention_note else ""),
-            )
-
-        # Check credentials for providers that need them
-        credentials = provider_module.get_credentials()
-        if not credentials:
-            if not help_info:
+        # Try to get provider client
+        try:
+            client = provider_module.get_provider()
+            if not client:
                 return ProviderInfo(
                     ProviderStatus.NEEDS_CONFIG,
                     f"Provider '{provider}' needs configuration.",
+                    help_info["setup"] if verbose else "",
                 )
-            return ProviderInfo(
-                ProviderStatus.NEEDS_CONFIG,
-                f"Provider '{provider}' needs configuration.",
-                help_info["setup"] if verbose else "",
+
+            provider_class = client.__class__
+            # Check if it's a provider with both async_upload_file and upload_file
+            has_async = hasattr(client, "async_upload_file") and not getattr(
+                provider_class.async_upload_file,
+                "__isabstractmethod__",
+                False,
+            )
+            has_sync = hasattr(client, "upload_file") and not getattr(
+                provider_class.upload_file,
+                "__isabstractmethod__",
+                False,
             )
 
-        # Try to get provider client
-        try:
-            if client := provider_module.get_provider():
-                return ProviderInfo(
+            # Check if it's a simple provider (has upload_file_impl)
+            has_simple = hasattr(client, "upload_file_impl") and not getattr(
+                provider_class.upload_file_impl,
+                "__isabstractmethod__",
+                False,
+            )
+
+            # A provider is ready if it has either:
+            # 1. Both async_upload_file and upload_file methods
+            # 2. Just the upload_file_impl method (simple provider)
+            if has_async and has_sync:
+                provider_info = ProviderInfo(
                     ProviderStatus.READY,
                     f"{provider} ({type(client).__name__})"
                     + (f" - {retention_note}" if retention_note else ""),
                 )
-        except Exception as e:
-            help_info = get_provider_help(provider)
-            if not help_info:
-                return ProviderInfo(
-                    ProviderStatus.NEEDS_CONFIG,
-                    f"Provider '{provider}' initialization failed: {e}",
+            elif has_simple:
+                provider_info = ProviderInfo(
+                    ProviderStatus.READY,
+                    f"{provider} ({type(client).__name__})"
+                    + (f" - {retention_note}" if retention_note else ""),
                 )
-            details = ""
-            if verbose:
-                if (
-                    provider.lower() == "dropbox"
-                    or "expired_access_token" in str(e).lower()
-                ):
-                    details = (
-                        f"Please set up the DROPBOX_ACCESS_TOKEN environment variable with a valid token.\n\n"
-                        f"Setup instructions:\n{help_info['setup']}\n\n"
-                        f"Additional setup needed:\n{help_info['deps']}"
+            elif has_async:
+                # Provider has async_upload_file but no sync wrapper
+                if online:
+                    provider_info = ProviderInfo(
+                        ProviderStatus.READY,
+                        f"{provider} ({type(client).__name__})"
+                        + (f" - {retention_note}" if retention_note else ""),
                     )
                 else:
-                    details = (
-                        f"Setup instructions:\n{help_info['setup']}\n\n"
-                        f"Additional setup needed:\n{help_info['deps']}"
+                    logger.debug(
+                        f"Provider {provider} has async_upload_file but no sync wrapper"
                     )
-            return ProviderInfo(
-                ProviderStatus.NEEDS_CONFIG,
-                f"Provider '{provider}' initialization failed: {e}",
-                details,
-            )
-
-        # If we get here, we have credentials but provider initialization failed
-        help_info = get_provider_help(provider)
-        if not help_info:
-            return ProviderInfo(
-                ProviderStatus.NEEDS_CONFIG,
-                f"Provider '{provider}' has credentials but needs additional setup.",
-            )
-        details = ""
-        if verbose:
-            if provider.lower() == "dropbox":
-                details = (
-                    f"Please set up the DROPBOX_ACCESS_TOKEN environment variable with a valid token.\n\n"
-                    f"Setup instructions:\n{help_info['setup']}\n\n"
-                    f"Additional setup needed:\n{help_info['deps']}"
-                )
+                    error_msg = "Provider has async_upload_file but no sync wrapper"
+                    return ProviderInfo(
+                        ProviderStatus.NOT_AVAILABLE,
+                        f"Provider '{provider}' is not available: {error_msg}",
+                        help_info["setup"] if verbose else "",
+                    )
             else:
-                details = f"Additional setup needed:\n{help_info['deps']}"
-        return ProviderInfo(
-            ProviderStatus.NEEDS_CONFIG,
-            f"Provider '{provider}' needs additional setup.",
-            details,
-        )
+                logger.debug(f"Provider {provider} missing required upload methods")
+                error_msg = "Provider does not implement required upload methods"
+                return ProviderInfo(
+                    ProviderStatus.NOT_AVAILABLE,
+                    f"Provider '{provider}' is not available: {error_msg}",
+                    help_info["setup"] if verbose else "",
+                )
+
+            # If online testing is requested and the provider is ready, perform the test
+            if online and provider_info.status == ProviderStatus.READY:
+                success, message = _test_provider_online(provider)
+                message = message.strip()
+                if not success:
+                    logger.error(f"{provider}: {message}")
+                    if "authentication" in message.lower() or "401" in message:
+                        return ProviderInfo(
+                            ProviderStatus.NEEDS_CONFIG,
+                            f"Provider '{provider}' needs configuration: {message}",
+                            help_info["setup"] if verbose else "",
+                        )
+                    return ProviderInfo(
+                        ProviderStatus.NOT_AVAILABLE,
+                        f"Provider '{provider}' failed online test: {message}",
+                        help_info["setup"] if verbose else "",
+                    )
+                provider_info.message += f" - {message}"
+
+            return provider_info
+
+        except Exception as e:
+            error_msg = str(e)
+            if "401" in error_msg or "authentication" in error_msg.lower():
+                return ProviderInfo(
+                    ProviderStatus.NEEDS_CONFIG,
+                    f"Provider '{provider}' needs configuration: {e}",
+                    help_info["setup"] if verbose else "",
+                )
+            logger.debug(f"Provider {provider} failed to initialize: {e}")
+            return ProviderInfo(
+                ProviderStatus.NOT_AVAILABLE,
+                f"Provider '{provider}' is not available: {e}",
+                help_info["setup"] if verbose else "",
+            )
 
     except Exception as e:
         logger.warning(f"Error checking provider {provider}: {e}")
@@ -206,18 +321,19 @@ def setup_provider(provider: str, verbose: bool = False) -> ProviderInfo:
         )
 
 
-def setup_providers(verbose: bool = False) -> None:
+def setup_providers(verbose: bool = False, online: bool = False) -> None:
     """
     Check setup status for all available providers and display a summary.
 
     Args:
         verbose: Whether to show detailed setup instructions
+        online: Whether to perform online tests for ready providers
     """
     console = Console()
 
     # Get status for all providers except 'simple'
     provider_infos = {
-        provider: setup_provider(provider, verbose)
+        provider: setup_provider(provider, verbose, online)
         for provider in PROVIDERS_PREFERENCE
         if provider.lower() != "simple"
     }
@@ -305,38 +421,69 @@ def _try_upload_with_provider(
     Args:
         provider_name: Name of the provider to use
         file_path: Path to the file to upload
-        remote_path: Optional remote path to use
-        unique: If True, ensure unique filename
-        force: If True, overwrite existing file
-        upload_path: Optional custom upload path
+        remote_path: Optional remote path/filename
+        unique: Whether to ensure unique filenames
+        force: Whether to force upload even if file exists
+        upload_path: Optional base path for uploads
 
     Returns:
-        str: URL to the uploaded file
+        str: URL of the uploaded file
 
     Raises:
         ValueError: If provider is not available or upload fails
     """
-    provider = _get_provider_module(provider_name)
+    provider = get_provider_module(provider_name)
     if not provider:
-        msg = f"Provider {provider_name} is not available"
-        raise ValueError(msg)
-
-    client = provider.get_provider()
-    if not client:
-        msg = f"Provider {provider_name} is not properly configured"
+        msg = f"Provider '{provider_name}' not available"
         raise ValueError(msg)
 
     try:
-        return client.upload_file(
-            local_path=file_path,
-            remote_path=remote_path,
-            unique=unique,
-            force=force,
-            upload_path=upload_path,
-        )
+        # Get provider client
+        client = provider.get_provider()
+        if not client:
+            msg = f"Provider '{provider_name}' not configured"
+            raise ValueError(msg)
+
+        # Convert file_path to Path object
+        path = Path(file_path) if isinstance(file_path, str) else file_path
+
+        # Try async upload first if available
+        if hasattr(client, "async_upload_file"):
+            import asyncio
+
+            result = asyncio.run(
+                client.async_upload_file(
+                    path,
+                    remote_path=remote_path,
+                    unique=unique,
+                    force=force,
+                    upload_path=upload_path,
+                )
+            )
+            if isinstance(result, UploadResult):
+                return result.url
+            return result
+
+        # Fall back to sync upload
+        if hasattr(client, "upload_file"):
+            url = client.upload_file(
+                path,
+                remote_path=remote_path,
+                unique=unique,
+                force=force,
+                upload_path=upload_path,
+            )
+            return url
+
+        msg = f"Provider '{provider_name}' does not implement upload methods"
+        raise ValueError(msg)
+
     except Exception as e:
-        msg = f"An error occurred while uploading with {provider_name}: {e}"
-        raise ValueError(msg) from e
+        if "401" in str(e) or "authentication" in str(e).lower():
+            msg = f"Upload failed with status 401: {e}"
+            raise ValueError(msg)
+        msg = f"Failed to upload with {provider_name}: {e}"
+        raise ValueError(msg)
 
 
 def _try_next_provider(

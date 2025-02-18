@@ -9,15 +9,13 @@ API documentation: https://catbox.moe/tools.php
 
 import os
 from pathlib import Path
-from typing import TypedDict
+from typing import TypedDict, ClassVar
 import aiohttp
-from loguru import logger
 
-from twat_fs.upload_providers.protocols import ProviderClient
+from twat_fs.upload_providers.protocols import ProviderClient, Provider, ProviderHelp
 from twat_fs.upload_providers.types import UploadResult
 from twat_fs.upload_providers.core import (
     with_async_retry,
-    with_retry,
     validate_file,
     async_to_sync,
     with_url_validation,
@@ -28,7 +26,7 @@ from twat_fs.upload_providers.core import (
 CATBOX_API_URL = "https://catbox.moe/user/api.php"
 
 # Provider-specific help messages
-PROVIDER_HELP = {
+PROVIDER_HELP: ProviderHelp = {
     "setup": """No setup required. Note: Files are stored permanently.
 Optional: Set CATBOX_USERHASH environment variable for authenticated uploads.""",
     "deps": """No additional dependencies required.""",
@@ -41,13 +39,28 @@ class CatboxCredentials(TypedDict, total=False):
     userhash: str | None
 
 
-class CatboxProvider(ProviderClient):
+class CatboxProvider(ProviderClient, Provider):
     """Provider for catbox.moe file uploads."""
+
+    PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
 
     def __init__(self, credentials: CatboxCredentials | None = None) -> None:
         """Initialize the Catbox provider with optional credentials."""
         self.credentials = credentials or {}
         self.userhash = self.credentials.get("userhash")
+
+    @classmethod
+    def get_credentials(cls) -> CatboxCredentials | None:
+        """Get provider credentials from environment, ensuring userhash is a string."""
+        userhash = os.getenv("CATBOX_USERHASH")
+        if not userhash:
+            return None
+        return {"userhash": str(userhash)}
+
+    @classmethod
+    def get_provider(cls) -> ProviderClient | None:
+        """Initialize and return the provider client."""
+        return cls(cls.get_credentials())
 
     @with_url_validation
     @with_async_retry(
@@ -81,6 +94,7 @@ class CatboxProvider(ProviderClient):
             RetryableError: For temporary failures that can be retried
             NonRetryableError: For permanent failures
         """
+        file_path = Path(file_path) if isinstance(file_path, str) else file_path
         if not file_path.exists():
             msg = f"File not found: {file_path}"
             raise FileNotFoundError(msg)
@@ -92,38 +106,43 @@ class CatboxProvider(ProviderClient):
         if self.userhash:
             data.add_field("userhash", self.userhash)
 
-        # Add the file
-        with open(file_path, "rb") as f:
-            data.add_field(
-                "fileToUpload",
-                f,
-                filename=file_path.name,
-                content_type="application/octet-stream",
-            )
+        # Add the file - use async context manager to ensure proper cleanup
+        try:
+            with open(file_path, "rb") as f:
+                data.add_field(
+                    "fileToUpload",
+                    f,
+                    filename=str(file_path.name),
+                    content_type="application/octet-stream",
+                )
 
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.post(CATBOX_API_URL, data=data) as response:
-                    if response.status != 200:
-                        msg = f"Upload failed with status {response.status}"
-                        raise RetryableError(msg, "catbox")
+                async with aiohttp.ClientSession() as session:
+                    try:
+                        async with session.post(CATBOX_API_URL, data=data) as response:
+                            if response.status != 200:
+                                msg = f"Upload failed with status {response.status}"
+                                raise RetryableError(msg, "catbox")
 
-                    url = await response.text()
-                    if not url.startswith("http"):
-                        msg = f"Invalid response from server: {url}"
-                        raise NonRetryableError(msg, "catbox")
+                            url = await response.text()
+                            if not url.startswith("http"):
+                                msg = f"Invalid response from server: {url}"
+                                raise NonRetryableError(msg, "catbox")
 
-                    return UploadResult(
-                        url=url,
-                        metadata={
-                            "provider": "catbox",
-                            "userhash": self.userhash is not None,
-                        },
-                    )
+                            return UploadResult(
+                                url=url,
+                                metadata={
+                                    "provider": "catbox",
+                                    "userhash": self.userhash is not None,
+                                },
+                            )
 
-            except aiohttp.ClientError as e:
-                msg = f"Upload failed: {e}"
-                raise RetryableError(msg, "catbox") from e
+                    except aiohttp.ClientError as e:
+                        msg = f"Upload failed: {e}"
+                        raise RetryableError(msg, "catbox") from e
+
+        except Exception as e:
+            msg = f"Upload failed: {e}"
+            raise RetryableError(msg, "catbox") from e
 
     @with_url_validation
     @with_async_retry(
@@ -256,7 +275,7 @@ class CatboxProvider(ProviderClient):
             NonRetryableError: For permanent failures
         """
         result = await self.async_upload_file(
-            Path(local_path),
+            Path(local_path) if isinstance(local_path, str) else local_path,
             remote_path,
             unique=unique,
             force=force,
@@ -265,28 +284,49 @@ class CatboxProvider(ProviderClient):
         return result.url
 
 
-@with_retry(max_attempts=3)
+# Module-level functions to implement the Provider protocol
 def get_credentials() -> CatboxCredentials | None:
-    """
-    Get Catbox credentials from environment variables.
-
-    Returns:
-        Dict with credentials if CATBOX_USERHASH is set, None otherwise
-    """
-    userhash = os.getenv("CATBOX_USERHASH")
-    return {"userhash": userhash} if userhash else None
+    """Get provider credentials from environment."""
+    return CatboxProvider.get_credentials()
 
 
-@with_retry(max_attempts=3)
 def get_provider() -> ProviderClient | None:
+    """Initialize and return the provider client."""
+    return CatboxProvider.get_provider()
+
+
+def upload_file(
+    local_path: str | Path,
+    remote_path: str | Path | None = None,
+    *,
+    unique: bool = False,
+    force: bool = False,
+    upload_path: str | None = None,
+) -> str:
     """
-    Initialize and return the Catbox provider.
+    Upload a file and return its URL.
+
+    Args:
+        local_path: Path to the file to upload
+        remote_path: Optional remote path (ignored for this provider)
+        unique: If True, ensures unique filename (not supported by Catbox)
+        force: If True, overwrites existing file (not supported by Catbox)
+        upload_path: Custom upload path (not supported by Catbox)
 
     Returns:
-        Configured CatboxProvider instance, or None if initialization fails
+        str: URL to the uploaded file
+
+    Raises:
+        ValueError: If upload fails
     """
-    try:
-        return CatboxProvider(get_credentials())
-    except Exception as e:
-        logger.error(f"Failed to initialize Catbox provider: {e}")
-        return None
+    provider = get_provider()
+    if not provider:
+        msg = "Failed to initialize provider"
+        raise ValueError(msg)
+    return provider.upload_file(
+        local_path,
+        remote_path,
+        unique=unique,
+        force=force,
+        upload_path=upload_path,
+    )

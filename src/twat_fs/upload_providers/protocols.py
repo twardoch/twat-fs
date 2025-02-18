@@ -32,6 +32,18 @@ class ProviderClient(Protocol):
         """Upload a file and return its public URL."""
         ...
 
+    async def async_upload_file(
+        self,
+        file_path: Path,
+        remote_path: str | Path | None = None,
+        *,
+        unique: bool = False,
+        force: bool = False,
+        upload_path: str | None = None,
+    ) -> Any:
+        """Asynchronously upload a file and return its result."""
+        ...
+
 
 @runtime_checkable
 class Provider(Protocol):
@@ -60,7 +72,13 @@ class Provider(Protocol):
         ...
 
     def upload_file(
-        self, local_path: str | Path, remote_path: str | Path | None = None
+        self,
+        local_path: str | Path,
+        remote_path: str | Path | None = None,
+        *,
+        unique: bool = False,
+        force: bool = False,
+        upload_path: str | None = None,
     ) -> str:
         """
         Upload a file using this provider.
@@ -68,11 +86,43 @@ class Provider(Protocol):
         Args:
             local_path: Path to the file to upload
             remote_path: Optional remote path to use
+            unique: If True, ensures unique filename
+            force: If True, overwrites existing file
+            upload_path: Custom upload path
 
         Returns:
             str: URL to the uploaded file
 
         Raises:
             ValueError: If upload fails
+        """
+        ...
+
+    async def async_upload_file(
+        self,
+        file_path: Path,
+        remote_path: str | Path | None = None,
+        *,
+        unique: bool = False,
+        force: bool = False,
+        upload_path: str | None = None,
+    ) -> Any:
+        """
+        Asynchronously upload a file using this provider.
+
+        Args:
+            file_path: Path to the file to upload
+            remote_path: Optional remote path to use
+            unique: If True, ensures unique filename
+            force: If True, overwrites existing file
+            upload_path: Custom upload path
+
+        Returns:
+            Any: Provider-specific upload result
+
+        Raises:
+            FileNotFoundError: If the file doesn't exist
+            RetryableError: For temporary failures that can be retried
+            NonRetryableError: For permanent failures
         """
         ...

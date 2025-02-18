@@ -14,10 +14,11 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable, BinaryIO, ClassVar
 from collections.abc import Generator
+import asyncio
 
 from twat_fs.upload_providers.protocols import ProviderHelp, Provider, ProviderClient
 
@@ -30,6 +31,7 @@ class UploadResult:
     success: bool
     error: str | None = None
     raw_response: Any = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @runtime_checkable
@@ -91,7 +93,13 @@ class SimpleProviderBase(ABC, Provider):
         return cls()
 
     def upload_file(
-        self, local_path: str | Path, remote_path: str | Path | None = None
+        self,
+        local_path: str | Path,
+        remote_path: str | Path | None = None,
+        *,
+        unique: bool = False,
+        force: bool = False,
+        upload_path: str | None = None,
     ) -> str:
         """
         Upload a file and return its URL.
@@ -100,6 +108,9 @@ class SimpleProviderBase(ABC, Provider):
         Args:
             local_path: Path to the file to upload
             remote_path: Optional remote path to use (ignored for simple providers)
+            unique: If True, ensures unique filename (ignored for simple providers)
+            force: If True, overwrites existing file (ignored for simple providers)
+            upload_path: Custom upload path (ignored for simple providers)
 
         Returns:
             str: URL to the uploaded file
@@ -133,3 +144,22 @@ class SimpleProviderBase(ABC, Provider):
             UploadResult containing the URL and status
         """
         ...
+
+    async def async_upload_file(
+        self,
+        file_path: str | Path,
+        remote_path: str | Path | None = None,
+        *,
+        unique: bool = False,
+        force: bool = False,
+        upload_path: str | None = None,
+    ) -> Any:
+        """Asynchronously upload a file by delegating to the synchronous upload_file method."""
+        return await asyncio.to_thread(
+            self.upload_file,
+            file_path,
+            remote_path,
+            unique=unique,
+            force=force,
+            upload_path=upload_path,
+        )

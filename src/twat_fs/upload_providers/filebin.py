@@ -13,6 +13,9 @@ Files are automatically deleted after 6 days.
 import requests
 from pathlib import Path
 from typing import BinaryIO, cast
+import time
+import random
+import string
 
 from loguru import logger
 
@@ -44,27 +47,71 @@ class FilebinProvider(SimpleProviderBase):
             UploadResult containing the URL and status
         """
         try:
-            files = {"file": (file.name, file)}
-            response = requests.post(self.url, files=files)
+            # Get the filename from the file object
+            filename = Path(file.name).name
 
-            if response.status_code != 200:
-                msg = (
-                    f"Upload failed with status {response.status_code}: {response.text}"
-                )
-                raise ValueError(msg)
+            # Create a unique bin name using timestamp and random suffix
+            timestamp = int(time.time())
+            suffix = "".join(
+                random.choices(string.ascii_lowercase + string.digits, k=6)
+            )
+            bin_name = f"twat-fs-{timestamp}-{suffix}"
+            bin_url = f"{self.url}/{bin_name}"
 
-            # The response URL is in the response URL
-            url = response.url
-            if not url:
-                msg = "No URL in response"
-                raise ValueError(msg)
+            # Upload the file directly to the bin URL
+            file_url = f"{bin_url}/{filename}"
+            headers = {
+                "Content-Type": "application/octet-stream",
+                "User-Agent": "twat-fs/1.0",
+            }
 
-            logger.info(f"Successfully uploaded to filebin.net: {url}")
-            return UploadResult(url=str(url), success=True, raw_response=response.text)
+            # Upload with retries
+            max_retries = 3
+            retry_delay = 2
+            last_error = None
+
+            for attempt in range(max_retries):
+                try:
+                    response = requests.put(
+                        file_url,
+                        data=file,
+                        headers=headers,
+                        timeout=30,
+                    )
+                    if response.status_code in (200, 201, 204):
+                        logger.info(f"Successfully uploaded to filebin.net: {file_url}")
+                        return UploadResult(
+                            url=str(file_url),
+                            success=True,
+                            raw_response=response.text,
+                            metadata={"provider": "filebin"},
+                        )
+
+                    last_error = f"Upload failed with status {response.status_code}: {response.text}"
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                        file.seek(0)  # Reset file pointer for retry
+                except requests.RequestException as e:
+                    last_error = f"Request failed: {e}"
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                        file.seek(0)
+
+            if last_error:
+                raise ValueError(last_error)
+            msg = "Upload failed after retries"
+            raise ValueError(msg)
 
         except Exception as e:
             logger.error(f"Failed to upload to filebin.net: {e}")
-            return UploadResult(url="", success=False, error=str(e))
+            return UploadResult(
+                url="",
+                success=False,
+                error=str(e),
+                metadata={"provider": "filebin"},
+            )
 
 
 # Module-level functions to implement the Provider protocol

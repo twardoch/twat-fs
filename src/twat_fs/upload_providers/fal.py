@@ -15,6 +15,7 @@ This module provides functionality to upload files to FAL's storage service.
 from __future__ import annotations
 
 import os
+import time
 from pathlib import Path
 from typing import ClassVar
 
@@ -71,8 +72,8 @@ class FalProvider(Provider):
             return None
 
         try:
-            # Create a provider instance with the key
-            return cls(key=creds["key"])
+            # Ensure the key is a clean string by stripping whitespace
+            return cls(key=str(creds["key"]).strip())
         except Exception as err:
             logger.warning(f"Failed to initialize FAL provider: {err}")
             return None
@@ -111,21 +112,93 @@ class FalProvider(Provider):
             msg = f"Not a file: {path}"
             raise ValueError(msg)
 
-        try:
-            # FAL client's upload_file only accepts a string path
-            result = self.client.upload_file(str(path))
-            if not result:
-                msg = "FAL upload failed - no URL in response"
-                raise ValueError(msg)
-            return str(result)
+        # Verify FAL client is properly initialized
+        if not hasattr(self.client, "upload_file"):
+            msg = "FAL client not properly initialized"
+            raise ValueError(msg)
 
-        except TypeError as e:
-            # Handle type errors from the FAL client
-            msg = f"FAL upload failed - invalid argument: {e}"
-            raise ValueError(msg) from e
+        # Check if FAL key is still valid
+        try:
+            self.client.rest_call("GET", "/auth/v1/accounts/me")
+            logger.debug("FAL: API credentials verified")
         except Exception as e:
-            msg = f"FAL upload failed: {e}"
-            raise ValueError(msg) from e
+            if "401" in str(e) or "unauthorized" in str(e).lower():
+                msg = "FAL API key is invalid or expired. Please generate a new key."
+                raise ValueError(msg)
+            msg = f"FAL API check failed: {e}"
+            raise ValueError(msg)
+
+        # Upload with retries
+        max_retries = 3
+        retry_delay = 2
+        last_error = None
+
+        for attempt in range(max_retries):
+            try:
+                logger.debug(
+                    f"FAL: Attempting upload of {path} (attempt {attempt + 1}/{max_retries})"
+                )
+
+                # Attempt the upload with additional error logging
+                try:
+                    result = self.client.upload_file(str(path))
+                except Exception as inner_error:
+                    logger.error(f"FAL: Exception during upload: {inner_error}")
+                    last_error = f"Upload exception: {inner_error}"
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                        continue
+                    break
+
+                result_str = str(result).strip()
+                logger.debug(f"FAL: upload result: {result_str}")
+                if not result_str:
+                    last_error = "FAL upload failed - no URL in response"
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                        continue
+                    break
+
+                # Add a delay before validation to allow for propagation
+                logger.debug(f"FAL: Waiting for URL propagation: {result_str}")
+                time.sleep(5.0)  # Increased propagation delay
+
+                # Validate URL is accessible
+                import requests
+
+                logger.debug(f"FAL: Validating URL: {result_str}")
+                response = requests.head(
+                    str(result_str),
+                    timeout=30,
+                    allow_redirects=True,
+                    headers={"User-Agent": "twat-fs/1.0"},
+                )
+
+                logger.debug(f"FAL: URL validation response: {response.status_code}")
+
+                if 200 <= response.status_code < 300:
+                    logger.info(
+                        f"FAL: Successfully uploaded and validated: {result_str}"
+                    )
+                    return str(result_str)
+
+                last_error = f"URL validation failed with status {response.status_code}"
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+
+            except (requests.RequestException, TypeError) as e:
+                last_error = f"Upload or validation failed: {e}"
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+
+        if last_error:
+            raise ValueError(last_error)
+        msg = "Upload failed after retries"
+        raise ValueError(msg)
 
 
 # Module-level functions that delegate to the FalProvider class

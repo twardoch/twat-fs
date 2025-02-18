@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed default provider to catbox.moe for better reliability
 - Improved provider fallback mechanism with exponential backoff
 - Enhanced error messages with provider context
+- Removed Dropbox, S3, and Pixeldrain providers from provider preference, focusing on simpler providers that do not require authentication
 
 ### Known Issues
 
