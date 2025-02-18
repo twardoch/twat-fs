@@ -93,11 +93,33 @@ def _test_provider_online(
         if not client:
             return False, f"Provider {provider_name} not configured", None
 
+        # Track timing
+        start_time = time.time()
+        read_start = time.time()
+
+        # Track file read time
+        with open(test_file, "rb") as f:
+            _ = f.read()  # Read file to measure read time
+        read_duration = time.time() - read_start
+
         # Upload the file
         try:
+            upload_start = time.time()
             result = client.upload_file(test_file)
+            upload_duration = time.time() - upload_start
+
             if not result:
-                return False, "Upload failed", None
+                end_time = time.time()
+                timing_metrics = {
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "total_duration": end_time - start_time,
+                    "read_duration": read_duration,
+                    "upload_duration": upload_duration,
+                    "validation_duration": 0.0,
+                    "provider": provider_name,
+                }
+                return False, "Upload failed", timing_metrics
 
             # Extract URL and timing metrics
             if isinstance(result, UploadResult):
@@ -111,13 +133,26 @@ def _test_provider_online(
             time.sleep(1.0)
 
             # Validate URL is accessible
+            validation_start = time.time()
             response = requests.head(
                 url,
                 timeout=30,
                 allow_redirects=True,
                 headers={"User-Agent": "twat-fs/1.0"},
             )
+            validation_duration = time.time() - validation_start
+
             if response.status_code not in (200, 201, 202, 203, 204):
+                end_time = time.time()
+                timing_metrics = {
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "total_duration": end_time - start_time,
+                    "read_duration": read_duration,
+                    "upload_duration": upload_duration,
+                    "validation_duration": validation_duration,
+                    "provider": provider_name,
+                }
                 return (
                     False,
                     f"URL validation failed: status {response.status_code}",
@@ -125,16 +160,37 @@ def _test_provider_online(
                 )
 
         except ValueError as e:
+            end_time = time.time()
+            timing_metrics = {
+                "start_time": start_time,
+                "end_time": end_time,
+                "total_duration": end_time - start_time,
+                "read_duration": read_duration,
+                "upload_duration": time.time() - upload_start,
+                "validation_duration": 0.0,
+                "provider": provider_name,
+            }
             if "401" in str(e) or "authentication" in str(e).lower():
-                return False, f"Authentication required: {e}", None
-            return False, f"Upload failed: {e}", None
+                return False, f"Authentication required: {e}", timing_metrics
+            return False, f"Upload failed: {e}", timing_metrics
         except requests.RequestException as e:
-            return False, f"URL validation failed: {e}", None
+            end_time = time.time()
+            timing_metrics = {
+                "start_time": start_time,
+                "end_time": end_time,
+                "total_duration": end_time - start_time,
+                "read_duration": read_duration,
+                "upload_duration": upload_duration,
+                "validation_duration": time.time() - validation_start,
+                "provider": provider_name,
+            }
+            return False, f"URL validation failed: {e}", timing_metrics
 
         # Download and verify the file with retries
         max_retries = 3
         retry_delay = 2  # seconds
         last_error = None
+        verification_start = time.time()
 
         for attempt in range(max_retries):
             try:
@@ -145,6 +201,17 @@ def _test_provider_online(
 
                     # Compare hashes
                     if original_hash == downloaded_hash:
+                        end_time = time.time()
+                        if not timing_metrics:
+                            timing_metrics = {
+                                "start_time": start_time,
+                                "end_time": end_time,
+                                "total_duration": end_time - start_time,
+                                "read_duration": read_duration,
+                                "upload_duration": upload_duration,
+                                "validation_duration": validation_duration,
+                                "provider": provider_name,
+                            }
                         return True, "Online test passed successfully", timing_metrics
                     else:
                         last_error = f"Content verification failed: original {original_hash}, downloaded {downloaded_hash}"
@@ -161,10 +228,33 @@ def _test_provider_online(
                     time.sleep(retry_delay)
                     retry_delay *= 2
 
+        end_time = time.time()
+        if not timing_metrics:
+            timing_metrics = {
+                "start_time": start_time,
+                "end_time": end_time,
+                "total_duration": end_time - start_time,
+                "read_duration": read_duration,
+                "upload_duration": upload_duration,
+                "validation_duration": validation_duration,
+                "provider": provider_name,
+            }
         return False, last_error or "Download failed after retries", timing_metrics
 
     except Exception as e:
-        return False, f"Online test failed: {e}", None
+        end_time = time.time()
+        timing_metrics = {
+            "start_time": start_time,
+            "end_time": end_time,
+            "total_duration": end_time - start_time,
+            "read_duration": read_duration,
+            "upload_duration": time.time() - upload_start
+            if "upload_start" in locals()
+            else 0.0,
+            "validation_duration": 0.0,
+            "provider": provider_name,
+        }
+        return False, f"Online test failed: {e}", timing_metrics
 
 
 def setup_provider(
