@@ -178,7 +178,7 @@ class UploadProviderCommands:
 
         # Print each active provider ID, one per line, to stdout
         for provider in active_providers:
-            print(provider)
+            pass
 
         sys.exit(0)
 

@@ -16,8 +16,6 @@ import requests
 import time
 
 from loguru import logger
-from rich.console import Console
-from rich.table import Table, Column
 
 from twat_fs.upload_providers import (
     PROVIDERS_PREFERENCE,

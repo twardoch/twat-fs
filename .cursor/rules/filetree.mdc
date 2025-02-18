@@ -34,9 +34,10 @@ globs:
 │   └── [ 384]  twat_fs
 │       ├── [ 447]  __init__.py
 │       ├── [ 733]  __main__.py
-│       ├── [5.7K]  cli.py
-│       ├── [  96]  data
-│       │   └── [1.5K]  test.jpg
+│       ├── [9.0K]  cli.py
+│       ├── [ 128]  data
+│       │   ├── [1.5K]  _test.jpg
+│       │   └── [383K]  test.jpg
 │       ├── [   1]  py.typed
 │       ├── [ 24K]  upload.py
 │       └── [ 608]  upload_providers
@@ -53,18 +54,18 @@ globs:
 │           ├── [5.1K]  s3.py
 │           ├── [6.0K]  simple.py
 │           ├── [ 728]  types.py
-│           ├── [3.6K]  uguu.py
-│           └── [4.0K]  www0x0.py
+│           ├── [4.3K]  uguu.py
+│           └── [4.1K]  www0x0.py
 ├── [ 352]  tests
 │   ├── [  63]  __init__.py
 │   ├── [  96]  data
 │   │   └── [ 100]  test.txt
 │   ├── [3.1K]  test_filebin_pixeldrain.py
-│   ├── [9.1K]  test_integration.py
+│   ├── [9.0K]  test_integration.py
 │   ├── [8.7K]  test_s3_advanced.py
 │   ├── [ 180]  test_twat_fs.py
 │   └── [ 29K]  test_upload.py
-├── [2.5K]  update_providers.py
+├── [3.0K]  update_providers.py
 └── [382K]  uv.lock
 
-14 directories, 50 files
+14 directories, 51 files
