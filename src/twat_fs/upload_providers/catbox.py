@@ -104,41 +104,52 @@ class CatboxProvider(ProviderClient, Provider):
 
         # Add userhash if authenticated
         if self.userhash:
-            data.add_field("userhash", self.userhash)
+            data.add_field("userhash", str(self.userhash))
 
         # Add the file - use async context manager to ensure proper cleanup
         try:
-            with open(file_path, "rb") as f:
-                data.add_field(
-                    "fileToUpload",
-                    f,
-                    filename=str(file_path.name),
-                    content_type="application/octet-stream",
-                )
+            # Read file content first
+            with open(str(file_path), "rb") as f:
+                file_content = f.read()
 
-                async with aiohttp.ClientSession() as session:
-                    try:
-                        async with session.post(CATBOX_API_URL, data=data) as response:
-                            if response.status != 200:
-                                msg = f"Upload failed with status {response.status}"
-                                raise RetryableError(msg, "catbox")
+            # Create FormData with file content
+            data.add_field(
+                "fileToUpload",
+                file_content,
+                filename=str(file_path.name),
+                content_type="application/octet-stream",
+            )
 
-                            url = await response.text()
-                            if not url.startswith("http"):
-                                msg = f"Invalid response from server: {url}"
+            async with aiohttp.ClientSession() as session:
+                try:
+                    async with session.post(CATBOX_API_URL, data=data) as response:
+                        if response.status == 503:
+                            error_text = await response.text()
+                            msg = f"Service temporarily unavailable (status 503): {error_text}"
+                            raise RetryableError(msg, "catbox")
+                        elif response.status != 200:
+                            error_text = await response.text()
+                            msg = f"Upload failed with status {response.status}: {error_text}"
+                            if response.status in (400, 401, 403, 404):
                                 raise NonRetryableError(msg, "catbox")
+                            raise RetryableError(msg, "catbox")
 
-                            return UploadResult(
-                                url=url,
-                                metadata={
-                                    "provider": "catbox",
-                                    "userhash": self.userhash is not None,
-                                },
-                            )
+                        url = await response.text()
+                        if not url.startswith("http"):
+                            msg = f"Invalid response from server: {url}"
+                            raise NonRetryableError(msg, "catbox")
 
-                    except aiohttp.ClientError as e:
-                        msg = f"Upload failed: {e}"
-                        raise RetryableError(msg, "catbox") from e
+                        return UploadResult(
+                            url=url,
+                            metadata={
+                                "provider": "catbox",
+                                "userhash": self.userhash is not None,
+                            },
+                        )
+
+                except aiohttp.ClientError as e:
+                    msg = f"Upload failed: {e}"
+                    raise RetryableError(msg, "catbox") from e
 
         except Exception as e:
             msg = f"Upload failed: {e}"
@@ -173,10 +184,10 @@ class CatboxProvider(ProviderClient, Provider):
         """
         data = aiohttp.FormData()
         data.add_field("reqtype", "urlupload")
-        data.add_field("url", url)
+        data.add_field("url", str(url))
 
         if self.userhash:
-            data.add_field("userhash", self.userhash)
+            data.add_field("userhash", str(self.userhash))
 
         async with aiohttp.ClientSession() as session:
             try:
@@ -226,8 +237,8 @@ class CatboxProvider(ProviderClient, Provider):
 
         data = aiohttp.FormData()
         data.add_field("reqtype", "deletefiles")
-        data.add_field("userhash", self.userhash)
-        data.add_field("files", " ".join(files))
+        data.add_field("userhash", str(self.userhash))
+        data.add_field("files", " ".join(str(f) for f in files))
 
         async with aiohttp.ClientSession() as session:
             try:

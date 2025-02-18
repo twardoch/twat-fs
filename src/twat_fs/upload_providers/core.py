@@ -16,6 +16,8 @@ from collections.abc import Callable, Awaitable
 import aiohttp
 from loguru import logger
 
+from twat_fs.upload_providers.types import UploadResult
+
 # Type variables for generic decorators
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -223,7 +225,7 @@ class NonRetryableError(UploadError):
 
 async def validate_url(url: str, timeout: float = URL_CHECK_TIMEOUT) -> bool:
     """
-    Validate that a URL is accessible by making a HEAD request.
+    Validate that a URL is accessible by making a GET request.
 
     Args:
         url: The URL to validate
@@ -244,18 +246,20 @@ async def validate_url(url: str, timeout: float = URL_CHECK_TIMEOUT) -> bool:
                 "Accept": "*/*",
             }
 
-            async with session.head(
+            async with session.get(
                 url,
                 headers=headers,
                 timeout=timeout,
                 allow_redirects=True,
                 max_redirects=MAX_REDIRECTS,
             ) as response:
-                if response.status in (200, 201, 202, 203, 204):
+                # Consider any 2xx or 3xx status as success
+                if 200 <= response.status < 400:
                     return True
                 if response.status in (401, 403, 404, 410):
                     msg = f"URL not accessible (status {response.status})"
                     raise NonRetryableError(msg)
+                # Treat all other status codes as retryable
                 msg = f"URL validation failed (status {response.status})"
                 raise RetryableError(msg)
 
@@ -304,24 +308,33 @@ async def ensure_url_accessible(url: str) -> str:
 
 
 def with_url_validation(
-    func: Callable[P, Awaitable[str]],
-) -> Callable[P, Awaitable[str]]:
+    func: Callable[P, Awaitable[str | UploadResult]],
+) -> Callable[P, Awaitable[str | UploadResult]]:
     """
     Decorator to validate URLs after upload.
-    Should be applied to async upload methods that return a URL.
+    Should be applied to async upload methods that return a URL or UploadResult.
 
     Args:
-        func: Async function that returns a URL
+        func: Async function that returns a URL or UploadResult
 
     Returns:
         Decorated function that validates the URL after upload
     """
 
     @functools.wraps(func)
-    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> str:
-        url = await func(*args, **kwargs)
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> str | UploadResult:
+        result = await func(*args, **kwargs)
         # Add a small delay before validation to allow for propagation
         await asyncio.sleep(1.0)
-        return await ensure_url_accessible(url)
+
+        # Extract URL from result
+        url = result.url if isinstance(result, UploadResult) else result
+        validated_url = await ensure_url_accessible(url)
+
+        # Return same type as input
+        if isinstance(result, UploadResult):
+            result.url = validated_url
+            return result
+        return validated_url
 
     return wrapper

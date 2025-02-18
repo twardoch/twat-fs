@@ -17,6 +17,7 @@ from loguru import logger
 
 from twat_fs.upload_providers.simple import SimpleProviderBase, UploadResult
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
+from twat_fs.exceptions import NonRetryableError, RetryableError
 
 # Provider help messages
 PROVIDER_HELP: ProviderHelp = {
@@ -42,16 +43,33 @@ class TermbinProvider(SimpleProviderBase):
 
         Returns:
             UploadResult containing the URL and status
+
+        Raises:
+            NonRetryableError: For permanent failures or unsupported file types
+            RetryableError: For temporary failures that can be retried
         """
         try:
-            # Read file content
-            content = file.read()
+            # Try to read file as text first
+            try:
+                content = file.read()
+                if isinstance(content, bytes):
+                    try:
+                        # Try to decode as text
+                        content = content.decode("utf-8")
+                    except UnicodeDecodeError:
+                        msg = "Binary files are not supported by termbin - text files only"
+                        raise NonRetryableError(msg, "termbin")
+            except UnicodeDecodeError:
+                msg = "Binary files are not supported by termbin - text files only"
+                raise NonRetryableError(msg, "termbin")
 
             # Connect to termbin.com
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((self.host, self.port))
 
             # Send file content
+            if isinstance(content, str):
+                content = content.encode("utf-8")
             sock.sendall(content)
             sock.shutdown(socket.SHUT_WR)
 
@@ -69,14 +87,24 @@ class TermbinProvider(SimpleProviderBase):
             url = response.decode().strip()
             if not url.startswith("http"):
                 msg = f"Invalid response from termbin: {url}"
-                raise ValueError(msg)
+                raise RetryableError(msg, "termbin")
 
             logger.info(f"Successfully uploaded to termbin: {url}")
-            return UploadResult(url=url, success=True, raw_response=url)
+            return UploadResult(
+                url=url,
+                success=True,
+                raw_response=url,
+                metadata={"provider": "termbin"},
+            )
 
+        except (socket.timeout, socket.error) as e:
+            msg = f"Connection error: {e}"
+            raise RetryableError(msg, "termbin") from e
         except Exception as e:
-            logger.error(f"Failed to upload to termbin: {e}")
-            return UploadResult(url="", success=False, error=str(e))
+            if isinstance(e, (RetryableError, NonRetryableError)):
+                raise
+            msg = f"Upload failed: {e}"
+            raise NonRetryableError(msg, "termbin") from e
 
 
 # Module-level functions to implement the Provider protocol

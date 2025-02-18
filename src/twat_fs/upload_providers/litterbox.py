@@ -82,7 +82,7 @@ class LitterboxProvider(ProviderClient, Provider):
             os.getenv("LITTERBOX_DEFAULT_EXPIRATION", "24h")
         ).strip()
         try:
-            expiration = ExpirationTime(default_expiration)
+            expiration = ExpirationTime(str(default_expiration))
         except ValueError:
             logger.warning(
                 f"Invalid expiration time {default_expiration}, using 24h default"
@@ -128,37 +128,60 @@ class LitterboxProvider(ProviderClient, Provider):
         expiration = expiration or self.default_expiration
         data = aiohttp.FormData()
         data.add_field("reqtype", "fileupload")
-        data.add_field("time", str(expiration.value))
+        data.add_field(
+            "time",
+            str(
+                expiration.value
+                if isinstance(expiration, ExpirationTime)
+                else expiration
+            ),
+        )
 
         try:
-            with open(file_path, "rb") as f:
-                data.add_field("fileToUpload", f, filename=str(file_path.name))
+            # Read file content first
+            with open(str(file_path), "rb") as f:
+                file_content = f.read()
 
-                async with aiohttp.ClientSession() as session:
-                    try:
-                        async with session.post(
-                            LITTERBOX_API_URL, data=data
-                        ) as response:
-                            if response.status != 200:
-                                msg = f"Upload failed with status {response.status}"
-                                raise RetryableError(msg, "litterbox")
+            # Create FormData with file content
+            data.add_field(
+                "fileToUpload",
+                file_content,
+                filename=str(file_path.name),
+                content_type="application/octet-stream",
+            )
 
-                            url = await response.text()
-                            if not url.startswith("http"):
-                                msg = f"Invalid response from server: {url}"
+            async with aiohttp.ClientSession() as session:
+                try:
+                    async with session.post(LITTERBOX_API_URL, data=data) as response:
+                        if response.status == 503:
+                            msg = "Service temporarily unavailable"
+                            raise RetryableError(msg, "litterbox")
+                        elif response.status == 404:
+                            msg = "API endpoint not found - service may be down or API has changed"
+                            raise RetryableError(msg, "litterbox")
+                        elif response.status != 200:
+                            error_text = await response.text()
+                            msg = f"Upload failed with status {response.status}: {error_text}"
+                            if response.status in (400, 401, 403):
                                 raise NonRetryableError(msg, "litterbox")
+                            raise RetryableError(msg, "litterbox")
 
-                            return UploadResult(
-                                url=url,
-                                metadata={
-                                    "expiration": expiration.value,
-                                    "provider": "litterbox",
-                                },
-                            )
+                        url = await response.text()
+                        if not url.startswith("http"):
+                            msg = f"Invalid response from server: {url}"
+                            raise NonRetryableError(msg, "litterbox")
 
-                    except aiohttp.ClientError as e:
-                        msg = f"Upload failed: {e}"
-                        raise RetryableError(msg, "litterbox") from e
+                        return UploadResult(
+                            url=url,
+                            metadata={
+                                "expiration": expiration.value,
+                                "provider": "litterbox",
+                            },
+                        )
+
+                except aiohttp.ClientError as e:
+                    msg = f"Upload failed: {e}"
+                    raise RetryableError(msg, "litterbox") from e
 
         except Exception as e:
             msg = f"Upload failed: {e}"

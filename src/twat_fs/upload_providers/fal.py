@@ -23,6 +23,14 @@ import fal_client  # type: ignore
 from loguru import logger  # type: ignore
 
 from twat_fs.upload_providers.protocols import Provider, ProviderClient, ProviderHelp
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.core import (
+    with_url_validation,
+    with_async_retry,
+    RetryableError,
+    NonRetryableError,
+    validate_file,
+)
 
 # Provider-specific help messages
 PROVIDER_HELP: ProviderHelp = {
@@ -78,6 +86,90 @@ class FalProvider(Provider):
             logger.warning(f"Failed to initialize FAL provider: {err}")
             return None
 
+    @validate_file
+    @with_url_validation
+    @with_async_retry(
+        max_attempts=3,
+        exceptions=(RetryableError, Exception),
+    )
+    async def async_upload_file(
+        self,
+        file_path: Path,
+        remote_path: str | Path | None = None,
+        *,
+        unique: bool = False,
+        force: bool = False,
+        upload_path: str | None = None,
+    ) -> UploadResult:
+        """
+        Upload a file using FAL.
+
+        Args:
+            file_path: Path to the file to upload
+            remote_path: Optional remote path (ignored for FAL)
+            unique: Whether to ensure unique filenames (ignored for FAL)
+            force: Whether to overwrite existing files (ignored for FAL)
+            upload_path: Base path for uploads (ignored for FAL)
+
+        Returns:
+            UploadResult with the public URL
+
+        Raises:
+            FileNotFoundError: If the file doesn't exist
+            RetryableError: For temporary failures that can be retried
+            NonRetryableError: For permanent failures
+        """
+        # Verify FAL client is properly initialized
+        if not hasattr(self.client, "upload_file"):
+            msg = "FAL client not properly initialized"
+            raise NonRetryableError(msg, "fal")
+
+        # Check if FAL key is still valid
+        try:
+            # Just try to access a property that requires auth
+            _ = self.client.key
+            logger.debug("FAL: API credentials verified")
+        except Exception as e:
+            if "401" in str(e) or "unauthorized" in str(e).lower():
+                msg = "FAL API key is invalid or expired. Please generate a new key."
+                raise NonRetryableError(msg, "fal")
+            msg = f"FAL API check failed: {e}"
+            raise RetryableError(msg, "fal")
+
+        try:
+            # Ensure file path is a string
+            file_path_str = str(file_path)
+            try:
+                result = self.client.upload_file(file_path_str)
+            except Exception as e:
+                if "TypeError" in str(e) or "str" in str(e):
+                    # Try reading the file and uploading the content directly
+                    with open(file_path_str, "rb") as f:
+                        result = self.client.upload_file(f)
+
+            if not result:
+                msg = "FAL upload failed - no URL in response"
+                raise RetryableError(msg, "fal")
+
+            result_str = str(result).strip()
+            if not result_str:
+                msg = "FAL upload failed - empty URL in response"
+                raise RetryableError(msg, "fal")
+
+            return UploadResult(
+                url=result_str,
+                metadata={
+                    "provider": "fal",
+                },
+            )
+
+        except Exception as e:
+            if "401" in str(e) or "unauthorized" in str(e).lower():
+                msg = f"FAL upload failed - unauthorized: {e}"
+                raise NonRetryableError(msg, "fal")
+            msg = f"FAL upload failed: {e}"
+            raise RetryableError(msg, "fal")
+
     def upload_file(
         self,
         local_path: str | Path,
@@ -104,101 +196,21 @@ class FalProvider(Provider):
             ValueError: If upload fails
             FileNotFoundError: If the file doesn't exist
         """
-        path = Path(local_path)
-        if not path.exists():
-            msg = f"File not found: {path}"
-            raise FileNotFoundError(msg)
-        if not path.is_file():
-            msg = f"Not a file: {path}"
-            raise ValueError(msg)
+        import asyncio
 
-        # Verify FAL client is properly initialized
-        if not hasattr(self.client, "upload_file"):
-            msg = "FAL client not properly initialized"
-            raise ValueError(msg)
-
-        # Check if FAL key is still valid
         try:
-            self.client.rest_call("GET", "/auth/v1/accounts/me")
-            logger.debug("FAL: API credentials verified")
-        except Exception as e:
-            if "401" in str(e) or "unauthorized" in str(e).lower():
-                msg = "FAL API key is invalid or expired. Please generate a new key."
-                raise ValueError(msg)
-            msg = f"FAL API check failed: {e}"
-            raise ValueError(msg)
-
-        # Upload with retries
-        max_retries = 3
-        retry_delay = 2
-        last_error = None
-
-        for attempt in range(max_retries):
-            try:
-                logger.debug(
-                    f"FAL: Attempting upload of {path} (attempt {attempt + 1}/{max_retries})"
+            result = asyncio.run(
+                self.async_upload_file(
+                    Path(local_path),
+                    remote_path,
+                    unique=unique,
+                    force=force,
+                    upload_path=upload_path,
                 )
-
-                # Attempt the upload with additional error logging
-                try:
-                    result = self.client.upload_file(str(path))
-                except Exception as inner_error:
-                    logger.error(f"FAL: Exception during upload: {inner_error}")
-                    last_error = f"Upload exception: {inner_error}"
-                    if attempt < max_retries - 1:
-                        time.sleep(retry_delay)
-                        retry_delay *= 2
-                        continue
-                    break
-
-                result_str = str(result).strip()
-                logger.debug(f"FAL: upload result: {result_str}")
-                if not result_str:
-                    last_error = "FAL upload failed - no URL in response"
-                    if attempt < max_retries - 1:
-                        time.sleep(retry_delay)
-                        retry_delay *= 2
-                        continue
-                    break
-
-                # Add a delay before validation to allow for propagation
-                logger.debug(f"FAL: Waiting for URL propagation: {result_str}")
-                time.sleep(5.0)  # Increased propagation delay
-
-                # Validate URL is accessible
-                import requests
-
-                logger.debug(f"FAL: Validating URL: {result_str}")
-                response = requests.head(
-                    str(result_str),
-                    timeout=30,
-                    allow_redirects=True,
-                    headers={"User-Agent": "twat-fs/1.0"},
-                )
-
-                logger.debug(f"FAL: URL validation response: {response.status_code}")
-
-                if 200 <= response.status_code < 300:
-                    logger.info(
-                        f"FAL: Successfully uploaded and validated: {result_str}"
-                    )
-                    return str(result_str)
-
-                last_error = f"URL validation failed with status {response.status_code}"
-                if attempt < max_retries - 1:
-                    time.sleep(retry_delay)
-                    retry_delay *= 2
-
-            except (requests.RequestException, TypeError) as e:
-                last_error = f"Upload or validation failed: {e}"
-                if attempt < max_retries - 1:
-                    time.sleep(retry_delay)
-                    retry_delay *= 2
-
-        if last_error:
-            raise ValueError(last_error)
-        msg = "Upload failed after retries"
-        raise ValueError(msg)
+            )
+            return result.url
+        except (RetryableError, NonRetryableError) as e:
+            raise ValueError(str(e)) from e
 
 
 # Module-level functions that delegate to the FalProvider class
