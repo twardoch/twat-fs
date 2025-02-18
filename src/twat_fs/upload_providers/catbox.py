@@ -370,16 +370,14 @@ def upload_catbox(file_path: Path, max_retries: int = 3, backoff: int = 2) -> st
                 return response.text.strip()
             else:
                 # This covers unexpected status codes or a non-url response
-                raise RuntimeError(
-                    f"Unexpected response (status {response.status_code}): {response.text}"
-                )
+                msg = f"Unexpected response (status {response.status_code}): {response.text}"
+                raise RuntimeError(msg)
         except (requests.exceptions.RequestException, RuntimeError) as exc:
             # We log or print the error for debug/troubleshooting
             if attempt < max_retries:
                 time.sleep(backoff)
             else:
-                raise RuntimeError(
-                    f"Failed to upload file to Catbox after {max_retries} attempts: {exc}"
-                ) from exc
+                msg = f"Failed to upload file to Catbox after {max_retries} attempts: {exc}"
+                raise RuntimeError(msg) from exc
     # This return won't be reached, but keeps linters happy
     return ""

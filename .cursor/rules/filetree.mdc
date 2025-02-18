@@ -2,7 +2,7 @@
 description: File tree of the project
 globs: 
 ---
-[ 992]  .
+[ 928]  .
 ├── [  64]  .benchmarks
 ├── [  96]  .cursor
 │   └── [ 224]  rules
@@ -17,45 +17,42 @@ globs:
 ├── [3.5K]  .gitignore
 ├── [ 532]  .pre-commit-config.yaml
 ├── [1.0K]  LICENSE
-├── [6.8K]  LOG.md
+├── [7.2K]  LOG.md
 ├── [ 153]  MANIFEST.in
-├── [ 10K]  README.md
-├── [9.0K]  TODO.md
-├── [ 34K]  TODO_FILEBIN_PIXELDRAIN.txt
+├── [ 12K]  README.md
+├── [9.7K]  TODO.md
 ├── [   7]  VERSION.txt
 ├── [ 11K]  cleanup.py
-├── [ 160]  dist
+├── [  96]  dist
 ├── [  96]  examples
-│   └── [ 941]  upload_example.py
+│   └── [ 930]  upload_example.py
 ├── [ 306]  filetree.sh
 ├── [6.9K]  pyproject.toml
 ├── [ 128]  src
-│   └── [ 416]  twat_fs
+│   └── [ 384]  twat_fs
 │       ├── [ 472]  __init__.py
 │       ├── [ 733]  __main__.py
-│       ├── [5.9K]  cli.py
+│       ├── [6.1K]  cli.py
 │       ├── [  96]  data
 │       │   └── [1.5K]  test.jpg
 │       ├── [   1]  py.typed
-│       ├── [ 20K]  upload.py
-│       ├── [ 640]  upload_providers
-│       │   ├── [3.6K]  __init__.py
-│       │   ├── [4.1K]  bashupload.py
-│       │   ├── [ 12K]  catbox.py
-│       │   ├── [ 11K]  core.py
-│       │   ├── [ 20K]  dropbox.py
-│       │   ├── [7.7K]  fal.py
-│       │   ├── [4.5K]  filebin.py
-│       │   ├── [8.8K]  litterbox.py
-│       │   ├── [5.2K]  pixeldrain.py
-│       │   ├── [3.2K]  protocols.py
-│       │   ├── [5.2K]  s3.py
-│       │   ├── [4.9K]  simple.py
-│       │   ├── [4.2K]  termbin.py
-│       │   ├── [ 751]  types.py
-│       │   ├── [2.8K]  uguu.py
-│       │   └── [3.8K]  www0x0.py
-│       └── [ 75K]  upload_providers.txt
+│       ├── [ 24K]  upload.py
+│       └── [ 608]  upload_providers
+│           ├── [3.6K]  __init__.py
+│           ├── [4.1K]  bashupload.py
+│           ├── [ 13K]  catbox.py
+│           ├── [ 14K]  core.py
+│           ├── [ 20K]  dropbox.py
+│           ├── [7.7K]  fal.py
+│           ├── [4.6K]  filebin.py
+│           ├── [9.6K]  litterbox.py
+│           ├── [5.2K]  pixeldrain.py
+│           ├── [3.6K]  protocols.py
+│           ├── [5.2K]  s3.py
+│           ├── [4.9K]  simple.py
+│           ├── [ 751]  types.py
+│           ├── [2.8K]  uguu.py
+│           └── [3.8K]  www0x0.py
 ├── [ 352]  tests
 │   ├── [  63]  __init__.py
 │   ├── [  96]  data
@@ -64,7 +61,7 @@ globs:
 │   ├── [8.7K]  test_integration.py
 │   ├── [8.7K]  test_s3_advanced.py
 │   ├── [ 180]  test_twat_fs.py
-│   └── [ 26K]  test_upload.py
+│   └── [ 28K]  test_upload.py
 └── [382K]  uv.lock
 
-14 directories, 50 files
+14 directories, 47 files

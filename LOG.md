@@ -56,16 +56,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known Issues
 
-- 28 code quality issues identified by ruff:
+- 71 code quality issues identified by ruff (7 fixed):
+  - Boolean-typed positional arguments in function definitions (FBT001, FBT002)
+  - Unused method arguments in providers (ARG002)
+  - Complex functions needing simplification (C901, PLR0911-15)
+  - Missing timeouts in HTTP requests (S113)
+  - Unsafe use of assert statements (S101)
+  - Bare exception handling (B904)
+  - Insecure random number generation (S311)
   - Module level imports not at top of file
-  - Boolean-typed positional arguments need refactoring
-  - Complex functions need simplification
-  - Unused method arguments in providers
-- 75 type checking issues identified by mypy:
-  - Missing return type annotations
-  - Missing type annotations in test functions
-  - Incompatible return value types
-  - Missing library stubs for dependencies
+  - Module shadowing standard library (types.py)
+  - Possible hardcoded test credentials
+- Type system improvements needed:
+  - Convert Union types to | syntax (UP007)
+  - Add missing return type annotations
+  - Fix incompatible return value types
+  - Add missing library stubs for dependencies
 
 ## [1.7.9] - 2025-02-15
 

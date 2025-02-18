@@ -9,7 +9,8 @@ API documentation: https://litterbox.catbox.moe/tools.php
 
 import os
 from pathlib import Path
-from typing import Any, ClassVar, cast, Callable
+from typing import Any, ClassVar, cast
+from collections.abc import Callable
 from collections.abc import Coroutine, Awaitable
 from functools import wraps
 import aiohttp
@@ -18,8 +19,6 @@ from loguru import logger
 from twat_fs.upload_providers.protocols import ProviderClient, Provider, ProviderHelp
 from twat_fs.upload_providers.types import ExpirationTime, UploadResult
 from twat_fs.upload_providers.core import (
-    validate_file,
-    async_to_sync,
     with_url_validation,
     with_timing,
     RetryableError,

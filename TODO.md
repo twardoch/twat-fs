@@ -10,42 +10,63 @@ This document outlines the current tasks for the project—with immediate fixes 
 
 ## TOP CURRENT PROBLEMS
 
-### ISSUE 1
+### ISSUE 1: Provider Upload Failures
 
-If I try to upload the file `VERSION.txt` from the main folder of this project to the providers that don't require config, I get this:
+The following providers are failing to upload files properly:
 
-```bash
-twat fs upload_provider list 2>/dev/null | while read p; do echo -n "[$p]("; twat fs upload VERSION.txt --provider "$p"; echo ")"; done;
-```
+- [ ] catbox: "I/O operation on closed file"
+- [ ] litterbox: "I/O operation on closed file"
+- [ ] bashupload: Missing abstract method implementation
+- [ ] termbin: Missing abstract method implementation
+- [ ] uguu: Missing abstract method implementation
+- [ ] www0x0: Missing abstract method implementation
+- [ ] filebin: Unexpected keyword argument 'unique'
+- [ ] pixeldrain: Unexpected keyword argument 'unique'
 
-I get: 
+### ISSUE 2: Code Quality Improvements (71 issues)
 
-```
-[catbox](Upload failed: An error occurred while uploading with catbox: I/O operation on closed file
-)
-[litterbox](Upload failed: An error occurred while uploading with litterbox: I/O operation on closed file
-)
-[fal](https://v3.fal.media/files/penguin/HJ0VSEKNEScppttv4DM9r_VERSION.txt
-https://v3.fal.media/files/penguin/HJ0VSEKNEScppttv4DM9r_VERSION.txt
-)
-[bashupload](Upload failed: Can't instantiate abstract class BashUploadProvider without an implementation for abstract method 'upload_file_impl'
-)
-[termbin](Upload failed: Can't instantiate abstract class TermbinProvider without an implementation for abstract method 'upload_file_impl'
-)
-[uguu](Upload failed: Can't instantiate abstract class UguuProvider without an implementation for abstract method 'upload_file_impl'
-)
-[www0x0](Upload failed: Can't instantiate abstract class ZeroXZeroProvider without an implementation for abstract method 'upload_file_impl'
-)
-[filebin](Upload failed: An error occurred while uploading with filebin: SimpleProviderBase.upload_file() got an unexpected keyword argument 'unique'
-)
-[pixeldrain](Upload failed: An error occurred while uploading with pixeldrain: SimpleProviderBase.upload_file() got an unexpected keyword argument 'unique'
-)
-```
+#### Critical Issues
+- [ ] Fix unsafe HTTP requests without timeouts in uguu.py
+- [ ] Replace insecure random number generation in filebin.py
+- [ ] Remove unsafe assert statements in core.py
+- [ ] Fix bare exception handling (add `from err` or `from None`)
+- [ ] Remove hardcoded test credentials in test_s3_advanced.py
 
+#### Function Refactoring
+- [ ] Convert boolean positional arguments to keyword-only in:
+  - [ ] cli.py: status(), list(), upload()
+  - [ ] upload.py: setup_provider(), setup_providers()
+- [ ] Simplify complex functions:
+  - [ ] _test_provider_online (19 > 10 complexity)
+  - [ ] setup_provider (15 > 10 complexity)
+  - [ ] upload_file_impl in pixeldrain.py (14 > 10 complexity)
+- [ ] Fix functions with too many arguments (> 5):
+  - [ ] cli.py: upload()
+  - [ ] upload.py: _try_upload_with_provider(), _try_next_provider(), upload_file()
 
+#### Provider Cleanup
+- [ ] Remove unused method arguments in providers:
+  - [ ] catbox.py: remote_path, unique, force, upload_path
+  - [ ] fal.py: remote_path, unique, force, upload_path
+  - [ ] litterbox.py: remote_path, unique, force, upload_path
+  - [ ] simple.py: remote_path, unique, force, upload_path
+- [ ] Implement missing abstract methods:
+  - [ ] bashupload.py: upload_file_impl
+  - [ ] termbin.py: upload_file_impl
+  - [ ] uguu.py: upload_file_impl
+  - [ ] www0x0.py: upload_file_impl
 
+#### Type System Improvements
+- [ ] Convert Union types to | syntax in upload.py
+- [ ] Add missing return type annotations
+- [ ] Fix incompatible return value types
+- [ ] Add missing library stubs for dependencies
 
+#### Module Organization
+- [ ] Fix module level imports not at top of file
+- [ ] Rename types.py to avoid shadowing standard library
 
+---
 
 ## Immediate Priorities (Critical Fixes)
 

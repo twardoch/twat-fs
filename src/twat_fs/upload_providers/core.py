@@ -383,7 +383,7 @@ def with_timing(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
 
         # Get file path from args or kwargs
         file_path = next(
-            (arg for arg in args if isinstance(arg, (str, Path))),
+            (arg for arg in args if isinstance(arg, str | Path)),
             kwargs.get("local_path") or kwargs.get("file_path"),
         )
 
