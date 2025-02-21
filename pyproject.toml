@@ -22,7 +22,7 @@ dependencies = [
   'multidict>=6.1.0',
   'propcache>=0.2.1',
   'requests>=2.31.0',
-  'tenacity>=9.0.0',
+  'tenacity>=8.0.0',
   'twat>=1.8.1',
   'yarl>=1.18.3',
 ]

@@ -28,7 +28,7 @@ globs:
 │   └── [ 948]  upload_example.py
 ├── [ 306]  filetree.sh
 ├── [ 439]  mypy.ini
-├── [6.9K]  pyproject.toml
+├── [7.0K]  pyproject.toml
 ├── [ 128]  src
 │   └── [ 384]  twat_fs
 │       ├── [ 447]  __init__.py
@@ -41,7 +41,7 @@ globs:
 │       ├── [ 24K]  upload.py
 │       └── [ 640]  upload_providers
 │           ├── [3.5K]  __init__.py
-│           ├── [6.2K]  bashupload.py
+│           ├── [6.1K]  bashupload.py
 │           ├── [5.3K]  catbox.py
 │           ├── [ 12K]  core.py
 │           ├── [ 20K]  dropbox.py
@@ -54,7 +54,7 @@ globs:
 │           ├── [6.0K]  simple.py
 │           ├── [ 728]  types.py
 │           ├── [4.3K]  uguu.py
-│           ├── [6.9K]  utils.py
+│           ├── [6.8K]  utils.py
 │           └── [4.1K]  www0x0.py
 ├── [ 352]  tests
 │   ├── [  63]  __init__.py
@@ -65,7 +65,7 @@ globs:
 │   ├── [8.7K]  test_s3_advanced.py
 │   ├── [ 180]  test_twat_fs.py
 │   └── [ 29K]  test_upload.py
-├── [3.0K]  update_providers.py
+├── [2.8K]  update_providers.py
 └── [382K]  uv.lock
 
 14 directories, 51 files

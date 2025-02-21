@@ -71,6 +71,9 @@ IGNORE_PATTERNS = [
 REQUIRED_FILES = ["LOG.md", ".cursor/rules/0project.mdc", "TODO.md"]
 LOG_FILE = Path("CLEANUP.log")
 
+# Ensure we're working from the script's directory
+os.chdir(Path(__file__).parent)
+
 
 def new() -> None:
     """Remove existing log file."""
@@ -190,7 +193,7 @@ class Cleanup:
         log_message("Installing package with all extras")
         try:
             self._venv()
-            run_command(["uv", "pip", "install", "-e", ".[all,test,dev]"])
+            run_command(["uv", "pip", "install", "-e", ".[test,dev]"])
             log_message("Package installed successfully")
         except Exception as e:
             log_message(f"Failed to install package: {e}")
