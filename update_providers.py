@@ -2,11 +2,6 @@
 
 import re
 from pathlib import Path
-from typing import BinaryIO, ClassVar
-from loguru import logger
-from twat_fs.upload_providers.types import UploadResult
-from twat_fs.upload_providers.simple import BaseProvider
-from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
 
 
 def update_provider_file(file_path: Path) -> None:

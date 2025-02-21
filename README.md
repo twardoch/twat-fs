@@ -8,9 +8,9 @@ File system utilities for twat, focusing on robust and extensible file upload ca
 
 * **Provider Flexibility**: Seamlessly switch between storage providers without code changes
 * **Smart Fallback**: Intelligent retry and fallback between providers:
-  - One retry with exponential backoff for temporary failures
-  - Automatic fallback to next provider for permanent failures
-  - Clear distinction between retryable and non-retryable errors
+  * One retry with exponential backoff for temporary failures
+  * Automatic fallback to next provider for permanent failures
+  * Clear distinction between retryable and non-retryable errors
 * **URL Validation**: Ensures returned URLs are accessible before returning them
 * **Progressive Enhancement**: Start simple with zero configuration (simple providers), scale up to advanced providers (S3, Dropbox) as needed
 * **Developer Experience**: Clear interfaces, comprehensive type hints, and runtime checks
@@ -78,18 +78,19 @@ python -m twat_fs setup all
 The package implements a robust provider fallback system:
 
 1. **Circular Fallback**: When using multiple providers, if a provider fails, the system will:
-   - Try the next provider in the list
-   - If all remaining providers fail, start over from the beginning of the full provider list
-   - Continue until all providers have been tried once
-   - Each provider is only tried once to avoid infinite loops
+   * Try the next provider in the list
+   * If all remaining providers fail, start over from the beginning of the full provider list
+   * Continue until all providers have been tried once
+   * Each provider is only tried once to avoid infinite loops
 
 2. **Fragile Mode**: For cases where fallback is not desired:
-   - Use the `--fragile` flag in CLI: `--fragile`
-   - In code: `upload_file(..., fragile=True)`
-   - System will fail immediately if the requested provider fails
-   - No fallback attempts will be made
+   * Use the `--fragile` flag in CLI: `--fragile`
+   * In code: `upload_file(..., fragile=True)`
+   * System will fail immediately if the requested provider fails
+   * No fallback attempts will be made
 
 Example fallback scenarios:
+
 ```python
 # Full circular fallback (if E fails, tries F, G, A, B, C, D)
 url = upload_file("file.txt", provider="E")
@@ -288,13 +289,13 @@ python -m pytest --cov=src/twat_fs tests  # with coverage
 
 ### Publish
 
-Make sure to have in your env: 
+Make sure to have in your env:
 
 ```bash
 export UV_PUBLISH_TOKEN="${PYPI_TOKEN}"
 ```
 
-Build and publish: 
+Build and publish:
 
 ```bash
 VER="v1.7.9" && echo "$VER" > VERSION.txt && git commit -am "$VER" && git tag "$VER"
@@ -435,10 +436,8 @@ print(provider.get_provider())     # Check client initialization
 ## License
 
 MIT License
- 
+
 .
-
-
 
 ## extra
 

@@ -1,3 +1,6 @@
+# this_file: pyproject.toml
+# this_project: twat_fs
+
 [project]
 classifiers = [
   'Development Status :: 4 - Beta',

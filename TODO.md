@@ -4,246 +4,70 @@ this_file: TODO.md
 
 # TODO
 
-This document outlines the current tasks for the project—with immediate fixes taking priority—followed by medium- and long-term improvements. The details below are based on recent cleanup logs and test feedback.
-
----
-
-## TOP CURRENT PROBLEMS
-
-### ISSUE 1: Provider Upload Failures
-
-The following providers are failing to upload files properly:
-
-- [ ] catbox: "I/O operation on closed file"
-- [ ] litterbox: "I/O operation on closed file"
-- [ ] bashupload: Missing abstract method implementation
-- [ ] termbin: Missing abstract method implementation
-- [ ] uguu: Missing abstract method implementation
-- [ ] www0x0: Missing abstract method implementation
-- [ ] filebin: Unexpected keyword argument 'unique'
-- [ ] pixeldrain: Unexpected keyword argument 'unique'
-
-### ISSUE 2: Code Quality Improvements (71 issues)
-
-#### Critical Issues
-- [ ] Fix unsafe HTTP requests without timeouts in uguu.py
-- [ ] Replace insecure random number generation in filebin.py
-- [ ] Remove unsafe assert statements in core.py
-- [ ] Fix bare exception handling (add `from err` or `from None`)
-- [ ] Remove hardcoded test credentials in test_s3_advanced.py
-
-#### Function Refactoring
-- [ ] Convert boolean positional arguments to keyword-only in:
-  - [ ] cli.py: status(), list(), upload()
-  - [ ] upload.py: setup_provider(), setup_providers()
-- [ ] Simplify complex functions:
-  - [ ] _test_provider_online (19 > 10 complexity)
-  - [ ] setup_provider (15 > 10 complexity)
-  - [ ] upload_file_impl in pixeldrain.py (14 > 10 complexity)
-- [ ] Fix functions with too many arguments (> 5):
-  - [ ] cli.py: upload()
-  - [ ] upload.py: _try_upload_with_provider(), _try_next_provider(), upload_file()
-
-#### Provider Cleanup
-- [ ] Remove unused method arguments in providers:
-  - [ ] catbox.py: remote_path, unique, force, upload_path
-  - [ ] fal.py: remote_path, unique, force, upload_path
-  - [ ] litterbox.py: remote_path, unique, force, upload_path
-  - [ ] simple.py: remote_path, unique, force, upload_path
-- [ ] Implement missing abstract methods:
-  - [ ] bashupload.py: upload_file_impl
-  - [ ] termbin.py: upload_file_impl
-  - [ ] uguu.py: upload_file_impl
-  - [ ] www0x0.py: upload_file_impl
-
-#### Type System Improvements
-- [ ] Convert Union types to | syntax in upload.py
-- [ ] Add missing return type annotations
-- [ ] Fix incompatible return value types
-- [ ] Add missing library stubs for dependencies
-
-#### Module Organization
-- [ ] Fix module level imports not at top of file
-- [ ] Rename types.py to avoid shadowing standard library
-
----
-
-## Immediate Priorities (Critical Fixes)
-
-### A. Error Handling Improvements
-
-1. **Test Coverage for New Error System**
-   - Add comprehensive tests for RetryableError scenarios
-   - Add comprehensive tests for NonRetryableError scenarios
-   - Add tests for provider fallback chains
-   - Add tests for URL validation
-
-2. **Error Message Improvements**
-   - Add more context to error messages
-   - Include provider-specific troubleshooting info
-   - Add error codes for common failures
-   - Improve logging of error chains
-
-3. **URL Validation Enhancements**
-   - Add support for custom validation strategies
-   - Add content-type validation
-   - Add size validation
-   - Add timeout configuration
-
-### B. Test Failures and Provider Core Issues
-
-1. **FAL Provider Implementation Flaws**
-   - **Missing Core Functions:**  
-     - Implement `get_credentials()` in `src/twat_fs/upload_providers/fal.py` so that it retrieves credentials from the environment.  
-       *Example:*
-       ```python
-       def get_credentials() -> dict[str, Any] | None:
-           """Fetch FAL credentials from environment."""
-           return {"key": os.getenv("FAL_KEY")} if os.getenv("FAL_KEY") else None
-       ```
-     - Implement the `get_provider()` function to initialize and return the FAL client.  
-     - Verify that the FAL provider fully complies with the Provider protocol.
-     
-   - **Abstract Class Instantiation Issues:**  
-     - Ensure concrete implementations (e.g., in `bashupload.py`, `simple.py`, etc.) implement the required abstract method (`upload_file_impl`).  
-       *For instance, rename or refactor the upload method to consistently follow the naming convention (either `upload_file` or `upload_file_impl`).*
-   
-2. **Test Infrastructure and Mocks**
-   - Update test mocks to correctly reflect the method signatures.  
-     - Ensure that in tests (e.g., in `tests/test_upload.py`), when mocking provider methods, the signature includes all expected keyword arguments: `unique`, `force`, and `upload_path`.
-   - Fix FAL test fixtures to correctly import and call `fal.get_credentials()` and `fal.get_provider()`.
-   - Address any attribute errors in tests (e.g., missing attributes on the fal provider module).
-
-> **Wait, but**  
-> These changes are critical because they directly influence both provider functionality and test accuracy. The FAL provider errors are causing several tests to error out, which blocks valid test runs. Properly updating mocks will allow integration tests to reflect the true behavior of the system.
-
-### C. Code Quality and Refactoring
-
-1. **CLI and Function Arguments**
-   - Refactor boolean-typed positional arguments (`unique`, `force`) in `src/twat_fs/cli.py` to keyword-only arguments.  
-     *Example:*
-     ```python
-     def upload_file(
-         file_path: str | Path,
-         provider: str | list[str] = PROVIDERS_PREFERENCE,
-         *,  # Enforce keyword usage from here on
-         unique: bool = False,
-         force: bool = False,
-         upload_path: str | None = None,
-     ) -> str:
-         ...
-     ```
-   
-2. **Dropbox Provider Complexity**
-   - Reduce complexity in `src/twat_fs/upload_providers/dropbox.py`:
-     - Break the `upload_file` function into helper functions such as `_validate_upload_path()`, `_create_remote_folder()`, and `_upload_file_content()`.
-     - Add missing type annotations, fix return types, and ensure a final return statement exists.
-   
-3. **General Provider Implementations**
-   - For unused method arguments (e.g., `remote_path` in `bashupload.py`, `simple.py`, `uguu.py`, and `www0x0.py`), rename the parameter to `_remote_path` to signify it is intentionally unused.
-   - Verify that method names and signatures follow the provider contract consistently across all modules.
-
-> **Wait, but**  
-> Clear structuring of function signatures and reducing complexity not only eases maintenance but also helps the type checker (mypy/ruff) pass with fewer errors. This clarity is critical to support future extension and new provider integrations.
-
-### D. Type System Overhaul and Documentation
-
-1. **Type Annotation Consistency**
-   - Add missing return type annotations in all functions across both source modules and tests.
-   - Change legacy type hints (e.g., `Union[str, list[str]]`) to the newer union syntax using the pipe operator (`str | list[str]`).
-   - Fix incompatibility issues such as the return type incompatibilities (as seen in `dropbox.py`).
-
-2. **Documentation and Docstrings**
-   - Update docstrings for all functions to explain parameter roles, methodologies, and error conditions.
-   - Provide concrete examples within the docstrings where feasible.
-
-> **Wait, but**  
-> Consistent type annotations strengthen the robustness and maintainability of the codebase. Detailed docstrings and in-line comments will further help new contributors understand the provider architecture and the rationale behind key decisions.
-
-### E. Test Suite Improvements
-
-1. **Error Handling Tests**
-   - Add tests for RetryableError scenarios:
-     - Rate limiting
-     - Network timeouts
-     - Server errors
-   - Add tests for NonRetryableError scenarios:
-     - Authentication failures
-     - Invalid files
-     - Provider not available
-   - Add tests for provider fallback chains
-   - Add tests for URL validation
-
-2. **Provider-Specific Tests**
-   - Add tests for catbox.moe provider
-   - Add tests for litterbox.catbox.moe provider
-   - Update existing provider tests with new error handling
-
----
-
-## Medium-Term Priorities
-
-1. **Provider Health Monitoring**
-   - Add provider health checks
-   - Add provider statistics collection
-   - Add provider performance metrics
-   - Add provider reliability scoring
-
-2. **Smart Provider Selection**
-   - Implement provider scoring system
-   - Add automatic provider ranking
-   - Add file-type based provider selection
-   - Add size-based provider selection
-
-3. **Enhanced Error Recovery**
-   - Add more sophisticated retry strategies
-   - Add circuit breaker pattern
-   - Add provider quarantine
-   - Add provider rate limiting
-
-4. **Documentation Enhancements**
-   - Add error handling guide
-   - Add provider selection guide
-   - Add troubleshooting guide
-   - Add performance tuning guide
-
----
-
-## Long-Term Goals / Enhancements
-
-1. **Provider Feature Enhancements**
-   - Add provider health monitoring
-   - Add provider statistics
-   - Add provider rate limiting
-   - Add provider circuit breakers
-
-2. **CI/CD and Automated Release**
-   - Add automated error reporting
-   - Add performance regression testing
-   - Add reliability testing
-   - Add load testing
-
-3. **Security Hardening**
-   - Add URL scanning
-   - Add content validation
-   - Add provider verification
-   - Add upload encryption
-
----
-
-## Additional Notes
-
-- **Review and Iteration:**  
-  Regularly review the changes in `LOG.md` and integrate any new issues or updates from code quality tools (like ruff and mypy).
-
-- **Collaboration and Commits:**  
-  Ensure that changes are grouped logically with clear commit messages for clarity during reviews.
-
-- **Performance Improvements:**  
-  As features stabilize, consider performance profiling and optimizations for large file uploads and fallback logic.
-
----
-
-*This TODO document is a living artifact. Revisit and update it frequently as fixes are applied and new issues or improvements are identified.*
 
 
+- [ ] Review and refactor shared functionality in upload provider modules
+
+  Across nearly all provider modules (such as bashupload.py, catbox.py, filebin.py, pixeldrain.py, uguu.py, www0x0.py, etc.), there are several notable repeated patterns:
+
+  - **Provider Help Dictionaries**  
+    Each module defines a `PROVIDER_HELP` dictionary with keys like `setup` and `deps` even though the content may vary slightly. The overall structure is identical across providers. This redundancy suggests that a helper or factory function could generate these help dictionaries based upon provider-specific parameters.
+
+  - **Common Provider Accessor Functions**  
+    Most modules implement:
+    - A class method `get_provider()` that typically returns a cast instance (e.g., using `cast(ProviderClient, cls())`).
+    - A module-level function `get_provider()` which simply wraps the class method.
+    - A similar pattern with `get_credentials()` where simple providers always return `None` (with a comment noting that they don't need credentials).
+    - An `upload_file()` wrapper function that retrieves the provider instance (raising an error if not found) and then delegates to its `upload_file` or `upload_file_impl` method.
+    
+    These functions follow nearly identical logic and error-checking (for instance, checking if the provider exists, and if not, raising a ValueError with a message like "Failed to initialize provider").
+
+  - **File Handling and Error Patterns**  
+    There is recurring code around handling file operations:
+    - Opening files in binary mode for upload.
+    - Validating file existence and readability.
+    - Consistent error handling in case an API call fails or an exception is caught.
+    
+    This pattern appears in multiple providers and is an ideal candidate for consolidation into a shared utility function.
+
+  - **Similar Import and Inheritance Structures**  
+    Many of the simple providers import from the same base module (`simple.py`) and reuse a common provider type pattern—assigning a `provider_name`, setting a URL, and implementing an `upload_file_impl` method that closely follows the same structure.
+
+  **Refactoring Proposal**:
+
+  - Create a new file named `utils.py` inside the `upload_providers` folder.
+  - Offload common functionality such as:
+    - Helper functions to generate or validate the `PROVIDER_HELP` dictionaries.
+    - A universal file handling utility (e.g., context managers for opening and validating files).
+    - Standardized implementations for the module-level `get_provider()`, `get_credentials()`, and `upload_file()` functions.
+    - Error handling wrappers for calling the provider's upload routines.
+    
+  Consolidating these functions would adhere to DRY principles and simplify the maintenance and evolution of provider modules.
+
+- [ ] Investigate if any additional unique provider-specific patterns might require conditional handling in the utils module
+
+- **Additional Common Patterns Identified:**
+
+  - **Asynchronous-to-Synchronous Conversion:**
+    Several providers (e.g., catbox.py, fal.py, litterbox.py) use an `async_to_sync` wrapper to convert asynchronous upload methods into synchronous ones. The conversion logic is nearly identical across these modules and could be centralized into a shared utility.
+
+  - **HTTP Response and Status Code Validation:**
+    Many modules include similar logic to check HTTP response codes (e.g., handling 429 for rate limits by raising `RetryableError`, and non-200 responses by raising `NonRetryableError`). This pattern is repeated in providers like bashupload.py, pixeldrain.py, and www0x0.py, among others, suggesting an opportunity to abstract this into a helper function.
+
+  - **Environment Variable Credential Handling:**
+    Providers such as dropbox.py, fal.py, and s3.py fetch credentials from environment variables using similar patterns. A shared utility function could streamline this process, ensuring consistent validation and error messages.
+
+  - **File Handling Techniques:**
+    While some providers utilize the file handling logic in `simple.py` (which includes methods for validating and opening files in binary mode), others implement their own similar patterns. Unifying these methods could reduce redundancy and potential errors.
+
+  - **Consistent Logging Practices:**
+    Across all providers, there is recurring use of logging (using `logger.debug`, `logger.warning`, and `logger.error`) to report state changes, errors, and debugging information. Standardizing these log messages and the structure in which they are used can improve maintainability.
+
+  - **Async/Coroutine Type Handling:**
+    With the recent protocol updates to support both Awaitable[UploadResult] and Coroutine[Any, Any, UploadResult], providers need consistent patterns for:
+    - Converting between async/await and coroutine patterns
+    - Handling async decorators with proper type hints
+    - Managing async context managers and resource cleanup
+    - Standardizing error handling in async code
+
+  *Note: The intent of these refactoring steps is to offload the shared portions into a new `utils.py` module inside the `upload_providers` folder. The module has been created, but providers need to be updated to use it consistently, especially with the new async type handling patterns.*

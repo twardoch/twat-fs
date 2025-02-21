@@ -4,10 +4,17 @@
 Protocol definitions for upload providers.
 """
 
-from typing import Any, ClassVar, Protocol, TypedDict, runtime_checkable
+from __future__ import annotations
+
+from typing import Any, ClassVar, Protocol, TypedDict, runtime_checkable, TypeVar
+from collections.abc import Awaitable, Coroutine
 from pathlib import Path
 
 from twat_fs.upload_providers.types import UploadResult
+
+# Type variable for covariant return types
+T_co = TypeVar("T_co", covariant=True)
+T_ret = TypeVar("T_ret", bound=UploadResult)
 
 
 class ProviderHelp(TypedDict):
@@ -45,7 +52,7 @@ class ProviderClient(Protocol):
         force: bool = False,
         upload_path: str | None = None,
         **kwargs: Any,
-    ) -> UploadResult:
+    ) -> Awaitable[UploadResult] | Coroutine[Any, Any, UploadResult]:
         """Asynchronously upload a file and return its result with timing metrics."""
         ...
 
@@ -99,7 +106,7 @@ class Provider(Protocol):
             **kwargs: Additional provider-specific arguments
 
         Returns:
-            UploadResult: Upload result with URL and timing metrics
+            UploadResult: Upload result with URL and metadata
 
         Raises:
             ValueError: If upload fails
@@ -115,7 +122,7 @@ class Provider(Protocol):
         force: bool = False,
         upload_path: str | None = None,
         **kwargs: Any,
-    ) -> UploadResult:
+    ) -> Awaitable[UploadResult] | Coroutine[Any, Any, UploadResult]:
         """
         Asynchronously upload a file using this provider.
 
@@ -128,7 +135,7 @@ class Provider(Protocol):
             **kwargs: Additional provider-specific arguments
 
         Returns:
-            UploadResult: Upload result with URL and timing metrics
+            Awaitable[UploadResult] | Coroutine[Any, Any, UploadResult]: Upload result with URL and metadata
 
         Raises:
             FileNotFoundError: If the file doesn't exist
