@@ -11,6 +11,7 @@ import importlib
 from typing import TypeVar, cast, TYPE_CHECKING
 
 from loguru import logger
+from twat_cache import ucache
 
 from twat_fs.upload_providers.protocols import Provider, ProviderClient, ProviderHelp
 
@@ -38,6 +39,18 @@ class ProviderFactory:
         Returns:
             Optional[Provider]: Provider module if found and properly configured
         """
+        return ProviderFactory._get_provider_module_impl(provider_name)
+
+    @staticmethod
+    @ucache(maxsize=50)  # Cache up to 50 provider modules
+    def _get_provider_module_impl(provider_name: str) -> Provider | None:
+        return ProviderFactory._get_provider_module_uncached(provider_name)
+
+    @staticmethod
+    def _get_provider_module_uncached(provider_name: str) -> Provider | None:
+        """
+        Uncached implementation of get_provider_module.
+        """
         try:
             # Skip the 'simple' provider as it's just a base class
             if provider_name.lower() == "simple":
@@ -45,9 +58,7 @@ class ProviderFactory:
 
             # Try to import the module
             try:
-                module = importlib.import_module(
-                    f".{provider_name}", "twat_fs.upload_providers"
-                )
+                module = importlib.import_module(f".{provider_name}", "twat_fs.upload_providers")
             except ImportError as e:
                 if "No module named" in str(e):
                     logger.debug(f"Provider module {provider_name} not found")
@@ -57,14 +68,10 @@ class ProviderFactory:
 
             # Verify the module implements the Provider protocol
             required_attrs = ["get_provider", "get_credentials", "upload_file"]
-            missing_attrs = [
-                attr for attr in required_attrs if not hasattr(module, attr)
-            ]
+            missing_attrs = [attr for attr in required_attrs if not hasattr(module, attr)]
 
             if missing_attrs:
-                logger.warning(
-                    f"Provider {provider_name} is missing required attributes: {', '.join(missing_attrs)}"
-                )
+                logger.warning(f"Provider {provider_name} is missing required attributes: {', '.join(missing_attrs)}")
                 return None
 
             # Check for provider help
@@ -102,9 +109,7 @@ class ProviderFactory:
             if module is None:
                 # Try to import just for help info
                 try:
-                    module = importlib.import_module(
-                        f".{provider_name}", "twat_fs.upload_providers"
-                    )
+                    module = importlib.import_module(f".{provider_name}", "twat_fs.upload_providers")
                     return getattr(module, "PROVIDER_HELP", None)
                 except ImportError:
                     return None

@@ -9,29 +9,66 @@ Tests AWS credential providers, S3 configurations, and multipart uploads.
 import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
 import pytest
+from typing import Any
 
-# Conditionally import botocore
+# Check for S3 and botocore availability
+HAS_BOTOCORE = False
+HAS_S3 = False
+
 try:
-    from botocore.exceptions import ClientError
+    import botocore.exceptions
 
     HAS_BOTOCORE = True
+    # Use the actual ClientError for type checking
+    ClientError = botocore.exceptions.ClientError
 except ImportError:
-    HAS_BOTOCORE = False
-
-    # Define a placeholder for ClientError to avoid NameError
+    # Define a placeholder for ClientError
     class ClientError(Exception):
         pass
 
 
-# Conditionally import S3 provider
 try:
     from twat_fs.upload_providers import s3
 
     HAS_S3 = True
 except ImportError:
-    HAS_S3 = False
+    # Create a mock s3 module
+    class MockS3Provider:
+        """Mock S3 provider for tests when S3 is not available."""
+
+        client = None
+        bucket = None
+
+        @classmethod
+        def get_credentials(cls) -> dict[str, Any]:
+            """Mock get_credentials method."""
+            return {}
+
+    # Define a mock s3 module
+    class MockS3Module:
+        """Mock s3 module for tests when S3 is not available."""
+
+        S3Provider = MockS3Provider
+
+        @staticmethod
+        def get_provider(*args: Any, **kwargs: Any) -> MockS3Provider:
+            """Mock get_provider function."""
+            return MockS3Provider()
+
+        @staticmethod
+        def get_credentials() -> dict[str, Any]:
+            """Mock get_credentials function."""
+            return {}
+
+        @staticmethod
+        def upload_file(*args: Any, **kwargs: Any) -> str:
+            """Mock upload_file function."""
+            return "https://mock-s3-url.com/test.txt"
+
+    # Assign the mock module to s3
+    s3 = MockS3Module()
+
 
 # Test constants - using uppercase to indicate these are test values
 TEST_BUCKET = "test-bucket"
@@ -114,6 +151,9 @@ class TestAwsCredentialProviders:
             assert provider is not None
 
 
+@pytest.mark.skipif(
+    not HAS_S3 or not HAS_BOTOCORE, reason="S3 dependencies not installed"
+)
 class TestS3Configurations:
     """Test different S3 configurations."""
 
@@ -176,8 +216,11 @@ class TestS3Configurations:
             mock_client.assert_called_with("s3", region_name="eu-central-1")
 
 
+@pytest.mark.skipif(
+    not HAS_S3 or not HAS_BOTOCORE, reason="S3 dependencies not installed"
+)
 class TestS3MultipartUploads:
-    """Test S3 multipart upload functionality."""
+    """Test multipart uploads to S3."""
 
     @pytest.fixture
     def large_file(self, tmp_path):

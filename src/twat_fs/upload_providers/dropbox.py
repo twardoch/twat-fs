@@ -20,6 +20,7 @@ from dropbox.exceptions import AuthError  # type: ignore
 from dotenv import load_dotenv
 from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
+from twat_cache.decorators import ucache
 
 from twat_fs.upload_providers.types import UploadResult
 from twat_fs.upload_providers.simple import BaseProvider
@@ -98,9 +99,7 @@ class DropboxClient(BaseProvider):
             self.dbx.users_get_current_account()
         except AuthError as e:
             if "expired_access_token" in str(e):
-                if not (
-                    self.credentials["refresh_token"] and self.credentials["app_key"]
-                ):
+                if not (self.credentials["refresh_token"] and self.credentials["app_key"]):
                     logger.debug(
                         "Cannot refresh token:\n- Missing refresh token or app key\n- Set DROPBOX_REFRESH_TOKEN and DROPBOX_APP_KEY to enable automatic refresh"
                     )
@@ -144,9 +143,7 @@ class DropboxClient(BaseProvider):
             self._refresh_token_if_needed()
 
             # Normalize paths
-            actual_upload_path = (
-                DEFAULT_UPLOAD_PATH if upload_path is None else upload_path
-            )
+            actual_upload_path = DEFAULT_UPLOAD_PATH if upload_path is None else upload_path
             actual_upload_path = _normalize_path(actual_upload_path)
 
             # Use original filename if no remote path specified
@@ -298,6 +295,17 @@ class DropboxClient(BaseProvider):
     @classmethod
     def get_credentials(cls) -> dict[str, Any] | None:
         """Get Dropbox credentials from environment variables."""
+        return cls._get_credentials_cached()
+
+    @classmethod
+    @ucache(maxsize=10, ttl=300)  # Cache credentials for 5 minutes
+    def _get_credentials_cached(cls) -> dict[str, Any] | None:
+        """Cached implementation of get_credentials."""
+        return cls._get_credentials_uncached()
+
+    @classmethod
+    def _get_credentials_uncached(cls) -> dict[str, Any] | None:
+        """Uncached implementation of get_credentials."""
         required_vars = ["DROPBOX_ACCESS_TOKEN"]
         optional_vars = [
             "DROPBOX_REFRESH_TOKEN",
@@ -337,9 +345,7 @@ class DropboxClient(BaseProvider):
                             "Dropbox token has expired and cannot be refreshed automatically.\nTo enable automatic token refresh:\n1. Set DROPBOX_REFRESH_TOKEN environment variable\n2. Set DROPBOX_APP_KEY environment variable\nFor now, please generate a new access token."
                         )
                     else:
-                        logger.error(
-                            "Dropbox access token has expired. Please generate a new token."
-                        )
+                        logger.error("Dropbox access token has expired. Please generate a new token.")
                 else:
                     logger.error(f"Dropbox authentication failed: {e}")
                 return None
@@ -464,9 +470,7 @@ def _get_download_url(url: str) -> str | None:
         # Add or update dl parameter
         query["dl"] = "1"
         # Reconstruct URL with updated query
-        return parsed._replace(
-            netloc="dl.dropboxusercontent.com", query=parse.urlencode(query)
-        ).geturl()
+        return parsed._replace(netloc="dl.dropboxusercontent.com", query=parse.urlencode(query)).geturl()
     except Exception as e:
         logger.error(f"Failed to generate download URL: {e}")
         return None
@@ -536,10 +540,7 @@ def _ensure_upload_directory(dbx: Any, upload_path: str) -> None:
             logger.debug(f"Successfully created directory: {upload_path}")
         except dropbox.exceptions.ApiError as e:
             # Handle folder already exists case
-            if (
-                isinstance(e.error, dropbox.files.CreateFolderError)
-                and e.error.get_path().is_conflict()
-            ):
+            if isinstance(e.error, dropbox.files.CreateFolderError) and e.error.get_path().is_conflict():
                 logger.debug(f"Directory already exists: {upload_path}")
                 return
             # For other API errors, raise
@@ -611,26 +612,20 @@ def _upload_small_file(dbx: dropbox.Dropbox, file_path: Path, db_path: str) -> N
         raise DropboxUploadError(msg) from e
 
 
-def _upload_large_file(
-    dbx: dropbox.Dropbox, file_path: Path, db_path: str, chunk_size: int
-) -> None:
+def _upload_large_file(dbx: dropbox.Dropbox, file_path: Path, db_path: str, chunk_size: int) -> None:
     """Upload a large file to Dropbox using chunked upload."""
     logger.debug(f"Starting chunked upload: {file_path} -> {db_path}")
     file_size = os.path.getsize(file_path)
     try:
         with open(file_path, "rb") as f:
-            upload_session_start_result = dbx.files_upload_session_start(
-                f.read(chunk_size)
-            )
+            upload_session_start_result = dbx.files_upload_session_start(f.read(chunk_size))
             logger.debug("Upload session started")
 
             cursor = dropbox.files.UploadSessionCursor(
                 session_id=upload_session_start_result.session_id,
                 offset=f.tell(),
             )
-            commit = dropbox.files.CommitInfo(
-                path=db_path, mode=dropbox.files.WriteMode.overwrite
-            )
+            commit = dropbox.files.CommitInfo(path=db_path, mode=dropbox.files.WriteMode.overwrite)
 
             while f.tell() < file_size:
                 if (file_size - f.tell()) <= chunk_size:

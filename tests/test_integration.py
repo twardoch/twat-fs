@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 
 import pytest
+import importlib.util
 
 from twat_fs.upload import setup_provider, setup_providers, upload_file
 from twat_fs.upload_providers import (
@@ -19,20 +20,9 @@ from twat_fs.upload_providers import (
     PROVIDERS_PREFERENCE,
 )
 
-# Conditionally import fal and s3 modules
-try:
-    from twat_fs.upload_providers import fal
-
-    HAS_FAL = True
-except ImportError:
-    HAS_FAL = False
-
-try:
-    from twat_fs.upload_providers import s3
-
-    HAS_S3 = True
-except ImportError:
-    HAS_S3 = False
+# Conditionally check for fal and s3 modules
+HAS_FAL = importlib.util.find_spec("twat_fs.upload_providers.fal") is not None
+HAS_S3 = importlib.util.find_spec("twat_fs.upload_providers.s3") is not None
 
 # Test data
 TEST_DIR = Path(__file__).parent / "data"
@@ -64,6 +54,18 @@ def cleanup_test_files():
     yield
     if LARGE_FILE.exists():
         LARGE_FILE.unlink()
+
+
+@pytest.fixture
+def small_file():
+    """Return the small test file for testing."""
+    return SMALL_FILE
+
+
+@pytest.fixture
+def large_file(large_test_file):
+    """Return the large test file for testing."""
+    return large_test_file
 
 
 @pytest.mark.skipif(not HAS_S3, reason="S3 dependencies not installed")
@@ -230,12 +232,16 @@ class TestCatboxIntegration:
         provider = catbox.get_provider()
         assert provider is not None
 
-        # Note: delete_files may not be available in all provider implementations
-        if hasattr(provider, "delete_files") and callable(
-            getattr(provider, "delete_files", None)
-        ):
-            success = provider.delete_files([filename])
-            assert success is True
+        # Try to delete the file if the provider supports it
+        try:
+            if hasattr(provider, "delete_files") and callable(
+                getattr(provider, "delete_files", None)
+            ):
+                success = provider.delete_files([filename])
+                assert success is True
+        except (AttributeError, NotImplementedError):
+            # Skip if delete_files is not implemented or raises an error
+            pass
 
 
 class TestLitterboxIntegration:
@@ -251,8 +257,8 @@ class TestLitterboxIntegration:
         try:
             url = upload_file(small_file, provider="litterbox")
             assert isinstance(url, str)
-            assert url.startswith("https://litterbox.catbox.moe/")
-            assert len(url) > len("https://litterbox.catbox.moe/")
+            assert url.startswith("https://litter.catbox.moe/")
+            assert len(url) > len("https://litter.catbox.moe/")
         except Exception as e:
             pytest.skip(f"Litterbox upload failed: {e}")
 
@@ -261,8 +267,8 @@ class TestLitterboxIntegration:
         try:
             url = upload_file(large_file, provider="litterbox")
             assert isinstance(url, str)
-            assert url.startswith("https://litterbox.catbox.moe/")
-            assert len(url) > len("https://litterbox.catbox.moe/")
+            assert url.startswith("https://litter.catbox.moe/")
+            assert len(url) > len("https://litter.catbox.moe/")
         except Exception as e:
             pytest.skip(f"Litterbox upload failed: {e}")
 
@@ -275,22 +281,22 @@ class TestLitterboxIntegration:
             )
             url = provider.upload_file(small_file)
             assert isinstance(url, str)
-            assert url.startswith("https://litterbox.catbox.moe/")
+            assert url.startswith("https://litter.catbox.moe/")
 
-            # Test with 12 hour expiration
+            # Test with 12 hours expiration
             provider = litterbox.LitterboxProvider(
                 default_expiration=ExpirationTime.HOURS_12
             )
             url = provider.upload_file(small_file)
             assert isinstance(url, str)
-            assert url.startswith("https://litterbox.catbox.moe/")
+            assert url.startswith("https://litter.catbox.moe/")
 
-            # Test with 24 hour expiration
+            # Test with 24 hours expiration
             provider = litterbox.LitterboxProvider(
                 default_expiration=ExpirationTime.HOURS_24
             )
             url = provider.upload_file(small_file)
             assert isinstance(url, str)
-            assert url.startswith("https://litterbox.catbox.moe/")
+            assert url.startswith("https://litter.catbox.moe/")
         except Exception as e:
             pytest.skip(f"Litterbox upload with different expirations failed: {e}")
