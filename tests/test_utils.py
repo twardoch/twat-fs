@@ -233,6 +233,7 @@ class TestCreateProviderInstance:
     def test_create_provider_instance_with_get_provider(self):
         """Test that create_provider_instance uses get_provider if available."""
         mock_provider = mock.Mock(spec=Provider)
+        mock_provider.__name__ = "MockProvider"
         mock_client = mock.Mock(spec=ProviderClient)
         mock_provider.get_provider.return_value = mock_client
 
@@ -244,6 +245,7 @@ class TestCreateProviderInstance:
     def test_create_provider_instance_with_direct_instantiation(self):
         """Test that create_provider_instance falls back to direct instantiation."""
         mock_provider = mock.Mock(spec=Provider)
+        mock_provider.__name__ = "MockProvider"
         mock_provider.get_provider.side_effect = AttributeError
 
         result = create_provider_instance(mock_provider)
@@ -254,6 +256,7 @@ class TestCreateProviderInstance:
     def test_create_provider_instance_with_credentials(self):
         """Test that create_provider_instance uses provided credentials."""
         mock_provider = mock.Mock(spec=Provider)
+        mock_provider.__name__ = "MockProvider"
         credentials = {"key": "value"}
 
         create_provider_instance(mock_provider, credentials)
@@ -264,6 +267,7 @@ class TestCreateProviderInstance:
     def test_create_provider_instance_with_no_credentials(self):
         """Test that create_provider_instance gets credentials if not provided."""
         mock_provider = mock.Mock(spec=Provider)
+        mock_provider.__name__ = "MockProvider"
         mock_provider.get_credentials.return_value = {"key": "value"}
 
         create_provider_instance(mock_provider)
@@ -273,6 +277,7 @@ class TestCreateProviderInstance:
     def test_create_provider_instance_with_error(self):
         """Test that create_provider_instance returns None if initialization fails."""
         mock_provider = mock.Mock(spec=Provider)
+        mock_provider.__name__ = "MockProvider"
         mock_provider.get_provider.side_effect = Exception("Test error")
 
         result = create_provider_instance(mock_provider)

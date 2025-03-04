@@ -248,6 +248,6 @@ def log_upload_attempt(
         error: Optional exception if upload failed
     """
     if success:
-        logger.debug(f"Successfully uploaded {file_path} using {provider_name}")
+        logger.info(f"Successfully uploaded {file_path} using {provider_name}")
     else:
         logger.error(f"Failed to upload {file_path} using {provider_name}: {error}")

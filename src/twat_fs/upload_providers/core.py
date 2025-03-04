@@ -25,8 +25,8 @@ from loguru import logger
 from twat_fs.upload_providers.types import UploadResult
 
 # Type variables for generic decorators
-T = TypeVar("T", covariant=True)
-R = TypeVar("R", str, UploadResult, covariant=True)
+T_co = TypeVar("T_co", covariant=True)
+R_co = TypeVar("R_co", str, UploadResult, covariant=True)
 P = ParamSpec("P")
 
 # Constants for URL validation
@@ -35,16 +35,16 @@ MAX_REDIRECTS = 5
 USER_AGENT = "twat-fs/1.0"
 
 
-class UploadCallable(Protocol[P, T]):
+class UploadCallable(Protocol[P, T_co]):
     """Protocol for upload functions."""
 
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T: ...
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T_co: ...
 
 
-class AsyncUploadCallable(Protocol[P, T]):
+class AsyncUploadCallable(Protocol[P, T_co]):
     """Protocol for async upload functions."""
 
-    async def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T: ...
+    async def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T_co: ...
 
 
 @overload
@@ -132,14 +132,14 @@ def with_retry(
     max_delay: float = 30.0,
     strategy: RetryStrategy = RetryStrategy.EXPONENTIAL,
     exceptions: tuple[type[Exception], ...] = (Exception,),
-) -> Callable[[UploadCallable[P, T]], UploadCallable[P, T]]:
+) -> Callable[[UploadCallable[P, T_co]], UploadCallable[P, T_co]]:
     """
     Decorator for retrying upload operations with configurable backoff.
     """
 
-    def decorator(func: UploadCallable[P, T]) -> UploadCallable[P, T]:
+    def decorator(func: UploadCallable[P, T_co]) -> UploadCallable[P, T_co]:
         @functools.wraps(func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T_co:
             last_exception = None
             delay = initial_delay
 
@@ -179,14 +179,14 @@ def with_async_retry(
     max_delay: float = 30.0,
     strategy: RetryStrategy = RetryStrategy.EXPONENTIAL,
     exceptions: tuple[type[Exception], ...] = (Exception,),
-) -> Callable[[AsyncUploadCallable[P, T]], AsyncUploadCallable[P, T]]:
+) -> Callable[[AsyncUploadCallable[P, T_co]], AsyncUploadCallable[P, T_co]]:
     """
     Decorator for retrying async upload operations with configurable backoff.
     """
 
-    def decorator(func: AsyncUploadCallable[P, T]) -> AsyncUploadCallable[P, T]:
+    def decorator(func: AsyncUploadCallable[P, T_co]) -> AsyncUploadCallable[P, T_co]:
         @functools.wraps(func)
-        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T_co:
             last_exception = None
             delay = initial_delay
 
@@ -219,13 +219,13 @@ def with_async_retry(
     return decorator
 
 
-def validate_file(func: UploadCallable[P, T]) -> UploadCallable[P, T]:
+def validate_file(func: UploadCallable[P, T_co]) -> UploadCallable[P, T_co]:
     """
     Decorator to validate file existence and permissions before upload.
     """
 
     @functools.wraps(func)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T_co:
         # Extract file path from args or kwargs
         file_path = next(
             (arg for arg in args if isinstance(arg, str | Path)),
@@ -252,25 +252,25 @@ def validate_file(func: UploadCallable[P, T]) -> UploadCallable[P, T]:
     return wrapper
 
 
-def sync_to_async(func: UploadCallable[P, T]) -> AsyncUploadCallable[P, T]:
+def sync_to_async(func: UploadCallable[P, T_co]) -> AsyncUploadCallable[P, T_co]:
     """
     Convert a synchronous upload function to an async one.
     """
 
     @functools.wraps(func)
-    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T_co:
         return await asyncio.to_thread(func, *args, **kwargs)
 
     return wrapper
 
 
-def async_to_sync(func: AsyncUploadCallable[P, T]) -> UploadCallable[P, T]:
+def async_to_sync(func: AsyncUploadCallable[P, T_co]) -> UploadCallable[P, T_co]:
     """
     Convert an async upload function to a synchronous one.
     """
 
     @functools.wraps(func)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T_co:
         return asyncio.run(func(*args, **kwargs))
 
     return wrapper
@@ -384,7 +384,7 @@ def with_url_validation(
     return wrapper
 
 
-def with_timing(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+def with_timing(func: Callable[P, Awaitable[T_co]]) -> Callable[P, Awaitable[T_co]]:
     """
     Decorator to add timing metrics to upload results.
 
@@ -396,7 +396,7 @@ def with_timing(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
     """
 
     @functools.wraps(func)
-    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T_co:
         start_time = time.time()
         result = await func(*args, **kwargs)
         end_time = time.time()
