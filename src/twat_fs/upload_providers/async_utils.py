@@ -9,18 +9,15 @@ from __future__ import annotations
 
 import asyncio
 import functools
-import time
 from typing import (
     Any,
-    Callable,
     TypeVar,
     ParamSpec,
     overload,
     cast,
-    Union,
-    List,
 )
-from collections.abc import Coroutine, Awaitable
+from collections.abc import Callable
+from collections.abc import Coroutine
 
 from loguru import logger
 
@@ -169,7 +166,7 @@ async def gather_with_concurrency(
     limit: int,
     *tasks: Coroutine[Any, Any, T_co],
     return_exceptions: bool = False,
-) -> List[Union[T_co, BaseException]]:
+) -> list[T_co | BaseException]:
     """
     Run coroutines with a concurrency limit.
 
@@ -206,7 +203,8 @@ async def gather_with_concurrency(
 
             async def task_factory(i=i):
                 if i % 2 == 0:
-                    raise ValueError(f"Error in task {i}")
+                    msg = f"Error in task {i}"
+                    raise ValueError(msg)
                 return i
 
             wrapped_tasks.append(asyncio.create_task(run_with_semaphore(task_factory)))

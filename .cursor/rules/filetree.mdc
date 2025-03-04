@@ -8,21 +8,21 @@ globs:
 │   └── [ 224]  rules
 │       ├── [ 821]  0project.mdc
 │       ├── [ 516]  cleanup.mdc
-│       ├── [3.2K]  filetree.mdc
+│       ├── [3.3K]  filetree.mdc
 │       └── [2.0K]  quality.mdc
 ├── [  96]  .github
 │   └── [ 128]  workflows
 │       ├── [2.7K]  push.yml
 │       └── [1.4K]  release.yml
 ├── [3.5K]  .gitignore
-├── [ 502]  .pre-commit-config.yaml
+├── [ 470]  .pre-commit-config.yaml
 ├── [  96]  .specstory
 │   └── [ 224]  history
 │       ├── [2.7K]  .what-is-this.md
 │       ├── [146K]  2025-03-04_03-45-refining-todo-list-from-codebase-review.md
 │       ├── [186K]  2025-03-04_04-43-incorporating-ideas-from-ideas-md-into-todo-md.md
 │       ├── [164K]  2025-03-04_05-33-implementing-todo-phases-1,-2,-and-3.md
-│       └── [ 20K]  2025-03-04_06-19-implementation-of-todo-md-phases.md
+│       └── [180K]  2025-03-04_06-19-implementation-of-todo-md-phases.md
 ├── [6.4K]  CHANGELOG.md
 ├── [ 986]  CLEANUP.txt
 ├── [ 56K]  IDEAS.md
@@ -49,7 +49,7 @@ globs:
 │       ├── [ 25K]  upload.py
 │       └── [ 704]  upload_providers
 │           ├── [1.9K]  __init__.py
-│           ├── [6.4K]  async_utils.py
+│           ├── [7.6K]  async_utils.py
 │           ├── [5.5K]  bashupload.py
 │           ├── [4.9K]  catbox.py
 │           ├── [ 12K]  core.py
@@ -64,7 +64,7 @@ globs:
 │           ├── [9.3K]  simple.py
 │           ├── [ 728]  types.py
 │           ├── [5.1K]  uguu.py
-│           ├── [6.8K]  utils.py
+│           ├── [7.6K]  utils.py
 │           └── [5.0K]  www0x0.py
 ├── [ 128]  templates
 │   ├── [9.6K]  authenticated_provider_template.py
@@ -80,7 +80,7 @@ globs:
 │   ├── [ 180]  test_twat_fs.py
 │   ├── [ 29K]  test_upload.py
 │   └── [ 13K]  test_utils.py
-├── [189K]  twat_search.txt
+├── [190K]  twat_search.txt
 ├── [2.8K]  update_providers.py
 └── [383K]  uv.lock
 

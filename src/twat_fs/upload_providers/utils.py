@@ -15,12 +15,6 @@ from typing import (
     BinaryIO,
     TypeVar,
     ParamSpec,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    Type,
     TYPE_CHECKING,
 )
 from collections.abc import Generator

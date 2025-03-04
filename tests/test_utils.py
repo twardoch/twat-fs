@@ -271,21 +271,10 @@ class TestCreateProviderInstance:
         mock_provider.get_credentials.return_value = {"key": "value"}
 
         # Add debug prints
-        print("\nDEBUG: Before create_provider_instance")
-        print(f"DEBUG: mock_provider.get_credentials = {mock_provider.get_credentials}")
-        print(
-            f"DEBUG: mock_provider.get_credentials.call_count = {mock_provider.get_credentials.call_count}"
-        )
 
-        result = create_provider_instance(mock_provider)
+        create_provider_instance(mock_provider)
 
         # Add debug prints
-        print("\nDEBUG: After create_provider_instance")
-        print(f"DEBUG: Result = {result}")
-        print(
-            f"DEBUG: mock_provider.get_credentials.call_count = {mock_provider.get_credentials.call_count}"
-        )
-        print(f"DEBUG: mock_provider.call_count = {mock_provider.call_count}")
 
         mock_provider.get_credentials.assert_called_once()
 
