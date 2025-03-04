@@ -1,9 +1,8 @@
-# this_file: src/twat_fs/upload_providers/bashupload.py
+# this_file: templates/simple_provider_template.py
 
 """
-Bashupload.com upload provider.
-A simple provider that uploads files to bashupload.com.
-Files are automatically deleted after 3 days.
+Template for refactoring simple provider classes that don't require credentials.
+Replace PROVIDER_NAME with the actual provider name.
 """
 
 from __future__ import annotations
@@ -11,12 +10,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, BinaryIO, ClassVar, cast
 
-import aiohttp
+# Import the appropriate HTTP library (aiohttp or requests)
+import requests  # or import aiohttp
 import asyncio
 
 from twat_fs.upload_providers.protocols import Provider, ProviderClient, ProviderHelp
 from twat_fs.upload_providers.types import UploadResult
-from twat_fs.upload_providers.core import NonRetryableError
+from twat_fs.upload_providers.core import NonRetryableError, RetryableError
 from twat_fs.upload_providers.simple import BaseProvider
 from twat_fs.upload_providers.utils import (
     create_provider_help,
@@ -27,17 +27,17 @@ from twat_fs.upload_providers.utils import (
 
 # Use standardized provider help format
 PROVIDER_HELP: ProviderHelp = create_provider_help(
-    setup_instructions="No setup required. Files are deleted after 3 days.",
-    dependency_info="requests, aiohttp",
+    setup_instructions="No setup required. [Add provider-specific details here.]",
+    dependency_info="[Add dependencies here, e.g. requests, aiohttp]",
 )
 
 
-class BashUploadProvider(BaseProvider):
-    """Provider for bashupload.com uploads"""
+class ProviderNameProvider(BaseProvider):
+    """Provider for uploading files to provider_name."""
 
     PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
-    provider_name: str = "bashupload"
-    upload_url: str = "https://bashupload.com"
+    provider_name: str = "provider_name"
+    upload_url: str = "https://example.com/upload"  # Replace with actual URL
 
     @classmethod
     def get_credentials(cls) -> None:
@@ -49,9 +49,12 @@ class BashUploadProvider(BaseProvider):
         """Get an instance of the provider."""
         return cast(ProviderClient, cls())
 
-    async def _do_upload(self, file_path: Path) -> str:
+    # Choose one of the following implementation methods based on the provider's API:
+
+    # Option 1: For providers with synchronous APIs
+    def _do_upload(self, file_path: Path) -> str:
         """
-        Internal implementation of the file upload to bashupload.com.
+        Internal implementation of the file upload.
 
         Args:
             file_path: Path to the file to upload
@@ -63,28 +66,51 @@ class BashUploadProvider(BaseProvider):
             RetryableError: If the upload fails due to rate limiting
             NonRetryableError: If the upload fails for any other reason
         """
-        data = aiohttp.FormData()
-
         with open(file_path, "rb") as f:
-            data.add_field("file", f, filename=file_path.name)
+            files = {"file": (file_path.name, f)}
+            response = requests.post(
+                self.upload_url,
+                files=files,
+                timeout=30,
+            )
 
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    self.upload_url,
-                    data=data,
-                    timeout=None,
-                ) as response:
-                    # Use standardized HTTP response handling
-                    handle_http_response(response, self.provider_name)
+            # Use standardized HTTP response handling
+            handle_http_response(response, self.provider_name)
 
-                    response_text = await response.text()
-                    for line in response_text.splitlines():
-                        if line.startswith("wget "):
-                            url = line.split(" ")[1].strip()
-                            return f"{url}?download=1"
+            # Process response to extract URL
+            url = response.text.strip()  # Modify based on provider response format
+            return url
 
-                    msg = f"Could not find URL in response: {response_text}"
-                    raise NonRetryableError(msg, self.provider_name)
+    # Option 2: For providers with asynchronous APIs
+    async def _do_upload_async(self, file_path: Path) -> str:
+        """
+        Internal implementation of the file upload using async API.
+
+        Args:
+            file_path: Path to the file to upload
+
+        Returns:
+            URL of the uploaded file
+
+        Raises:
+            RetryableError: If the upload fails due to rate limiting
+            NonRetryableError: If the upload fails for any other reason
+        """
+        import aiohttp
+
+        data = aiohttp.FormData()
+        # Add appropriate fields based on provider requirements
+        data.add_field("file", open(file_path, "rb"), filename=file_path.name)
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(self.upload_url, data=data) as response:
+                # Use standardized HTTP response handling
+                handle_http_response(response, self.provider_name)
+
+                # Process response to extract URL
+                response_text = await response.text()
+                # Modify based on provider response format
+                return response_text.strip()
 
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """
@@ -97,12 +123,15 @@ class BashUploadProvider(BaseProvider):
             UploadResult containing the URL and status
         """
         try:
-            # We need to use a temporary path approach since BashUpload requires a file path
-            # rather than a file handle for the upload
-            temp_path = Path(file.name)
+            # Choose one of the following approaches based on the implementation above:
 
-            # Run the async upload function
-            url = asyncio.run(self._do_upload(temp_path))
+            # For synchronous implementation:
+            temp_path = Path(file.name)
+            url = self._do_upload(temp_path)
+
+            # For asynchronous implementation:
+            # temp_path = Path(file.name)
+            # url = asyncio.run(self._do_upload_async(temp_path))
 
             # Log successful upload
             log_upload_attempt(
@@ -141,12 +170,12 @@ class BashUploadProvider(BaseProvider):
 # Module-level functions to implement the Provider protocol
 def get_credentials() -> None:
     """No credentials needed for this provider."""
-    return BashUploadProvider.get_credentials()
+    return ProviderNameProvider.get_credentials()
 
 
 def get_provider() -> ProviderClient | None:
     """Get an instance of the provider."""
-    return BashUploadProvider.get_provider()
+    return ProviderNameProvider.get_provider()
 
 
 def upload_file(
@@ -158,7 +187,7 @@ def upload_file(
     upload_path: str | None = None,
 ) -> UploadResult:
     """
-    Upload a file to bashupload.com.
+    Upload a file to the provider.
 
     Args:
         local_path: Path to the file to upload
@@ -178,7 +207,7 @@ def upload_file(
     """
     return standard_upload_wrapper(
         get_provider(),
-        "bashupload",
+        "provider_name",  # Replace with actual provider name
         local_path,
         remote_path,
         unique=unique,

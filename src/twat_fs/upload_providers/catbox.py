@@ -4,34 +4,37 @@
 Catbox.moe upload provider implementation.
 """
 
-from collections.abc import Awaitable
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, BinaryIO, ClassVar, cast
 
 import aiohttp
+import asyncio
 
 from twat_fs.upload_providers.protocols import ProviderClient, ProviderHelp, Provider
-from twat_fs.upload_providers.core import (
-    UploadResult,
-)
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.simple import BaseProvider
 from twat_fs.upload_providers.utils import (
+    create_provider_help,
     handle_http_response,
     log_upload_attempt,
-    validate_file,
+    standard_upload_wrapper,
 )
 
-PROVIDER_HELP: ProviderHelp = {
-    "setup": "No setup required. Files are kept indefinitely unless reported or unused for 1 month.",
-    "deps": "aiohttp",
-}
+# Use standardized provider help format
+PROVIDER_HELP: ProviderHelp = create_provider_help(
+    setup_instructions="No setup required. Files are kept indefinitely unless reported or unused for 1 month.",
+    dependency_info="aiohttp",
+)
 
 
-class CatboxProvider(Provider, ProviderClient):
+class CatboxProvider(BaseProvider):
     """Provider for uploading files to catbox.moe."""
 
-    PROVIDER_HELP = PROVIDER_HELP
-    provider_name = "catbox"
-    upload_url = "https://catbox.moe/user/api.php"
+    PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
+    provider_name: str = "catbox"
+    upload_url: str = "https://catbox.moe/user/api.php"
 
     @classmethod
     def get_credentials(cls) -> None:
@@ -41,9 +44,9 @@ class CatboxProvider(Provider, ProviderClient):
     @classmethod
     def get_provider(cls) -> ProviderClient | None:
         """Get an instance of the provider."""
-        return cls()
+        return cast(ProviderClient, cls())
 
-    async def _do_upload(self, file_path: Path) -> UploadResult:
+    async def _do_upload(self, file_path: Path) -> str:
         """
         Internal implementation of the file upload to catbox.moe.
 
@@ -51,14 +54,12 @@ class CatboxProvider(Provider, ProviderClient):
             file_path: Path to the file to upload
 
         Returns:
-            UploadResult with the URL of the uploaded file
+            URL of the uploaded file
 
         Raises:
             RetryableError: If the upload fails due to rate limiting
             NonRetryableError: If the upload fails for any other reason
         """
-        validate_file(file_path)
-
         data = aiohttp.FormData()
         data.add_field("reqtype", "fileupload")
 
@@ -68,81 +69,69 @@ class CatboxProvider(Provider, ProviderClient):
             async with aiohttp.ClientSession() as session:
                 async with session.post(self.upload_url, data=data) as response:
                     handle_http_response(response, self.provider_name)
-                    url = await response.text()
-                    log_upload_attempt(self.provider_name, file_path, True)
-                    return UploadResult(url=url)
+                    return await response.text()
 
-    def upload_file(
-        self,
-        local_path: str | Path,
-        remote_path: str | Path | None = None,
-        *,
-        unique: bool = False,
-        force: bool = False,
-        upload_path: str | None = None,
-        **kwargs: Any,
-    ) -> UploadResult:
+    def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """
-        Upload a file to catbox.moe.
+        Implement the actual file upload logic.
 
         Args:
-            local_path: Path to the file to upload
-            remote_path: Ignored for this provider
-            unique: Ignored for this provider
-            force: Ignored for this provider
-            upload_path: Ignored for this provider
-            **kwargs: Additional provider-specific arguments
+            file: Open file handle to upload
 
         Returns:
-            UploadResult with the URL of the uploaded file
-
-        Raises:
-            RetryableError: If the upload fails due to rate limiting
-            NonRetryableError: If the upload fails for any other reason
-        """
-        import asyncio
-
-        return asyncio.run(self._do_upload(Path(str(local_path))))
-
-    async def async_upload_file(
-        self,
-        file_path: str | Path,
-        remote_path: str | Path | None = None,
-        *,
-        unique: bool = False,
-        force: bool = False,
-        upload_path: str | None = None,
-        **kwargs: Any,
-    ) -> Awaitable[UploadResult]:
-        """
-        Upload a file to catbox.moe.
-
-        Args:
-            file_path: Path to the file to upload
-            remote_path: Ignored for this provider
-            unique: Ignored for this provider
-            force: Ignored for this provider
-            upload_path: Ignored for this provider
-            **kwargs: Additional provider-specific arguments
-
-        Returns:
-            Awaitable that resolves to an UploadResult with the URL of the uploaded file
-
-        Raises:
-            RetryableError: If the upload fails due to rate limiting
-            NonRetryableError: If the upload fails for any other reason
+            UploadResult containing the URL and status
         """
         try:
-            result = await self._do_upload(Path(str(file_path)))
-            return cast(Awaitable[UploadResult], result)
+            # We need to use a temporary path approach since Catbox requires a file path
+            # rather than a file handle for the upload
+            temp_path = Path(file.name)
+
+            # Run the async upload function
+            url = asyncio.run(self._do_upload(temp_path))
+
+            # Log successful upload
+            log_upload_attempt(
+                provider_name=self.provider_name,
+                file_path=file.name,
+                success=True,
+            )
+
+            return UploadResult(
+                url=url,
+                metadata={
+                    "provider": self.provider_name,
+                    "success": True,
+                    "raw_url": url,
+                },
+            )
         except Exception as e:
-            log_upload_attempt(self.provider_name, file_path, False, e)
-            raise
+            # Log failed upload
+            log_upload_attempt(
+                provider_name=self.provider_name,
+                file_path=file.name,
+                success=False,
+                error=e,
+            )
+
+            return UploadResult(
+                url="",
+                metadata={
+                    "provider": self.provider_name,
+                    "success": False,
+                    "error": str(e),
+                },
+            )
 
 
-def get_provider() -> CatboxProvider:
-    """Get an instance of the Catbox provider."""
-    return CatboxProvider()
+# Module-level functions to implement the Provider protocol
+def get_credentials() -> None:
+    """No credentials needed for this provider."""
+    return CatboxProvider.get_credentials()
+
+
+def get_provider() -> ProviderClient | None:
+    """Get an instance of the provider."""
+    return CatboxProvider.get_provider()
 
 
 def upload_file(
@@ -167,11 +156,14 @@ def upload_file(
         UploadResult with the URL of the uploaded file
 
     Raises:
-        RetryableError: If the upload fails due to rate limiting
-        NonRetryableError: If the upload fails for any other reason
+        FileNotFoundError: If the file doesn't exist
+        ValueError: If the path is not a file
+        PermissionError: If the file can't be read
+        RuntimeError: If the upload fails
     """
-    provider = get_provider()
-    return provider.upload_file(
+    return standard_upload_wrapper(
+        get_provider(),
+        "catbox",
         local_path,
         remote_path,
         unique=unique,

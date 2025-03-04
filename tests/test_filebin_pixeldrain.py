@@ -8,9 +8,11 @@
 
 import pytest
 import responses
+import re
 from pathlib import Path
 
 from twat_fs.upload_providers import filebin, pixeldrain
+from twat_fs.upload_providers.types import UploadResult
 
 
 @pytest.fixture
@@ -24,10 +26,12 @@ def test_file(tmp_path: Path) -> Path:
 @responses.activate  # type: ignore[misc]
 def test_filebin_upload_success(test_file: Path) -> None:
     """Test successful file upload to filebin.net."""
-    # Mock the filebin.net response
+    # Mock the filebin.net response with regex pattern for URL
     responses.add(
-        responses.POST,
-        "https://filebin.net",
+        responses.PUT,  # Changed from POST to PUT to match the implementation
+        re.compile(
+            r"https://filebin\.net/.*"
+        ),  # Use regex pattern for flexible URL matching
         status=200,
         body="",  # Filebin returns empty body
         headers={"Location": "https://filebin.net/abc123/test.txt"},
@@ -36,7 +40,11 @@ def test_filebin_upload_success(test_file: Path) -> None:
     # Test the upload
     provider = filebin.FilebinProvider()
     result = provider.upload_file(test_file)
-    assert result == "https://filebin.net/abc123/test.txt"
+    assert isinstance(result, UploadResult)
+    # Check for URL pattern rather than exact value since the bin name is generated dynamically
+    assert re.match(r"https://filebin\.net/.+/test\.txt", result.url)
+    assert result.metadata["provider"] == "filebin"
+    assert result.metadata["success"] is True
 
 
 @responses.activate  # type: ignore[misc]
@@ -44,8 +52,10 @@ def test_filebin_upload_failure(test_file: Path) -> None:
     """Test failed file upload to filebin.net."""
     # Mock the filebin.net error response
     responses.add(
-        responses.POST,
-        "https://filebin.net",
+        responses.PUT,  # Changed from POST to PUT
+        re.compile(
+            r"https://filebin\.net/.*"
+        ),  # Use regex pattern for flexible URL matching
         status=500,
         json={"error": "Internal server error"},
     )
@@ -70,7 +80,10 @@ def test_pixeldrain_upload_success(test_file: Path) -> None:
     # Test the upload
     provider = pixeldrain.PixeldrainProvider()
     result = provider.upload_file(test_file)
-    assert result == "https://pixeldrain.com/u/abc123"
+    assert isinstance(result, UploadResult)
+    assert result.url == "https://pixeldrain.com/u/abc123"
+    assert result.metadata["provider"] == "pixeldrain"
+    assert result.metadata["success"] is True
 
 
 @responses.activate  # type: ignore[misc]

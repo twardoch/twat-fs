@@ -4,70 +4,243 @@ this_file: TODO.md
 
 # TODO
 
+## 1. Refactoring
 
+- [x] Create utils.py to centralize common functionality for upload providers
+  
+  A `utils.py` file has been created in the `upload_providers` folder with several helper functions:
+  - `create_provider_help` for standardizing provider help dictionaries
+  - `safe_file_handle` for file operations
+  - `validate_file` for file validation
+  - `handle_http_response` for HTTP response handling
+  - `get_env_credentials` for credential management
+  - `create_provider_instance` for provider initialization
+  - `standard_upload_wrapper` for consistent upload handling
+  - `log_upload_attempt` for consistent logging
 
-- [ ] Review and refactor shared functionality in upload provider modules
+- [ ] Refactor provider modules to use utils.py consistently
+  
+  Progress:
+  - [x] pixeldrain.py has been refactored to use utils.py functions
+    - Fixed recursion issue in `get_provider` method
+    - Improved error handling with proper exception chaining
+    - Extracted response processing to a separate method
+    - Implemented manual retry logic with exponential backoff
+    - Reduced complexity and improved code quality
+    - Standardized logging with `log_upload_attempt`
+    - Improved HTTP response handling with `handle_http_response`
+  - [x] bashupload.py has been refactored to use utils.py functions
+    - Implemented consistent error handling with RetryableError and NonRetryableError
+    - Added standardized logging with log_upload_attempt
+    - Improved HTTP response handling with handle_http_response
+    - Simplified upload_file method using standard_upload_wrapper
+  - [x] catbox.py has been refactored to use utils.py functions
+    - Separated upload logic into _do_upload method
+    - Standardized provider help format with create_provider_help
+    - Added proper error handling and logging
+    - Simplified module-level functions
+  - [x] filebin.py has been refactored to use utils.py functions
+    - Improved error handling with handle_http_response
+    - Added standardized logging with log_upload_attempt
+    - Simplified upload_file method using standard_upload_wrapper
+  - [x] uguu.py has been refactored to use utils.py functions
+    - Separated upload logic into _do_upload method
+    - Standardized provider help format with create_provider_help
+    - Added proper error handling and logging
+    - Simplified module-level functions
+  - [x] www0x0.py has been refactored to use utils.py functions
+    - Separated upload logic into _do_upload method
+    - Standardized provider help format with create_provider_help
+    - Added proper error handling and logging
+    - Simplified module-level functions
+  - [x] dropbox.py has been refactored to use utils.py functions
+    - Made DropboxClient inherit from BaseProvider
+    - Standardized provider help format with create_provider_help
+    - Added proper credential handling with get_env_credentials
+    - Improved file validation with validate_file
+    - Added standardized logging with log_upload_attempt
+    - Separated upload logic into upload_file_impl method
+    - Fixed method signatures to match BaseProvider interface
+  - [x] s3.py has been refactored to use utils.py functions
+    - Created S3Provider class inheriting from BaseProvider
+    - Standardized provider help format with create_provider_help
+    - Added proper credential handling with get_env_credentials
+    - Improved error handling with RetryableError and NonRetryableError
+    - Added standardized logging with log_upload_attempt
+    - Separated upload logic into _do_upload and upload_file_impl methods
+    - Simplified upload_file method using standard_upload_wrapper
+  
+  Remaining providers to refactor:
+  - [ ] fal.py
+  - [ ] litterbox.py
 
-  Across nearly all provider modules (such as bashupload.py, catbox.py, filebin.py, pixeldrain.py, uguu.py, www0x0.py, etc.), there are several notable repeated patterns:
+  The priority is to:
+  1. Replace duplicated code with calls to utils.py functions
+  2. Ensure consistent error handling across providers
+  3. Standardize method signatures and patterns
 
-  - **Provider Help Dictionaries**  
-    Each module defines a `PROVIDER_HELP` dictionary with keys like `setup` and `deps` even though the content may vary slightly. The overall structure is identical across providers. This redundancy suggests that a helper or factory function could generate these help dictionaries based upon provider-specific parameters.
+- [x] Create provider templates for standardized implementation
+  
+  Created two template files in the `templates` directory:
+  - `simple_provider_template.py` for providers without authentication
+  - `authenticated_provider_template.py` for providers requiring credentials
+  
+  These templates include:
+  - Standard imports and class structure
+  - Consistent error handling patterns
+  - Proper use of utility functions from utils.py
+  - Documentation templates and type annotations
+  - Module-level functions implementing the Provider protocol
 
-  - **Common Provider Accessor Functions**  
-    Most modules implement:
-    - A class method `get_provider()` that typically returns a cast instance (e.g., using `cast(ProviderClient, cls())`).
-    - A module-level function `get_provider()` which simply wraps the class method.
-    - A similar pattern with `get_credentials()` where simple providers always return `None` (with a comment noting that they don't need credentials).
-    - An `upload_file()` wrapper function that retrieves the provider instance (raising an error if not found) and then delegates to its `upload_file` or `upload_file_impl` method.
-    
-    These functions follow nearly identical logic and error-checking (for instance, checking if the provider exists, and if not, raising a ValueError with a message like "Failed to initialize provider").
+- [ ] Implement a factory pattern for provider instantiation
+  
+  Create a provider factory that simplifies the creation of providers and reduces code duplication in `get_provider()` methods.
 
-  - **File Handling and Error Patterns**  
-    There is recurring code around handling file operations:
-    - Opening files in binary mode for upload.
-    - Validating file existence and readability.
-    - Consistent error handling in case an API call fails or an exception is caught.
-    
-    This pattern appears in multiple providers and is an ideal candidate for consolidation into a shared utility function.
+- [ ] Standardize async/sync conversion patterns
+  
+  Several providers implement both synchronous and asynchronous upload methods with nearly identical conversion logic. Standardize this pattern using the utilities in utils.py.
 
-  - **Similar Import and Inheritance Structures**  
-    Many of the simple providers import from the same base module (`simple.py`) and reuse a common provider type pattern—assigning a `provider_name`, setting a URL, and implementing an `upload_file_impl` method that closely follows the same structure.
+- [ ] Refine HTTP response handling across providers
+  
+  While `handle_http_response()` exists in utils.py, ensure all providers use it consistently for handling various HTTP status codes, especially for error conditions like rate limits (429) and other non-200 responses.
 
-  **Refactoring Proposal**:
+- [ ] Create provider base classes to reduce inheritance boilerplate
+  
+  Implement base classes that providers can inherit from to reduce duplicate code:
+  - A base class for simple providers with no credentials
+  - A base class for async-capable providers
+  - A base class for providers requiring credentials
 
-  - Create a new file named `utils.py` inside the `upload_providers` folder.
-  - Offload common functionality such as:
-    - Helper functions to generate or validate the `PROVIDER_HELP` dictionaries.
-    - A universal file handling utility (e.g., context managers for opening and validating files).
-    - Standardized implementations for the module-level `get_provider()`, `get_credentials()`, and `upload_file()` functions.
-    - Error handling wrappers for calling the provider's upload routines.
-    
-  Consolidating these functions would adhere to DRY principles and simplify the maintenance and evolution of provider modules.
+- [ ] Add comprehensive type annotations for async operations
+  
+  With the protocol updates to support both `Awaitable[UploadResult]` and `Coroutine[Any, Any, UploadResult]`, ensure consistent type handling in:
+  - Async/await conversions
+  - Async decorators with proper type hints
+  - Async context managers and resource cleanup
 
-- [ ] Investigate if any additional unique provider-specific patterns might require conditional handling in the utils module
+- [ ] Write unit tests for utils.py functions
+  
+  Ensure the centralized utilities are thoroughly tested to prevent regressions when refactoring providers.
 
-- **Additional Common Patterns Identified:**
+- [ ] Document best practices for creating new providers
+  
+  Create clear documentation for adding new providers, showing how to leverage the shared utilities and follow the established patterns.
 
-  - **Asynchronous-to-Synchronous Conversion:**
-    Several providers (e.g., catbox.py, fal.py, litterbox.py) use an `async_to_sync` wrapper to convert asynchronous upload methods into synchronous ones. The conversion logic is nearly identical across these modules and could be centralized into a shared utility.
+## 2. Implement Additional Upload Providers
 
-  - **HTTP Response and Status Code Validation:**
-    Many modules include similar logic to check HTTP response codes (e.g., handling 429 for rate limits by raising `RetryableError`, and non-200 responses by raising `NonRetryableError`). This pattern is repeated in providers like bashupload.py, pixeldrain.py, and www0x0.py, among others, suggesting an opportunity to abstract this into a helper function.
+Based on the analysis of feasible ideas from IDEAS.md:
 
-  - **Environment Variable Credential Handling:**
-    Providers such as dropbox.py, fal.py, and s3.py fetch credentials from environment variables using similar patterns. A shared utility function could streamline this process, ensuring consistent validation and error messages.
+### 2.1. Simple File Hosting Providers
 
-  - **File Handling Techniques:**
-    While some providers utilize the file handling logic in `simple.py` (which includes methods for validating and opening files in binary mode), others implement their own similar patterns. Unifying these methods could reduce redundancy and potential errors.
+- [ ] Implement Transfer.sh provider
+  - Simple HTTP POST API
+  - No authentication required
+  - Similar to existing simple providers
+  - Good for temporary file sharing
 
-  - **Consistent Logging Practices:**
-    Across all providers, there is recurring use of logging (using `logger.debug`, `logger.warning`, and `logger.error`) to report state changes, errors, and debugging information. Standardizing these log messages and the structure in which they are used can improve maintainability.
+- [ ] Implement AnonFiles provider
+  - Simple API for anonymous file uploads
+  - Returns direct download links
+  - No authentication required
+  - Similar implementation to existing simple providers
 
-  - **Async/Coroutine Type Handling:**
-    With the recent protocol updates to support both Awaitable[UploadResult] and Coroutine[Any, Any, UploadResult], providers need consistent patterns for:
-    - Converting between async/await and coroutine patterns
-    - Handling async decorators with proper type hints
-    - Managing async context managers and resource cleanup
-    - Standardizing error handling in async code
+### 2.2. Cloud Storage Providers
 
-  *Note: The intent of these refactoring steps is to offload the shared portions into a new `utils.py` module inside the `upload_providers` folder. The module has been created, but providers need to be updated to use it consistently, especially with the new async type handling patterns.*
+- [ ] Implement Google Drive provider
+  - Requires OAuth2 authentication
+  - Leverage existing async/sync patterns
+  - Add support for folder organization
+  - Dependencies: google-api-python-client, google-auth
+
+- [ ] Implement Microsoft OneDrive provider
+  - Requires OAuth2 authentication
+  - Similar to Dropbox implementation pattern
+  - Dependencies: Office365-REST-Python-Client or Microsoft Graph SDK
+
+- [ ] Implement pCloud provider
+  - API key based authentication
+  - Good for privacy-focused users
+  - Dependencies: pcloud-sdk-python
+
+### 2.3. S3-Compatible Storage
+
+- [ ] Implement Backblaze B2 provider
+  - S3-compatible API
+  - Can leverage existing S3 provider with custom endpoint
+  - Cost-effective storage solution
+  - Dependencies: boto3 (already used for S3)
+
+- [ ] Implement DigitalOcean Spaces provider
+  - S3-compatible API
+  - Can leverage existing S3 provider with custom endpoint
+  - Dependencies: boto3 (already used for S3)
+
+### 2.4. Media and Specialized Providers
+
+- [ ] Implement Imgur provider
+  - Specialized for image uploads
+  - API key based authentication
+  - Add image-specific metadata handling
+  - Dependencies: requests
+
+- [ ] Implement Cloudinary provider
+  - Media transformation capabilities
+  - API key based authentication
+  - Support for image/video optimization
+  - Dependencies: cloudinary or requests
+
+### 2.5. Version Control Platforms
+
+- [ ] Implement GitHub Gist provider
+  - Good for text file sharing with syntax highlighting
+  - OAuth or token-based authentication
+  - Implement file size and type constraints
+  - Dependencies: PyGithub or requests
+
+- [ ] Implement GitLab Snippet provider
+  - Similar to GitHub Gist
+  - Support for self-hosted GitLab instances
+  - Token-based authentication
+  - Dependencies: python-gitlab or requests
+
+### 2.6. Enterprise and Specialized Services
+
+- [ ] Implement Azure Blob Storage provider
+  - Microsoft's object storage solution
+  - Similar pattern to S3 provider
+  - Dependencies: azure-storage-blob
+
+- [ ] Implement Box provider
+  - Enterprise file sharing and collaboration
+  - OAuth authentication
+  - Dependencies: boxsdk
+
+- [ ] Implement WeTransfer provider
+  - Popular service for large file transfers
+  - API key based authentication
+  - Support for expiring links
+  - Dependencies: requests
+
+### 2.7. Decentralized Storage Options
+
+- [ ] Implement IPFS provider via Pinata or Infura
+  - Distributed file system
+  - Pin files to IPFS network
+  - API key based authentication
+  - Dependencies: ipfshttpclient or requests
+
+### 2.8. Implementation Strategy
+
+- [ ] Create a template provider module to standardize implementation
+  - Include required imports
+  - Standard method implementations
+  - Common error handling patterns
+  - Documentation template
+
+- [ ] Update provider preference list in `__init__.py` to include new providers
+
+- [ ] Add environment variable documentation for each new provider
+
+- [ ] Create integration tests for each new provider
+
+- [ ] Update documentation with new provider capabilities and requirements

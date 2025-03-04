@@ -6,26 +6,31 @@ A simple provider that uploads files to filebin.net.
 Files are automatically deleted after 6 days.
 """
 
-from twat_fs.upload_providers.types import UploadResult
+from __future__ import annotations
 
 import requests
 from pathlib import Path
-from typing import BinaryIO, cast, ClassVar
+from typing import Any, BinaryIO, cast, ClassVar
 import time
 import secrets
 import string
 
-from loguru import logger
-
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.core import RetryableError, NonRetryableError
 from twat_fs.upload_providers.simple import BaseProvider
-
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
+from twat_fs.upload_providers.utils import (
+    create_provider_help,
+    handle_http_response,
+    log_upload_attempt,
+    standard_upload_wrapper,
+)
 
-# Provider help messages
-PROVIDER_HELP: ProviderHelp = {
-    "setup": "No setup required. Note: Files are deleted after 6 days.",
-    "deps": "Python package: requests",
-}
+# Use standardized provider help format
+PROVIDER_HELP: ProviderHelp = create_provider_help(
+    setup_instructions="No setup required. Note: Files are deleted after 6 days.",
+    dependency_info="Python package: requests",
+)
 
 
 class FilebinProvider(BaseProvider):
@@ -33,10 +38,84 @@ class FilebinProvider(BaseProvider):
 
     PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
     provider_name: str = "filebin"
+    base_url: str = "https://filebin.net"
 
     def __init__(self) -> None:
-        super().__init__()
-        self.url = "https://filebin.net"
+        """Initialize the Filebin provider."""
+        self.provider_name = "filebin"
+
+    def _generate_bin_name(self) -> str:
+        """
+        Generate a unique bin name for filebin.net.
+
+        Returns:
+            str: A unique bin name
+        """
+        timestamp = int(time.time())
+        suffix = "".join(
+            secrets.choice(string.ascii_lowercase + string.digits) for _ in range(6)
+        )
+        return f"twat-fs-{timestamp}-{suffix}"
+
+    def _do_upload(self, file: BinaryIO, filename: str) -> str:
+        """
+        Internal implementation of the file upload to filebin.net.
+
+        Args:
+            file: Open file handle to upload
+            filename: Name of the file to upload
+
+        Returns:
+            str: URL of the uploaded file
+
+        Raises:
+            RetryableError: If the upload fails due to rate limiting or temporary issues
+            NonRetryableError: If the upload fails for any other reason
+        """
+        # Create a unique bin name
+        bin_name = self._generate_bin_name()
+        bin_url = f"{self.base_url}/{bin_name}"
+        file_url = f"{bin_url}/{filename}"
+
+        headers = {
+            "Content-Type": "application/octet-stream",
+            "User-Agent": "twat-fs/1.0",
+        }
+
+        # Upload with retries
+        max_retries = 3
+        retry_delay = 2
+
+        for attempt in range(max_retries):
+            try:
+                file.seek(0)  # Reset file pointer for each attempt
+                response = requests.put(
+                    file_url,
+                    data=file,
+                    headers=headers,
+                    timeout=30,
+                )
+
+                # Use standardized HTTP response handling
+                try:
+                    handle_http_response(response, self.provider_name)
+                    return file_url
+                except RetryableError:
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                        continue
+                    raise
+
+            except requests.RequestException as e:
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                    continue
+                raise NonRetryableError(f"Request failed: {e}", self.provider_name)
+
+        # This should never be reached due to the exception handling above
+        raise NonRetryableError("Upload failed after retries", self.provider_name)
 
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """
@@ -52,70 +131,37 @@ class FilebinProvider(BaseProvider):
             # Get the filename from the file object
             filename = Path(file.name).name
 
-            # Create a unique bin name using timestamp and random suffix
-            timestamp = int(time.time())
-            suffix = "".join(
-                secrets.choice(string.ascii_lowercase + string.digits) for _ in range(6)
+            # Upload the file
+            url = self._do_upload(file, filename)
+
+            # Log successful upload
+            log_upload_attempt(
+                provider_name=self.provider_name,
+                file_path=file.name,
+                success=True,
             )
-            bin_name = f"twat-fs-{timestamp}-{suffix}"
-            bin_url = f"{self.url}/{bin_name}"
 
-            # Upload the file directly to the bin URL
-            file_url = f"{bin_url}/{filename}"
-            headers = {
-                "Content-Type": "application/octet-stream",
-                "User-Agent": "twat-fs/1.0",
-            }
-
-            # Upload with retries
-            max_retries = 3
-            retry_delay = 2
-            last_error = None
-
-            for attempt in range(max_retries):
-                try:
-                    response = requests.put(
-                        file_url,
-                        data=file,
-                        headers=headers,
-                        timeout=30,
-                    )
-                    if response.status_code in (200, 201, 204):
-                        logger.debug(
-                            f"Successfully uploaded to filebin.net: {file_url}"
-                        )
-                        return UploadResult(
-                            url=str(file_url),
-                            metadata={
-                                "provider": "filebin",
-                                "success": True,
-                                "raw_response": response.text,
-                            },
-                        )
-
-                    last_error = f"Upload failed with status {response.status_code}: {response.text}"
-                    if attempt < max_retries - 1:
-                        time.sleep(retry_delay)
-                        retry_delay *= 2
-                        file.seek(0)  # Reset file pointer for retry
-                except requests.RequestException as e:
-                    last_error = f"Request failed: {e}"
-                    if attempt < max_retries - 1:
-                        time.sleep(retry_delay)
-                        retry_delay *= 2
-                        file.seek(0)
-
-            if last_error:
-                raise ValueError(last_error)
-            msg = "Upload failed after retries"
-            raise ValueError(msg)
-
+            return UploadResult(
+                url=url,
+                metadata={
+                    "provider": self.provider_name,
+                    "success": True,
+                    "raw_url": url,
+                },
+            )
         except Exception as e:
-            logger.error(f"Failed to upload to filebin.net: {e}")
+            # Log failed upload
+            log_upload_attempt(
+                provider_name=self.provider_name,
+                file_path=file.name,
+                success=False,
+                error=e,
+            )
+
             return UploadResult(
                 url="",
                 metadata={
-                    "provider": "filebin",
+                    "provider": self.provider_name,
                     "success": False,
                     "error": str(e),
                 },
@@ -135,7 +181,7 @@ class FilebinProvider(BaseProvider):
 # Module-level functions to implement the Provider protocol
 def get_credentials() -> None:
     """Simple providers don't need credentials"""
-    return None
+    return FilebinProvider.get_credentials()
 
 
 def get_provider() -> ProviderClient | None:
@@ -144,7 +190,12 @@ def get_provider() -> ProviderClient | None:
 
 
 def upload_file(
-    local_path: str | Path, remote_path: str | Path | None = None
+    local_path: str | Path,
+    remote_path: str | Path | None = None,
+    *,
+    unique: bool = False,
+    force: bool = False,
+    upload_path: str | None = None,
 ) -> UploadResult:
     """
     Upload a file and return its URL.
@@ -152,12 +203,25 @@ def upload_file(
     Args:
         local_path: Path to the file to upload
         remote_path: Optional remote path (ignored for simple providers)
+        unique: Ignored for this provider
+        force: Ignored for this provider
+        upload_path: Ignored for this provider
 
     Returns:
         UploadResult: URL of the uploaded file
+
+    Raises:
+        FileNotFoundError: If the file doesn't exist
+        ValueError: If the path is not a file
+        PermissionError: If the file can't be read
+        RuntimeError: If the upload fails
     """
-    provider = get_provider()
-    if not provider:
-        msg = "Failed to initialize provider"
-        raise ValueError(msg)
-    return provider.upload_file(local_path, remote_path)
+    return standard_upload_wrapper(
+        get_provider(),
+        "filebin",
+        local_path,
+        remote_path,
+        unique=unique,
+        force=force,
+        upload_path=upload_path,
+    )

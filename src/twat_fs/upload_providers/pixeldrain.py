@@ -5,25 +5,36 @@ Pixeldrain.com upload provider.
 A simple provider that uploads files to pixeldrain.com.
 """
 
-from twat_fs.upload_providers.types import UploadResult
+from __future__ import annotations
 
-import requests
+import time
 from pathlib import Path
 from typing import BinaryIO, cast, ClassVar
-import time
 
-from loguru import logger
+import requests
+
+from twat_fs.upload_providers.core import (
+    RetryableError,
+)
+from twat_fs.upload_providers.protocols import ProviderClient
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.utils import (
+    handle_http_response,
+    log_upload_attempt,
+)
 
 from twat_fs.upload_providers.simple import BaseProvider
-from twat_fs.upload_providers.core import convert_to_upload_result
+from twat_fs.upload_providers.protocols import ProviderHelp
+from twat_fs.upload_providers.utils import (
+    create_provider_help,
+    standard_upload_wrapper,
+)
 
-from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
-
-# Provider help messages
-PROVIDER_HELP: ProviderHelp = {
-    "setup": "No setup required.",
-    "deps": "Python package: requests",
-}
+# Provider help messages using the standardized helper
+PROVIDER_HELP: ProviderHelp = create_provider_help(
+    setup_instructions="No setup required.",
+    dependency_info="Python package: requests",
+)
 
 
 class PixeldrainProvider(BaseProvider):
@@ -33,8 +44,98 @@ class PixeldrainProvider(BaseProvider):
     provider_name: str = "pixeldrain"
 
     def __init__(self) -> None:
-        super().__init__()
+        """Initialize the Pixeldrain provider."""
+        self.provider_name = "pixeldrain"
         self.url = "https://pixeldrain.com/api/file"
+
+    def _process_response(self, response: requests.Response) -> str:
+        """
+        Process the HTTP response from Pixeldrain.
+
+        Args:
+            response: The HTTP response from the API
+
+        Returns:
+            str: The URL to the uploaded file
+
+        Raises:
+            ValueError: If the response is invalid
+        """
+        # Use the standardized HTTP response handler
+        handle_http_response(response, self.provider_name)
+
+        # Parse response JSON to get file ID
+        try:
+            data = response.json()
+        except ValueError as e:
+            msg = f"Invalid JSON response: {e}"
+            raise ValueError(msg) from e
+
+        if not data or "id" not in data:
+            msg = f"Invalid response from pixeldrain: {data}"
+            raise ValueError(msg)
+
+        # Construct public URL
+        return f"https://pixeldrain.com/u/{data['id']}"
+
+    def _upload_with_retry(self, file: BinaryIO) -> str:
+        """
+        Upload a file with retry mechanism.
+
+        Args:
+            file: Open file handle to upload
+
+        Returns:
+            str: URL to the uploaded file
+
+        Raises:
+            ValueError: If the upload fails
+            RetryableError: For temporary failures
+            requests.RequestException: For network errors
+        """
+        # Implement retry logic manually
+        max_retries = 3
+        retry_delay = 2.0
+        last_error = None
+
+        for attempt in range(max_retries):
+            try:
+                # Reset file pointer before each attempt
+                file.seek(0)
+
+                # Prepare the upload request
+                files = {"file": (file.name, file)}
+                headers = {"User-Agent": "twat-fs/1.0"}
+
+                # Send the request
+                response = requests.post(
+                    self.url,
+                    files=files,
+                    headers=headers,
+                    timeout=30,
+                )
+
+                # Process the response
+                return self._process_response(response)
+
+            except (RetryableError, ValueError, requests.RequestException) as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    # Calculate next delay (exponential backoff)
+                    delay = min(retry_delay * (2**attempt), 30.0)
+                    time.sleep(delay)
+                else:
+                    # Last attempt failed, re-raise the exception
+                    if isinstance(e, RetryableError | requests.RequestException):
+                        msg = f"Upload failed after {max_retries} attempts: {e}"
+                        raise ValueError(msg) from e
+                    raise
+
+        # This should never be reached, but just in case
+        if last_error is None:
+            msg = f"Upload failed after {max_retries} attempts"
+            raise ValueError(msg)
+        raise ValueError(str(last_error)) from last_error
 
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """
@@ -47,90 +148,38 @@ class PixeldrainProvider(BaseProvider):
             UploadResult containing the URL and status
         """
         try:
-            # Upload with retries
-            max_retries = 3
-            retry_delay = 2
-            last_error = None
+            # Upload the file with retry mechanism
+            url = self._upload_with_retry(file)
 
-            for attempt in range(max_retries):
-                try:
-                    files = {"file": (file.name, file)}
-                    headers = {"User-Agent": "twat-fs/1.0"}
-                    response = requests.post(
-                        self.url,
-                        files=files,
-                        headers=headers,
-                        timeout=30,
-                    )
+            # Log success
+            log_upload_attempt(
+                provider_name=self.provider_name,
+                file_path=file.name,
+                success=True,
+            )
 
-                    if response.status_code == 429:  # Rate limit
-                        last_error = f"Rate limited: {response.text}"
-                        if attempt < max_retries - 1:
-                            time.sleep(retry_delay)
-                            retry_delay *= 2
-                            file.seek(0)
-                            continue
-
-                    if response.status_code != 200:
-                        last_error = f"Upload failed with status {response.status_code}: {response.text}"
-                        if attempt < max_retries - 1:
-                            time.sleep(retry_delay)
-                            retry_delay *= 2
-                            file.seek(0)
-                            continue
-                        break
-
-                    # Parse response JSON to get file ID
-                    try:
-                        data = response.json()
-                    except ValueError as e:
-                        last_error = f"Invalid JSON response: {e}"
-                        if attempt < max_retries - 1:
-                            time.sleep(retry_delay)
-                            retry_delay *= 2
-                            file.seek(0)
-                            continue
-                        break
-
-                    if not data or "id" not in data:
-                        last_error = f"Invalid response from pixeldrain: {data}"
-                        if attempt < max_retries - 1:
-                            time.sleep(retry_delay)
-                            retry_delay *= 2
-                            file.seek(0)
-                            continue
-                        break
-
-                    # Construct public URL
-                    url = f"https://pixeldrain.com/u/{data['id']}"
-                    logger.debug(f"Successfully uploaded to pixeldrain.com: {url}")
-                    return UploadResult(
-                        url=url,
-                        metadata={
-                            "provider": "pixeldrain",
-                            "success": True,
-                            "raw_response": data,
-                        },
-                    )
-
-                except requests.RequestException as e:
-                    last_error = f"Request failed: {e}"
-                    if attempt < max_retries - 1:
-                        time.sleep(retry_delay)
-                        retry_delay *= 2
-                        file.seek(0)
-
-            if last_error:
-                raise ValueError(last_error)
-            msg = "Upload failed after retries"
-            raise ValueError(msg)
+            return UploadResult(
+                url=url,
+                metadata={
+                    "provider": self.provider_name,
+                    "success": True,
+                    "raw_response": {"id": url.split("/")[-1]},
+                },
+            )
 
         except Exception as e:
-            logger.error(f"Failed to upload to pixeldrain.com: {e}")
+            # Log failure
+            log_upload_attempt(
+                provider_name=self.provider_name,
+                file_path=file.name,
+                success=False,
+                error=e,
+            )
+
             return UploadResult(
                 url="",
                 metadata={
-                    "provider": "pixeldrain",
+                    "provider": self.provider_name,
                     "success": False,
                     "error": str(e),
                 },
@@ -139,7 +188,7 @@ class PixeldrainProvider(BaseProvider):
     @classmethod
     def get_credentials(cls) -> None:
         """Simple providers don't need credentials"""
-        return convert_to_upload_result(None)
+        return None
 
     @classmethod
     def get_provider(cls) -> ProviderClient | None:
@@ -169,20 +218,21 @@ def upload_file(
     remote_path: str | Path | None = None,
 ) -> UploadResult:
     """
-    Upload a file and return convert_to_upload_result(its URL.
+    Upload a file and return its URL.
 
     Args:
         local_path: Path to the file to upload
         remote_path: Optional remote path (ignored for simple providers)
 
     Returns:
-        str: URL to the uploaded file
+        UploadResult: Result containing URL and metadata
 
     Raises:
         ValueError: If upload fails
     """
-    provider = get_provider()
-    if not provider:
-        msg = "Failed to initialize provider"
-        raise ValueError(msg)
-    return provider.upload_file(local_path, remote_path)
+    return standard_upload_wrapper(
+        get_provider(),
+        "pixeldrain",
+        local_path,
+        remote_path,
+    )
