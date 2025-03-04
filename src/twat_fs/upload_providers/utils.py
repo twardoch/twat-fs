@@ -15,7 +15,12 @@ from typing import (
     BinaryIO,
     TypeVar,
     ParamSpec,
-    cast,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
     TYPE_CHECKING,
 )
 from collections.abc import Generator
@@ -197,38 +202,17 @@ def create_provider_instance(
     provider_name = getattr(provider_class, "__name__", "Unknown")
 
     try:
-        # Special case for the test_create_provider_instance_with_no_credentials test
-        if provider_name == "MockProvider" and credentials is None:
-            # For test_create_provider_instance_with_no_credentials
-            if hasattr(provider_class, "get_credentials") and not hasattr(
-                provider_class, "get_provider"
-            ):
-                credentials = provider_class.get_credentials()
-                return provider_class()
-            # For test_create_provider_instance_with_get_provider
-            elif hasattr(provider_class, "get_provider"):
-                return provider_class.get_provider()
-            # For test_create_provider_instance_with_error
-            elif (
-                hasattr(provider_class, "get_provider")
-                and getattr(provider_class.get_provider, "side_effect", None)
-                is not None
-            ):
-                return None
-            # For test_create_provider_instance_with_direct_instantiation
-            else:
-                return provider_class()
-
-        # First, check if the provider class has a get_provider method
-        try:
-            return provider_class.get_provider()
-        except (AttributeError, TypeError):
-            # If get_provider fails, continue with other methods
-            pass
-
-        # If credentials are not provided, try to get them from the provider class
-        if credentials is None:
+        # If no credentials are provided, try to get them from the provider class
+        if credentials is None and hasattr(provider_class, "get_credentials"):
             credentials = provider_class.get_credentials()
+
+        # Check if the provider class has a get_provider method
+        if hasattr(provider_class, "get_provider"):
+            try:
+                return provider_class.get_provider()
+            except (AttributeError, TypeError):
+                # If get_provider fails, continue with direct instantiation
+                pass
 
         # Try direct instantiation
         return provider_class()
