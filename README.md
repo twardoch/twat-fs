@@ -276,24 +276,25 @@ ruff check --output-format=github --fix --unsafe-fixes . && ruff format --respec
 
 Based on the latest linting and test results, the following issues need to be addressed:
 
-1. **Type Annotation Issues**:
-   - Incompatible return types in async methods
-   - Type mismatches in factory.py and simple.py
-   - Missing type annotations for variables in simple.py
-   - Improper typing for async/await conversions
+1. **Missing Dependencies for Tests**:
+   - Some tests require additional dependencies: 'fal_client', 'botocore', 'responses'
+   - Need to install these dependencies or implement proper test skipping
+   - Affected files: `tests/test_integration.py`, `tests/test_s3_advanced.py`, `tests/test_upload.py`
 
 2. **Boolean Argument Issues**:
    - FBT001/FBT002 linter errors for boolean positional arguments
    - FBT003 linter errors for boolean positional values in function calls
    - Need to convert boolean positional arguments to keyword-only arguments
 
-3. **Test Failures**:
-   - TestLogUploadAttempt.test_log_upload_attempt_success test failing
-   - TestGatherWithConcurrency.test_gather_with_concurrency_with_exceptions test failing
+3. **Type Annotation Issues**:
+   - Incompatible return types in async methods
+   - Type mismatches in factory.py and simple.py
+   - Missing type annotations for variables in simple.py
+   - Improper typing for async/await conversions
 
-4. **Missing Dependencies**:
-   - Some tests require additional dependencies: 'responses', 'fal_client', 'botocore'
-   - Need to install these dependencies or implement proper test skipping
+4. **Exception Handling Issues**:
+   - B904 linter errors: Need to use `raise ... from err` in exception handling
+   - S101 linter errors: Use of `assert` detected in core.py
 
 5. **Function Complexity Issues**:
    - Functions with too many arguments (PLR0913)
@@ -308,7 +309,7 @@ Contributions are welcome! Please check the TODO.md file for current priorities 
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## extra
+## Example Provider Results
 
 ```bash
 for PROVIDER in $(twat fs upload_provider list 2>/dev/null); do URL="$(twat fs upload "./src/twat_fs/data/test.jpg" --provider "$PROVIDER")"; echo "[$PROVIDER]($URL)"; done

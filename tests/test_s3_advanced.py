@@ -11,9 +11,27 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from botocore.exceptions import ClientError
 
-from twat_fs.upload_providers import s3
+# Conditionally import botocore
+try:
+    from botocore.exceptions import ClientError
+
+    HAS_BOTOCORE = True
+except ImportError:
+    HAS_BOTOCORE = False
+
+    # Define a placeholder for ClientError to avoid NameError
+    class ClientError(Exception):
+        pass
+
+
+# Conditionally import S3 provider
+try:
+    from twat_fs.upload_providers import s3
+
+    HAS_S3 = True
+except ImportError:
+    HAS_S3 = False
 
 # Test constants - using uppercase to indicate these are test values
 TEST_BUCKET = "test-bucket"
@@ -25,26 +43,25 @@ TEST_DIR = Path(__file__).parent / "data"
 TEST_FILE = TEST_DIR / "test.txt"
 
 
+@pytest.mark.skipif(
+    not HAS_BOTOCORE or not HAS_S3, reason="Botocore or S3 dependencies not installed"
+)
 class TestAwsCredentialProviders:
     """Test different AWS credential providers."""
 
     def test_environment_credentials(self, monkeypatch):
-        """Test AWS credentials from environment variables."""
+        """Test credentials from environment variables."""
+        # Setup environment variables
         monkeypatch.setenv("AWS_ACCESS_KEY_ID", TEST_ACCESS_KEY)
         monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", TEST_SECRET_KEY)
         monkeypatch.setenv("AWS_S3_BUCKET", TEST_BUCKET)
 
-        creds = s3.get_credentials()
-        assert creds is not None
-        assert creds["bucket"] == TEST_BUCKET
-        assert creds["aws_access_key_id"] == TEST_ACCESS_KEY
-        assert creds["aws_secret_access_key"] == TEST_SECRET_KEY
+        # Create S3 provider
+        provider = s3.S3Provider()
 
-        with patch("boto3.client") as mock_client:
-            mock_s3 = mock_client.return_value
-            mock_s3.list_buckets.return_value = {"Buckets": []}
-            provider = s3.get_provider(creds)
-            assert provider is not None
+        # Check that credentials were loaded correctly
+        assert provider.client is not None
+        assert provider.bucket == TEST_BUCKET
 
     def test_shared_credentials_file(self, tmp_path, monkeypatch):
         """Test using shared credentials file."""

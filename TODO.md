@@ -10,7 +10,7 @@ Tip: Periodically run `python ./cleanup.py status` to see results of lints and t
 
 - [ ] Fix missing dependencies for tests
   - [ ] Install missing dependencies for tests or implement proper test skipping
-    - Issue: ModuleNotFoundError for 'responses', 'fal_client', 'botocore'
+    - Issue: ModuleNotFoundError for 'fal_client', 'botocore', 'responses'
     - Fix: Add `uv pip install 'twat-fs[test,dev]'` or implement conditional imports with proper test skipping
     - Affected files:
       - `tests/test_integration.py`: Needs 'fal_client'

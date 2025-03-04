@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized logging patterns with `log_upload_attempt` function
 - Improved error classification with `RetryableError` and `NonRetryableError` classes
 - Centralized utilities in `utils.py` module for shared functionality across providers
+- URL validation to ensure returned URLs are accessible before returning them
+- Standardized async/sync conversion patterns with `to_sync` and `to_async` decorators
 
 ### Changed
 - Fixed `create_provider_instance` function in `utils.py` to correctly handle credential management
@@ -68,9 +70,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - DTZ005: datetime.datetime.now() called without a tz argument
   - S603/S607: Subprocess call security issues
 
-# Development Log
+## Development Log
 
-## Completed
+### Completed
 
 - Fixed `create_provider_instance` function in `utils.py` to correctly handle credential management:
   - Properly calls `get_credentials` when no credentials are provided
@@ -105,36 +107,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Created comprehensive unit tests for utility functions
 
-## In Progress
+### Next Steps
 
-- Fixing type annotation issues identified by linter
-  - Addressing incompatible return types in async methods
-  - Fixing type mismatches in factory.py and simple.py
-  - Ensuring proper typing for async/await conversions
-  - Resolving "possibly unbound" variable warnings in upload.py
+- Fix missing dependencies for tests
+  - Install missing dependencies for tests or implement proper test skipping
+  - Address ModuleNotFoundError for 'responses', 'fal_client', 'botocore'
 
-- Fixing remaining failing unit tests
-  - TestLogUploadAttempt.test_log_upload_attempt_success test failing because logger.info is not being called
-  - TestGatherWithConcurrency.test_gather_with_concurrency_with_exceptions test failing with RuntimeError instead of ValueError
+- Fix boolean argument issues
+  - Convert boolean positional arguments to keyword-only arguments
+  - Fix FBT001/FBT002 linter errors in function definitions
+  - Fix FBT003 linter errors in function calls
 
-- Addressing boolean argument issues
-  - Converting boolean positional arguments to keyword-only arguments
-  - Fixing FBT001/FBT002 linter errors in function definitions
-  - Fixing FBT003 linter errors in function calls
+- Fix type annotation issues
+  - Address incompatible return types in async methods
+  - Fix type mismatches in factory.py and simple.py
+  - Add missing type annotations for variables
 
-- Addressing linter issues in cleanup.py
-  - DTZ005: datetime.datetime.now() called without a tz argument
-  - S603/S607: Subprocess call security issues
+- Fix exception handling issues
+  - Implement proper exception chaining with `raise ... from err`
+  - Replace assert statements with proper error handling
 
-## Next Steps
+- Fix function complexity issues
+  - Refactor functions with too many arguments
+  - Simplify complex functions with too many branches/statements/returns
 
-- Fix exception handling issues with proper exception chaining
-- Update pyproject.toml to move 'per-file-ignores' to 'lint.per-file-ignores' section
-- Implement additional upload providers from the TODO list
-- Update documentation with new provider capabilities
-- Refine HTTP response handling across providers
-
-## Technical Debt
+### Technical Debt
 
 - Update provider implementations to match new protocol type hints
 - Standardize error handling across all providers
