@@ -59,15 +59,15 @@ class S3Provider(BaseProvider):
     """Provider for AWS S3 uploads"""
 
     PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
-    provider_name: str = "s3"
+    provider_name: ClassVar[str] = "s3"
 
     # Required environment variables
-    REQUIRED_ENV_VARS = [
+    REQUIRED_ENV_VARS: ClassVar[list[str]] = [
         "AWS_S3_BUCKET",
     ]
 
     # Optional environment variables
-    OPTIONAL_ENV_VARS = [
+    OPTIONAL_ENV_VARS: ClassVar[list[str]] = [
         "AWS_DEFAULT_REGION",
         "AWS_ENDPOINT_URL",
         "AWS_S3_PATH_STYLE",
@@ -120,7 +120,7 @@ class S3Provider(BaseProvider):
             return boto3.client("s3", **client_kwargs)
         except Exception as e:
             msg = f"Failed to create S3 client: {e}"
-            raise NonRetryableError(msg, self.provider_name)
+            raise NonRetryableError(msg, self.provider_name) from e
 
     def _get_s3_url(self, key: str) -> str:
         """
@@ -170,10 +170,10 @@ class S3Provider(BaseProvider):
             error_str = str(e)
             if "ConnectionError" in error_str or "Timeout" in error_str:
                 msg = f"Temporary connection issue: {e}"
-                raise RetryableError(msg, self.provider_name)
+                raise RetryableError(msg, self.provider_name) from e
             else:
                 msg = f"Upload failed: {e}"
-                raise NonRetryableError(msg, self.provider_name)
+                raise NonRetryableError(msg, self.provider_name) from e
 
     def upload_file_impl(
         self,

@@ -45,10 +45,10 @@ class LitterboxProvider(BaseProvider):
 
     # Class variables
     PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
-    provider_name = "litterbox"
+    provider_name: ClassVar[str] = "litterbox"
 
     # Environment variables
-    OPTIONAL_ENV_VARS: list[str] = ["LITTERBOX_DEFAULT_EXPIRATION"]
+    OPTIONAL_ENV_VARS: ClassVar[list[str]] = ["LITTERBOX_DEFAULT_EXPIRATION"]
 
     def __init__(
         self, default_expiration: ExpirationTime | str = ExpirationTime.HOURS_12

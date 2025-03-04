@@ -128,9 +128,9 @@ class FalProvider(BaseProvider):
         except Exception as e:
             if "401" in str(e) or "unauthorized" in str(e).lower():
                 msg = "FAL API key is invalid or expired. Please generate a new key."
-                raise NonRetryableError(msg, self.provider_name)
+                raise NonRetryableError(msg, self.provider_name) from e
             msg = f"FAL API check failed: {e}"
-            raise RetryableError(msg, self.provider_name)
+            raise RetryableError(msg, self.provider_name) from e
 
         try:
             # Try uploading the file directly
@@ -138,21 +138,21 @@ class FalProvider(BaseProvider):
 
             if not result:
                 msg = "FAL upload failed - no URL in response"
-                raise RetryableError(msg, self.provider_name)
+                raise RetryableError(msg, self.provider_name) from None
 
             result_str = str(result).strip()
             if not result_str:
                 msg = "FAL upload failed - empty URL in response"
-                raise RetryableError(msg, self.provider_name)
+                raise RetryableError(msg, self.provider_name) from None
 
             return result_str
 
         except Exception as e:
             if "401" in str(e) or "unauthorized" in str(e).lower():
                 msg = f"FAL upload failed - unauthorized: {e}"
-                raise NonRetryableError(msg, self.provider_name)
+                raise NonRetryableError(msg, self.provider_name) from e
             msg = f"FAL upload failed: {e}"
-            raise RetryableError(msg, self.provider_name)
+            raise RetryableError(msg, self.provider_name) from e
 
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """

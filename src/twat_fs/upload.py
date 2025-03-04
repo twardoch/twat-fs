@@ -752,7 +752,7 @@ def _try_upload_with_fallback(
         remaining = [p for p in PROVIDERS_PREFERENCE if p not in tried]
         if not remaining:
             msg = "All providers failed"
-            raise RuntimeError(msg)
+            raise RuntimeError(msg) from None
 
         # Try next provider with fallback
         return _try_upload_with_fallback(

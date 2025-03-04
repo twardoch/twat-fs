@@ -113,11 +113,11 @@ class FilebinProvider(BaseProvider):
                     retry_delay *= 2
                     continue
                 msg = f"Request failed: {e}"
-                raise NonRetryableError(msg, self.provider_name)
+                raise NonRetryableError(msg, self.provider_name) from e
 
         # This should never be reached due to the exception handling above
         msg = "Upload failed after retries"
-        raise NonRetryableError(msg, self.provider_name)
+        raise NonRetryableError(msg, self.provider_name) from None
 
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """
