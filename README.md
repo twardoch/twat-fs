@@ -40,8 +40,9 @@ The codebase has undergone significant refactoring to improve maintainability an
 
 The project is in active development with several key areas of focus:
 
-* **Fixing Type Annotation Issues**: Addressing incompatible return types and type mismatches
-* **Resolving Remaining Test Failures**: Fixing failing unit tests in the utils and async_utils modules
+* **Fixing Type Annotation Issues**: Addressing incompatible return types in async methods, type mismatches in factory.py and simple.py, and ensuring proper typing for async/await conversions
+* **Resolving Remaining Test Failures**: Fixing failing unit tests, particularly in TestLogUploadAttempt and TestGatherWithConcurrency
+* **Addressing Boolean Argument Issues**: Converting boolean positional arguments to keyword-only arguments to fix FBT001/FBT002 linter errors
 * **Improving Exception Handling**: Implementing proper exception chaining across providers
 * **Addressing Linter Issues**: Fixing various linter warnings, particularly in cleanup.py and cli.py
 * **Expanding Provider Support**: Planning implementation of additional upload providers
@@ -248,204 +249,53 @@ export AWS_SECRET_ACCESS_KEY="secret_key"
 
 # Optional
 export AWS_ENDPOINT_URL="custom_endpoint"  # For S3-compatible services
-export AWS_S3_PATH_STYLE="true"  # For path-style endpoints
-export AWS_ROLE_ARN="role_to_assume"
-```
-
-### FAL.ai
-
-```bash
-export FAL_KEY="your_key_here"
-```
-
-## Architecture
-
-### Provider System
-
-The package uses a provider-based architecture with these key components:
-
-1. **Provider Registry**: Central registry of available providers
-   * Maintains provider preference order
-   * Handles lazy loading of provider modules
-   * Provides runtime protocol checking
-   * Manages provider fallback chain
-
-2. **Provider Protocol**: Formal interface that all providers must implement
-   * Credentials management
-   * Client initialization
-   * File upload functionality
-   * Help and setup information
-   * Error classification (retryable vs. non-retryable)
-
-3. **Provider Client**: The actual implementation that handles uploads
-   * Provider-specific upload logic
-   * Error handling and retries
-   * URL validation
-   * Progress tracking (where supported)
-
-4. **Error Handling**: Structured error hierarchy
-   * RetryableError: Temporary failures (rate limits, timeouts)
-   * NonRetryableError: Permanent failures (auth, invalid files)
-   * Automatic retry with exponential backoff
-   * Provider fallback for permanent failures
-
-5. **BaseProvider**: Abstract base class for all providers
-   * Implements common functionality
-   * Standardizes method signatures
-   * Provides default implementations
-   * Reduces code duplication
-
-6. **Factory Pattern**: Centralized provider instantiation
-   * Simplifies provider creation
-   * Standardizes error handling during initialization
-   * Reduces code duplication in provider creation
-   * Provides a cleaner API for getting provider instances
-
-7. **Async/Sync Utilities**: Standardized conversion patterns
-   * `run_async`: For running coroutines in a synchronous context
-   * `to_sync`: Decorator for converting async functions to sync
-   * `to_async`: Decorator for converting sync functions to async
-   * `gather_with_concurrency`: For limiting concurrent async operations
-   * `AsyncContextManager`: Base class for implementing async context managers
-   * `with_async_timeout`: Decorator for adding timeouts to async functions
-
-8. **Utility Functions**: Shared functionality across providers
-   * File validation and handling
-   * HTTP response processing
-   * Credential management
-   * Logging standardization
-
-### Type System
-
-Strong typing throughout with runtime checks:
-
-* Type hints for all public APIs
-* Runtime protocol verification
-* Custom types for provider-specific data
-* Error type hierarchy
-
-## Implementing a New Provider
-
-To add a new storage provider, use one of the provided templates in the `templates` directory:
-
-* `simple_provider_template.py`: For providers without authentication
-* `authenticated_provider_template.py`: For providers requiring credentials
-
-These templates include:
-* Standard imports and class structure
-* Consistent error handling patterns
-* Proper use of utility functions
-* Documentation templates and type annotations
-* Module-level functions implementing the Provider protocol
-
-Example implementation (simplified):
-
-```python
-from pathlib import Path
-from typing import Any, BinaryIO, ClassVar
-from twat_fs.upload_providers.simple import BaseProvider
-from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
-from twat_fs.upload_providers.utils import (
-    create_provider_help,
-    log_upload_attempt,
-    standard_upload_wrapper,
-)
-from twat_fs.upload_providers.types import UploadResult
-
-# Provider-specific help messages
-PROVIDER_HELP: ProviderHelp = create_provider_help(
-    setup_instructions="Setup instructions for users...",
-    dependency_info="Additional dependencies needed..."
-)
-
-class YourProvider(BaseProvider):
-    """Provider for your service."""
-    
-    # Class variables
-    PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
-    provider_name = "your_provider"
-    
-    def _do_upload(self, file: BinaryIO) -> str:
-        """Implement the actual upload logic."""
-        # Your implementation here
-        ...
-        return "https://example.com/uploaded_file"
-        
-    def upload_file_impl(self, file: BinaryIO) -> UploadResult:
-        """Handle the file upload process."""
-        try:
-            url = self._do_upload(file)
-            log_upload_attempt(self.provider_name, file.name, success=True)
-            return convert_to_upload_result(url, metadata={"provider": self.provider_name})
-        except Exception as e:
-            log_upload_attempt(self.provider_name, file.name, success=False, error=e)
-            raise
-
-# Module-level functions
-def get_credentials() -> dict[str, Any] | None:
-    """Get provider credentials."""
-    return None  # For simple providers
-
-def get_provider() -> ProviderClient | None:
-    """Initialize and return the provider."""
-    return YourProvider()
-
-def upload_file(local_path: str | Path, remote_path: str | Path | None = None, **kwargs) -> UploadResult:
-    """Upload a file using this provider."""
-    return standard_upload_wrapper(
-        provider=get_provider(),
-        provider_name="your_provider",
-        local_path=local_path,
-        remote_path=remote_path,
-        **kwargs
-    )
 ```
 
 ## Development
 
-### Running Tests
+### Running Tests and Linting
+
+The project uses `cleanup.py` for managing repository tasks and maintaining code quality:
 
 ```bash
-# Run all tests
+# Check the current state of the repository
+python ./cleanup.py status
+
+# Install dependencies
+uv pip install -e '.[test,dev]'
+
+# Run tests
 python -m pytest
 
-# Run specific test modules
-python -m pytest tests/test_utils.py tests/test_async_utils.py -v
-
-# Run with coverage
-python -m pytest --cov=twat_fs
+# Run linting
+ruff check --output-format=github --fix --unsafe-fixes . && ruff format --respect-gitignore --target-version py312 .
 ```
 
-### Linting
+### Current Issues
 
-```bash
-# Run linter with fixes
-ruff check --output-format=github --fix --unsafe-fixes .
+Based on the latest linting and test results, the following issues need to be addressed:
 
-# Format code
-ruff format --respect-gitignore --target-version py312 .
-```
+1. **Type Annotation Issues**:
+   - Incompatible return types in async methods
+   - Type mismatches in factory.py and simple.py
+   - Improper typing for async/await conversions
 
-### Project Status
+2. **Boolean Argument Issues**:
+   - FBT001/FBT002 linter errors for boolean positional arguments
+   - Need to convert to keyword-only arguments
 
-Run the cleanup script to check the status of lints and tests:
+3. **Test Failures**:
+   - TestLogUploadAttempt.test_log_upload_attempt_success test failing
+   - TestGatherWithConcurrency.test_gather_with_concurrency_with_exceptions test failing
 
-```bash
-./cleanup.py status
-```
+4. **Missing Dependencies**:
+   - Some tests require additional dependencies: 'responses', 'fal_client', 'botocore'
 
-## Contributing
+### Contributing
 
-Contributions are welcome! Please check the TODO.md file for current priorities and planned features.
+Contributions are welcome! Please check the TODO.md file for current priorities and open issues.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Run tests and linting to ensure code quality
-4. Commit your changes (`git commit -m 'Add some amazing feature'`)
-5. Push to the branch (`git push origin feature/amazing-feature`)
-6. Open a Pull Request
-
-### License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 

@@ -6,8 +6,7 @@ this_file: TODO.md
 
 Tip: Periodically run `python ./cleanup.py status` to see results of lints and tests. Use `uv pip ...` not `pip ...`
 
-
-## Phase 1
+## High Priority
 
 - [ ] Fix failing unit tests
   - [x] Fix `TestCreateProviderInstance` tests
@@ -18,58 +17,84 @@ Tip: Periodically run `python ./cleanup.py status` to see results of lints and t
   - [ ] Fix `TestGatherWithConcurrency.test_gather_with_concurrency_with_exceptions` test
     - Issue: Test is failing with RuntimeError instead of ValueError
     - Fix: Ensure the correct exception type is propagated in gather_with_concurrency
-- [ ] Fix boolean argument issues in `utils.py`
-  - [ ] Fix FBT001 linter error in `utils.py` line 251
-    - Issue: Boolean-typed positional argument in function definition
+- [ ] Fix boolean argument issues
+  - [ ] Fix FBT001/FBT002 linter errors for boolean positional arguments
+    - Issue: Boolean-typed positional arguments in function definitions
     - Fix: Convert boolean positional arguments to keyword-only arguments
-  - [ ] Refactor functions with too many arguments
-    - Use keyword-only arguments for optional parameters
-    - Group related parameters into dataclasses or TypedDict
+    - Affected files:
+      - `utils.py` line 251: `log_upload_attempt` function
+      - `upload.py` lines 251, 381: `setup_provider` and `setup_providers` functions
+      - `cli.py` lines 202, 203, 205: `upload` method
+  - [ ] Fix FBT003 linter errors for boolean positional values in function calls
+    - Affected files:
+      - `upload.py` multiple instances in `ProviderInfo` instantiation
+      - `test_utils.py` lines 340, 349: `log_upload_attempt` calls
 - [ ] Fix type annotation issues
-  - [ ] Fix missing imports for `aiohttp` and `loguru`
-  - [ ] Fix unknown attribute error for `Response.status`
-  - [ ] Add proper type hints for HTTP response objects
+  - [ ] Fix incompatible return types in async methods
+    - Issue: Return type mismatches in async functions
+    - Affected files:
+      - `simple.py` lines 120, 156, 273: Return type incompatibilities
+  - [ ] Fix type mismatches in factory.py
+    - Issue: Incompatible types in assignment (expression has type Module, variable has type "Provider | None")
+  - [ ] Fix missing type annotations
+    - Issue: Need type annotation for variables
+    - Affected files:
+      - `simple.py` lines 237, 261: Missing type annotations for "sync_upload"
+  - [ ] Fix missing dependencies for tests
+    - Issue: ModuleNotFoundError for 'responses', 'fal_client', 'botocore'
+    - Fix: Install missing dependencies or add proper test skipping
 
-## Phase 2
+## Medium Priority
 
+- [ ] Fix function complexity issues
+  - [ ] Refactor functions with too many arguments (PLR0913)
+    - Affected files:
+      - `cli.py` line 198: `upload` method
+      - `upload.py` lines 411, 550, 619, 703: Multiple functions
+      - `litterbox.py` lines 223, 300: `upload_file` functions
+  - [ ] Refactor complex functions (C901)
+    - Affected files:
+      - `upload.py` lines 57, 250: `_test_provider_online` and `setup_provider` functions
+  - [ ] Fix functions with too many branches/statements/returns (PLR0911, PLR0912, PLR0915)
+    - Affected files:
+      - `upload.py` lines 57, 250: Multiple complexity issues
 - [ ] Fix exception handling issues
-  - [ ] Implement consistent error handling patterns
-  - [ ] Add proper error context in exception messages
-  - [ ] Use custom exception types for specific error scenarios
+  - [ ] Fix B904 linter errors (raise with from)
+    - Issue: Within an `except` clause, raise exceptions with `raise ... from err`
+    - Affected files:
+      - `upload.py` line 687
+      - `fal.py` line 67
+  - [ ] Fix S101 linter errors (use of assert)
+    - Affected files:
+      - `core.py` lines 168, 214
+- [ ] Fix unused arguments and imports
+  - [ ] Fix ARG002 linter errors (unused method arguments)
+    - Affected files:
+      - `dropbox.py` line 124: Unused `kwargs`
+      - `s3.py` line 182: Unused `kwargs`
+      - `simple.py` multiple instances: Unused arguments
+  - [ ] Fix F401 linter errors (unused imports)
+    - Affected files:
+      - `__init__.py` lines 11, 19: Unused imports
+
+## Low Priority
+
 - [ ] Fix linter issues in `cleanup.py`
-  - [ ] Address unused imports
-  - [ ] Fix function complexity issues
-  - [ ] Improve error handling
+  - [ ] Address DTZ005: datetime.datetime.now() called without a tz argument
+  - [ ] Fix S603/S607: Subprocess call security issues
 - [ ] Update `pyproject.toml` to fix deprecated linter settings
   - [ ] Update ruff configuration
   - [ ] Add explicit Python version targets
   - [ ] Configure mypy settings
-
-## Phase 3
-
-- [ ] Improve code quality and maintainability
-  - [ ] Reduce function complexity
-  - [ ] Add comprehensive docstrings
-  - [ ] Implement consistent logging patterns
-- [ ] Enhance test coverage
-  - [ ] Add tests for edge cases
-  - [ ] Implement integration tests for providers
-  - [ ] Add performance benchmarks
-
-## Medium Priority
-
-- [ ] Refine HTTP response handling
-  - [ ] Standardize response parsing across providers
-  - [ ] Improve error message extraction
-- [ ] Fix function complexity issues
-  - [ ] Break down complex functions into smaller, focused functions
-  - [ ] Extract reusable utility functions
-- [ ] Document best practices for creating new providers
-  - [ ] Create comprehensive provider development guide
-  - [ ] Add examples for common provider patterns
-- [ ] Fix unused arguments and imports
-  - [ ] Remove dead code
-  - [ ] Consolidate duplicate functionality
+- [ ] Fix RUF012 linter errors (mutable class attributes)
+  - Affected files:
+    - `fal.py` lines 51, 52: Mutable class attributes should be annotated with `typing.ClassVar`
+- [ ] Fix A005 linter error (module shadows standard library)
+  - Affected files:
+    - `types.py` line 1: Module `types` shadows a Python standard-library module
+- [ ] Fix S105 linter error (possible hardcoded password)
+  - Affected files:
+    - `test_s3_advanced.py` line 21: Hardcoded "TEST_SECRET_KEY"
 
 ## New Providers
 
@@ -81,6 +106,14 @@ Tip: Periodically run `python ./cleanup.py status` to see results of lints and t
 - [ ] Add support for Mega
 - [ ] Add support for Backblaze B2
 - [ ] Add support for Wasabi
+
+## Documentation
+
+- [ ] Document best practices for creating new providers
+  - [ ] Create comprehensive provider development guide
+  - [ ] Add examples for common provider patterns
+- [ ] Update API documentation with latest changes
+- [ ] Create troubleshooting guide for common issues
 
 ## Completed Tasks
 

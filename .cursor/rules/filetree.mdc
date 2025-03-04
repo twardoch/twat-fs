@@ -8,7 +8,7 @@ globs:
 │   └── [ 224]  rules
 │       ├── [ 821]  0project.mdc
 │       ├── [ 516]  cleanup.mdc
-│       ├── [3.4K]  filetree.mdc
+│       ├── [3.5K]  filetree.mdc
 │       └── [2.0K]  quality.mdc
 ├── [  96]  .github
 │   └── [ 128]  workflows
@@ -30,9 +30,9 @@ globs:
 ├── [ 56K]  IDEAS.md
 ├── [1.0K]  LICENSE
 ├── [ 153]  MANIFEST.in
-├── [ 15K]  README.md
-├── [370K]  REPO_CONTENT.txt
-├── [3.4K]  TODO.md
+├── [ 11K]  README.md
+├── [187K]  REPO_CONTENT.txt
+├── [5.3K]  TODO.md
 ├── [   7]  VERSION.txt
 ├── [ 13K]  cleanup.py
 ├── [ 192]  dist
@@ -83,8 +83,7 @@ globs:
 │   ├── [ 180]  test_twat_fs.py
 │   ├── [ 29K]  test_upload.py
 │   └── [ 13K]  test_utils.py
-├── [185K]  twat_search.txt
 ├── [2.8K]  update_providers.py
 └── [383K]  uv.lock
 
-17 directories, 67 files
+17 directories, 66 files
