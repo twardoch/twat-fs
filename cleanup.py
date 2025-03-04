@@ -326,6 +326,7 @@ class Cleanup:
 
 
 def repomix(
+    *,
     compress: bool = True,
     remove_empty_lines: bool = True,
     ignore_patterns: str = ".specstory/**/*.md,.venv/**,_private/**,CLEANUP.txt,**/*.json,*.lock",
