@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Factory pattern for provider instantiation to simplify provider creation and standardize error handling
 - Comprehensive unit tests for utility functions
 - Base classes for providers to reduce inheritance boilerplate
+- Standardized logging patterns with `log_upload_attempt` function
+- Improved error classification with `RetryableError` and `NonRetryableError` classes
+- Centralized utilities in `utils.py` module for shared functionality across providers
 
 ### Changed
 - Fixed `create_provider_instance` function in `utils.py` to correctly handle credential management
@@ -34,15 +37,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `fal.py`: Made FalProvider inherit from BaseProvider, improved error handling and credential management
   - `litterbox.py`: Made LitterboxProvider inherit from BaseProvider, improved error handling with special handling for expiration parameter
 - Standardized async/sync conversion patterns for providers that support both operations
-- Improved error handling with `RetryableError` and `NonRetryableError`
-- Added standardized logging with `log_upload_attempt`
-- Enhanced type hints for better IDE support
+- Enhanced type hints for better IDE support and runtime type checking
+- Improved URL validation to ensure returned URLs are accessible before returning them
 
 ### Fixed
 - Fixed test failures in `TestCreateProviderInstance` test class
 - Fixed test failures in `TestGatherWithConcurrency` test class
 - Improved error handling and logging across all providers
 - Fixed recursion issues in pixeldrain provider
+- Standardized provider help format for better consistency
 
 ## In Progress
 
@@ -56,9 +59,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - TestLogUploadAttempt.test_log_upload_attempt_success test failing because logger.info is not being called
   - TestGatherWithConcurrency.test_gather_with_concurrency_with_exceptions test failing with RuntimeError instead of ValueError
 
+- Addressing boolean argument issues
+  - Converting boolean positional arguments to keyword-only arguments
+  - Fixing FBT001/FBT002 linter errors in function definitions
+  - Fixing FBT003 linter errors in function calls
+
 - Addressing linter issues in cleanup.py
   - DTZ005: datetime.datetime.now() called without a tz argument
-  - FBT001/FBT002: Boolean-typed positional arguments
   - S603/S607: Subprocess call security issues
 
 # Development Log
@@ -110,9 +117,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - TestLogUploadAttempt.test_log_upload_attempt_success test failing because logger.info is not being called
   - TestGatherWithConcurrency.test_gather_with_concurrency_with_exceptions test failing with RuntimeError instead of ValueError
 
+- Addressing boolean argument issues
+  - Converting boolean positional arguments to keyword-only arguments
+  - Fixing FBT001/FBT002 linter errors in function definitions
+  - Fixing FBT003 linter errors in function calls
+
 - Addressing linter issues in cleanup.py
   - DTZ005: datetime.datetime.now() called without a tz argument
-  - FBT001/FBT002: Boolean-typed positional arguments
   - S603/S607: Subprocess call security issues
 
 ## Next Steps

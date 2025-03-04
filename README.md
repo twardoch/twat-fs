@@ -27,14 +27,15 @@ The codebase has undergone significant refactoring to improve maintainability an
 * **Fixed Provider Instantiation**: Improved the `create_provider_instance` function to correctly handle credential management and provider instantiation order
 * **Centralized Utilities**: Created a `utils.py` module with shared functionality for all providers
 * **Standardized Implementation**: All providers now follow consistent patterns and inherit from `BaseProvider`
-* **Improved Error Handling**: Enhanced error classification and handling across all providers
+* **Improved Error Handling**: Enhanced error classification and handling across all providers with `RetryableError` and `NonRetryableError` classes
 * **Provider Templates**: Created templates for simple and authenticated providers to standardize implementation
 * **Better Type Safety**: Improved type annotations and protocol compatibility
-* **Consistent Logging**: Standardized logging patterns for better debugging and monitoring
+* **Consistent Logging**: Standardized logging patterns with `log_upload_attempt` function for better debugging and monitoring
 * **Factory Pattern**: Implemented a factory pattern for provider instantiation to simplify creation and standardize error handling
 * **Async/Sync Utilities**: Created standardized utilities for async/sync conversion to ensure consistent patterns across providers
 * **Comprehensive Testing**: Added thorough unit tests for utility functions covering edge cases and error conditions
 * **Provider Base Classes**: Created base classes to reduce inheritance boilerplate and standardize provider implementation
+* **URL Validation**: Improved URL validation to ensure returned URLs are accessible before returning them
 
 ## Current Status
 
@@ -278,11 +279,13 @@ Based on the latest linting and test results, the following issues need to be ad
 1. **Type Annotation Issues**:
    - Incompatible return types in async methods
    - Type mismatches in factory.py and simple.py
+   - Missing type annotations for variables in simple.py
    - Improper typing for async/await conversions
 
 2. **Boolean Argument Issues**:
    - FBT001/FBT002 linter errors for boolean positional arguments
-   - Need to convert to keyword-only arguments
+   - FBT003 linter errors for boolean positional values in function calls
+   - Need to convert boolean positional arguments to keyword-only arguments
 
 3. **Test Failures**:
    - TestLogUploadAttempt.test_log_upload_attempt_success test failing
@@ -290,6 +293,12 @@ Based on the latest linting and test results, the following issues need to be ad
 
 4. **Missing Dependencies**:
    - Some tests require additional dependencies: 'responses', 'fal_client', 'botocore'
+   - Need to install these dependencies or implement proper test skipping
+
+5. **Function Complexity Issues**:
+   - Functions with too many arguments (PLR0913)
+   - Complex functions with too many branches/statements/returns (C901, PLR0911, PLR0912, PLR0915)
+   - Need to refactor these functions for better maintainability
 
 ### Contributing
 
