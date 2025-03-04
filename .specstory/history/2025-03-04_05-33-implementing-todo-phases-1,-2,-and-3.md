@@ -2999,7 +2999,1407 @@ Read current @TODO.md , update @CHANGELOG.md file that details all the changes w
 
 _**Assistant**_
 
+I'll help you update the project documentation and run the cleanup script to check the status of lints and tests. Let's start by examining the current state of the files and then make the necessary updates.
 
+First, let's run the cleanup.py script to see the current status:
+
+---
+
+_****_
+
+```bash
+./cleanup.py status
+```
+
+```
+(twat_fs) adam@Hamlet twat_fs % 
+
+```
+
+---
+
+_****_
+
+
+
+Let me try running the script with python explicitly:
+
+---
+
+_****_
+
+```bash
+python cleanup.py status
+```
+
+```
+(twat_fs) adam@Hamlet twat_fs % 
+
+```
+
+---
+
+_****_
+
+
+
+
+
+Let's try running the linter directly to see if there are any issues:
+
+---
+
+_****_
+
+```bash
+ruff check --output-format=github --fix --unsafe-fixes . && ruff format --respect-gitignore --target-version py312 .
+```
+
+```
+warning: The top-level linter settings are deprecated in favour of
+ their counterparts in the `lint` section. Please update the follo
+wing options in `pyproject.toml`:
+  - 'per-file-ignores' -> 'lint.per-file-ignores'
+::error title=Ruff (DTZ005),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/cleanu
+p.py,line=104,col=17,endLine=104,endColumn=31::cleanup.py:104:17:
+DTZ005 `datetime.datetime.now()` called without a `tz` argument
+::error title=Ruff (FBT001),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/cleanu
+p.py,line=110,col=33,endLine=110,endColumn=38::cleanup.py:110:33:
+FBT001 Boolean-typed positional argument in function definition
+::error title=Ruff (FBT002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/cleanu
+p.py,line=110,col=33,endLine=110,endColumn=38::cleanup.py:110:33:
+FBT002 Boolean default positional argument in function definition
+::error title=Ruff (S603),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/cleanup.
+py,line=113,col=18,endLine=113,endColumn=32::cleanup.py:113:18: S6
+03 `subprocess` call: check for execution of untrusted input
+::error title=Ruff (S603),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/cleanup.
+py,line=128,col=9,endLine=128,endColumn=23::cleanup.py:128:9: S603
+ `subprocess` call: check for execution of untrusted input
+::error title=Ruff (S607),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/cleanup.
+py,line=128,col=24,endLine=128,endColumn=38::cleanup.py:128:24: S6
+07 Starting a process with a partial executable path
+::error title=Ruff (FBT001),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/cleanu
+p.py,line=323,col=5,endLine=323,endColumn=13::cleanup.py:323:5: FB
+T001 Boolean-typed positional argument in function definition
+::error title=Ruff (FBT002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/cleanu
+p.py,line=323,col=5,endLine=323,endColumn=13::cleanup.py:323:5: FB
+T002 Boolean default positional argument in function definition
+::error title=Ruff (FBT001),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/cleanu
+p.py,line=324,col=5,endLine=324,endColumn=23::cleanup.py:324:5: FB
+T001 Boolean-typed positional argument in function definition
+::error title=Ruff (FBT002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/cleanu
+p.py,line=324,col=5,endLine=324,endColumn=23::cleanup.py:324:5: FB
+T002 Boolean default positional argument in function definition
+::error title=Ruff (C901),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/cli.py,line=61,col=9,endLine=61,endColumn=15::src/twat_fs/cli.
+py:61:9: C901 `status` is too complex (12 > 10)
+::error title=Ruff (PLR0912),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/cli.py,line=61,col=9,endLine=61,endColumn=15::src/twat_fs/c
+li.py:61:9: PLR0912 Too many branches (15 > 12)
+::error title=Ruff (PLR0915),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/cli.py,line=61,col=9,endLine=61,endColumn=15::src/twat_fs/c
+li.py:61:9: PLR0915 Too many statements (52 > 50)
+::error title=Ruff (FBT001),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/cli.py,line=61,col=54,endLine=61,endColumn=60::src/twat_fs/c
+li.py:61:54: FBT001 Boolean-typed positional argument in function
+definition
+::error title=Ruff (FBT002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/cli.py,line=61,col=54,endLine=61,endColumn=60::src/twat_fs/c
+li.py:61:54: FBT002 Boolean default positional argument in functio
+n definition
+::error title=Ruff (PLW2901),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/cli.py,line=137,col=21,endLine=137,endColumn=27::src/twat_f
+s/cli.py:137:21: PLW2901 `with` statement variable `status` overwr
+itten by assignment target
+::error title=Ruff (FBT001),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/cli.py,line=162,col=20,endLine=162,endColumn=26::src/twat_fs
+/cli.py:162:20: FBT001 Boolean-typed positional argument in functi
+on definition
+::error title=Ruff (FBT002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/cli.py,line=162,col=20,endLine=162,endColumn=26::src/twat_fs
+/cli.py:162:20: FBT002 Boolean default positional argument in func
+tion definition
+::error title=Ruff (B007),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/cli.py,line=180,col=13,endLine=180,endColumn=21::src/twat_fs/c
+li.py:180:13: B007 Loop control variable `provider` not used withi
+n loop body
+::error title=Ruff (PLR0913),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/cli.py,line=198,col=9,endLine=198,endColumn=15::src/twat_fs
+/cli.py:198:9: PLR0913 Too many arguments in function definition (
+6 > 5)
+::error title=Ruff (FBT001),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/cli.py,line=202,col=9,endLine=202,endColumn=15::src/twat_fs/
+cli.py:202:9: FBT001 Boolean-typed positional argument in function
+ definition
+::error title=Ruff (FBT002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/cli.py,line=202,col=9,endLine=202,endColumn=15::src/twat_fs/
+cli.py:202:9: FBT002 Boolean default positional argument in functi
+on definition
+::error title=Ruff (FBT001),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/cli.py,line=203,col=9,endLine=203,endColumn=14::src/twat_fs/
+cli.py:203:9: FBT001 Boolean-typed positional argument in function
+ definition
+::error title=Ruff (FBT002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/cli.py,line=203,col=9,endLine=203,endColumn=14::src/twat_fs/
+cli.py:203:9: FBT002 Boolean default positional argument in functi
+on definition
+::error title=Ruff (FBT001),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/cli.py,line=205,col=9,endLine=205,endColumn=16::src/twat_fs/
+cli.py:205:9: FBT001 Boolean-typed positional argument in function
+ definition
+::error title=Ruff (FBT002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/cli.py,line=205,col=9,endLine=205,endColumn=16::src/twat_fs/
+cli.py:205:9: FBT002 Boolean default positional argument in functi
+on definition
+::error title=Ruff (C901),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload.py,line=57,col=5,endLine=57,endColumn=26::src/twat_fs/u
+pload.py:57:5: C901 `_test_provider_online` is too complex (19 > 1
+0)
+::error title=Ruff (PLR0911),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/upload.py,line=57,col=5,endLine=57,endColumn=26::src/twat_f
+s/upload.py:57:5: PLR0911 Too many return statements (11 > 6)
+::error title=Ruff (PLR0912),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/upload.py,line=57,col=5,endLine=57,endColumn=26::src/twat_f
+s/upload.py:57:5: PLR0912 Too many branches (21 > 12)
+::error title=Ruff (PLR0915),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/upload.py,line=57,col=5,endLine=57,endColumn=26::src/twat_f
+s/upload.py:57:5: PLR0915 Too many statements (73 > 50)
+::error title=Ruff (C901),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload.py,line=250,col=5,endLine=250,endColumn=19::src/twat_fs
+/upload.py:250:5: C901 `setup_provider` is too complex (13 > 10)
+::error title=Ruff (PLR0911),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/upload.py,line=250,col=5,endLine=250,endColumn=19::src/twat
+_fs/upload.py:250:5: PLR0911 Too many return statements (7 > 6)
+::error title=Ruff (PLR0912),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/upload.py,line=250,col=5,endLine=250,endColumn=19::src/twat
+_fs/upload.py:250:5: PLR0912 Too many branches (14 > 12)
+::error title=Ruff (FBT001),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=251,col=20,endLine=251,endColumn=27::src/twat
+_fs/upload.py:251:20: FBT001 Boolean-typed positional argument in
+function definition
+::error title=Ruff (FBT002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=251,col=20,endLine=251,endColumn=27::src/twat
+_fs/upload.py:251:20: FBT002 Boolean default positional argument i
+n function definition
+::error title=Ruff (FBT001),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=251,col=43,endLine=251,endColumn=49::src/twat
+_fs/upload.py:251:43: FBT001 Boolean-typed positional argument in
+function definition
+::error title=Ruff (FBT002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=251,col=43,endLine=251,endColumn=49::src/twat
+_fs/upload.py:251:43: FBT002 Boolean default positional argument i
+n function definition
+::error title=Ruff (FBT003),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=268,col=17,endLine=268,endColumn=22::src/twat
+_fs/upload.py:268:17: FBT003 Boolean positional value in function
+call
+::error title=Ruff (FBT003),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=279,col=21,endLine=279,endColumn=26::src/twat
+_fs/upload.py:279:21: FBT003 Boolean positional value in function
+call
+::error title=Ruff (FBT003),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=285,col=17,endLine=285,endColumn=22::src/twat
+_fs/upload.py:285:17: FBT003 Boolean positional value in function
+call
+::error title=Ruff (FBT003),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=306,col=21,endLine=306,endColumn=26::src/twat
+_fs/upload.py:306:21: FBT003 Boolean positional value in function
+call
+::error title=Ruff (FBT003),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=329,col=21,endLine=329,endColumn=25::src/twat
+_fs/upload.py:329:21: FBT003 Boolean positional value in function
+call
+::error title=Ruff (FBT003),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=337,col=21,endLine=337,endColumn=26::src/twat
+_fs/upload.py:337:21: FBT003 Boolean positional value in function
+call
+::error title=Ruff (FBT003),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=346,col=25,endLine=346,endColumn=30::src/twat
+_fs/upload.py:346:25: FBT003 Boolean positional value in function
+call
+::error title=Ruff (FBT003),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=366,col=17,endLine=366,endColumn=22::src/twat
+_fs/upload.py:366:17: FBT003 Boolean positional value in function
+call
+::error title=Ruff (FBT003),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=374,col=13,endLine=374,endColumn=18::src/twat
+_fs/upload.py:374:13: FBT003 Boolean positional value in function
+call
+::error title=Ruff (FBT001),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=381,col=5,endLine=381,endColumn=12::src/twat_
+fs/upload.py:381:5: FBT001 Boolean-typed positional argument in fu
+nction definition
+::error title=Ruff (FBT002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=381,col=5,endLine=381,endColumn=12::src/twat_
+fs/upload.py:381:5: FBT002 Boolean default positional argument in
+function definition
+::error title=Ruff (FBT001),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=381,col=28,endLine=381,endColumn=34::src/twat
+_fs/upload.py:381:28: FBT001 Boolean-typed positional argument in
+function definition
+::error title=Ruff (FBT002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload.py,line=381,col=28,endLine=381,endColumn=34::src/twat
+_fs/upload.py:381:28: FBT002 Boolean default positional argument i
+n function definition
+::error title=Ruff (PLR0913),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/upload.py,line=411,col=5,endLine=411,endColumn=30::src/twat
+_fs/upload.py:411:5: PLR0913 Too many arguments in function defini
+tion (6 > 5)
+::error title=Ruff (PLR0913),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/upload.py,line=550,col=5,endLine=550,endColumn=23::src/twat
+_fs/upload.py:550:5: PLR0913 Too many arguments in function defini
+tion (8 > 5)
+::error title=Ruff (PLR0913),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/upload.py,line=619,col=5,endLine=619,endColumn=16::src/twat
+_fs/upload.py:619:5: PLR0913 Too many arguments in function defini
+tion (7 > 5)
+::error title=Ruff (B904),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload.py,line=687,col=13,endLine=687,endColumn=55::src/twat_f
+s/upload.py:687:13: B904 Within an `except` clause, raise exceptio
+ns with `raise ... from err` or `raise ... from None` to distingui
+sh them from errors in exception handling
+::error title=Ruff (PLR0913),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/upload.py,line=703,col=5,endLine=703,endColumn=30::src/twat
+_fs/upload.py:703:5: PLR0913 Too many arguments in function defini
+tion (7 > 5)
+::error title=Ruff (B904),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload.py,line=755,col=13,endLine=755,endColumn=36::src/twat_f
+s/upload.py:755:13: B904 Within an `except` clause, raise exceptio
+ns with `raise ... from err` or `raise ... from None` to distingui
+sh them from errors in exception handling
+::error title=Ruff (F401),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload_providers/__init__.py,line=11,col=20,endLine=11,endColu
+mn=26::src/twat_fs/upload_providers/__init__.py:11:20: F401 `logur
+u.logger` imported but unused
+::error title=Ruff (F401),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload_providers/__init__.py,line=19,col=25,endLine=19,endColu
+mn=29::src/twat_fs/upload_providers/__init__.py:19:25: F401 `pathl
+ib.Path` imported but unused
+::error title=Ruff (PLC0105),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/upload_providers/core.py,line=28,col=5,endLine=28,endColumn
+=12::src/twat_fs/upload_providers/core.py:28:5: PLC0105 `TypeVar`
+name "T" does not reflect its covariance; consider renaming it to
+"T_co"
+::error title=Ruff (PLC0105),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/upload_providers/core.py,line=29,col=5,endLine=29,endColumn
+=12::src/twat_fs/upload_providers/core.py:29:5: PLC0105 `TypeVar`
+name "R" does not reflect its covariance; consider renaming it to
+"R_co"
+::error title=Ruff (S101),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload_providers/core.py,line=168,col=13,endLine=168,endColumn
+=19::src/twat_fs/upload_providers/core.py:168:13: S101 Use of `ass
+ert` detected
+::error title=Ruff (S101),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload_providers/core.py,line=214,col=13,endLine=214,endColumn
+=19::src/twat_fs/upload_providers/core.py:214:13: S101 Use of `ass
+ert` detected
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/dropbox.py,line=124,col=11,endLine=124,endC
+olumn=17::src/twat_fs/upload_providers/dropbox.py:124:11: ARG002 U
+nused method argument: `kwargs`
+::error title=Ruff (RUF012),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/fal.py,line=51,col=25,endLine=51,endColumn=
+36::src/twat_fs/upload_providers/fal.py:51:25: RUF012 Mutable clas
+s attributes should be annotated with `typing.ClassVar`
+::error title=Ruff (RUF012),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/fal.py,line=52,col=36,endLine=52,endColumn=
+38::src/twat_fs/upload_providers/fal.py:52:36: RUF012 Mutable clas
+s attributes should be annotated with `typing.ClassVar`
+::error title=Ruff (B904),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload_providers/fal.py,line=67,col=13,endLine=67,endColumn=61
+::src/twat_fs/upload_providers/fal.py:67:13: B904 Within an `excep
+t` clause, raise exceptions with `raise ... from err` or `raise ..
+. from None` to distinguish them from errors in exception handling
+::error title=Ruff (B904),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload_providers/fal.py,line=131,col=17,endLine=131,endColumn=
+65::src/twat_fs/upload_providers/fal.py:131:17: B904 Within an `ex
+cept` clause, raise exceptions with `raise ... from err` or `raise
+ ... from None` to distinguish them from errors in exception handl
+ing
+::error title=Ruff (B904),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload_providers/fal.py,line=133,col=13,endLine=133,endColumn=
+58::src/twat_fs/upload_providers/fal.py:133:13: B904 Within an `ex
+cept` clause, raise exceptions with `raise ... from err` or `raise
+ ... from None` to distinguish them from errors in exception handl
+ing
+::error title=Ruff (B904),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload_providers/fal.py,line=153,col=17,endLine=153,endColumn=
+65::src/twat_fs/upload_providers/fal.py:153:17: B904 Within an `ex
+cept` clause, raise exceptions with `raise ... from err` or `raise
+ ... from None` to distinguish them from errors in exception handl
+ing
+::error title=Ruff (B904),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload_providers/fal.py,line=155,col=13,endLine=155,endColumn=
+58::src/twat_fs/upload_providers/fal.py:155:13: B904 Within an `ex
+cept` clause, raise exceptions with `raise ... from err` or `raise
+ ... from None` to distinguish them from errors in exception handl
+ing
+::error title=Ruff (B904),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload_providers/filebin.py,line=116,col=17,endLine=116,endCol
+umn=65::src/twat_fs/upload_providers/filebin.py:116:17: B904 Withi
+n an `except` clause, raise exceptions with `raise ... from err` o
+r `raise ... from None` to distinguish them from errors in excepti
+on handling
+::error title=Ruff (RUF012),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/litterbox.py,line=51,col=36,endLine=51,endC
+olumn=68::src/twat_fs/upload_providers/litterbox.py:51:36: RUF012
+Mutable class attributes should be annotated with `typing.ClassVar
+`
+::error title=Ruff (PLR0913),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/upload_providers/litterbox.py,line=223,col=9,endLine=223,en
+dColumn=20::src/twat_fs/upload_providers/litterbox.py:223:9: PLR09
+13 Too many arguments in function definition (6 > 5)
+::error title=Ruff (PLR0913),file=/Users/adam/Developer/vcs/github
+.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/t
+wat_fs/upload_providers/litterbox.py,line=300,col=5,endLine=300,en
+dColumn=16::src/twat_fs/upload_providers/litterbox.py:300:5: PLR09
+13 Too many arguments in function definition (6 > 5)
+::error title=Ruff (RUF012),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/s3.py,line=65,col=25,endLine=67,endColumn=6
+::src/twat_fs/upload_providers/s3.py:65:25: RUF012 Mutable class a
+ttributes should be annotated with `typing.ClassVar`
+::error title=Ruff (RUF012),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/s3.py,line=70,col=25,endLine=78,endColumn=6
+::src/twat_fs/upload_providers/s3.py:70:25: RUF012 Mutable class a
+ttributes should be annotated with `typing.ClassVar`
+::error title=Ruff (B904),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload_providers/s3.py,line=123,col=13,endLine=123,endColumn=6
+1::src/twat_fs/upload_providers/s3.py:123:13: B904 Within an `exce
+pt` clause, raise exceptions with `raise ... from err` or `raise .
+.. from None` to distinguish them from errors in exception handlin
+g
+::error title=Ruff (B904),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload_providers/s3.py,line=173,col=17,endLine=173,endColumn=6
+2::src/twat_fs/upload_providers/s3.py:173:17: B904 Within an `exce
+pt` clause, raise exceptions with `raise ... from err` or `raise .
+.. from None` to distinguish them from errors in exception handlin
+g
+::error title=Ruff (B904),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload_providers/s3.py,line=176,col=17,endLine=176,endColumn=6
+5::src/twat_fs/upload_providers/s3.py:176:17: B904 Within an `exce
+pt` clause, raise exceptions with `raise ... from err` or `raise .
+.. from None` to distinguish them from errors in exception handlin
+g
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/s3.py,line=182,col=11,endLine=182,endColumn
+=17::src/twat_fs/upload_providers/s3.py:182:11: ARG002 Unused meth
+od argument: `kwargs`
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/simple.py,line=78,col=9,endLine=78,endColum
+n=20::src/twat_fs/upload_providers/simple.py:78:9: ARG002 Unused m
+ethod argument: `remote_path`
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/simple.py,line=80,col=9,endLine=80,endColum
+n=15::src/twat_fs/upload_providers/simple.py:80:9: ARG002 Unused m
+ethod argument: `unique`
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/simple.py,line=81,col=9,endLine=81,endColum
+n=14::src/twat_fs/upload_providers/simple.py:81:9: ARG002 Unused m
+ethod argument: `force`
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/simple.py,line=82,col=9,endLine=82,endColum
+n=20::src/twat_fs/upload_providers/simple.py:82:9: ARG002 Unused m
+ethod argument: `upload_path`
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/simple.py,line=83,col=11,endLine=83,endColu
+mn=17::src/twat_fs/upload_providers/simple.py:83:11: ARG002 Unused
+ method argument: `kwargs`
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/simple.py,line=123,col=9,endLine=123,endCol
+umn=20::src/twat_fs/upload_providers/simple.py:123:9: ARG002 Unuse
+d method argument: `remote_path`
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/simple.py,line=125,col=9,endLine=125,endCol
+umn=15::src/twat_fs/upload_providers/simple.py:125:9: ARG002 Unuse
+d method argument: `unique`
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/simple.py,line=126,col=9,endLine=126,endCol
+umn=14::src/twat_fs/upload_providers/simple.py:126:9: ARG002 Unuse
+d method argument: `force`
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/simple.py,line=127,col=9,endLine=127,endCol
+umn=20::src/twat_fs/upload_providers/simple.py:127:9: ARG002 Unuse
+d method argument: `upload_path`
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/simple.py,line=128,col=11,endLine=128,endCo
+lumn=17::src/twat_fs/upload_providers/simple.py:128:11: ARG002 Unu
+sed method argument: `kwargs`
+::error title=Ruff (A005),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/twat
+_fs/upload_providers/types.py,line=1,col=1,endLine=1,endColumn=1::
+src/twat_fs/upload_providers/types.py:1:1: A005 Module `types` sha
+dows a Python standard-library module
+::error title=Ruff (FBT001),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/src/tw
+at_fs/upload_providers/utils.py,line=238,col=5,endLine=238,endColu
+mn=12::src/twat_fs/upload_providers/utils.py:238:5: FBT001 Boolean
+-typed positional argument in function definition
+::error title=Ruff (RUF012),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/templa
+tes/authenticated_provider_template.py,line=42,col=25,endLine=45,e
+ndColumn=6::templates/authenticated_provider_template.py:42:25: RU
+F012 Mutable class attributes should be annotated with `typing.Cla
+ssVar`
+::error title=Ruff (RUF012),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/templa
+tes/authenticated_provider_template.py,line=48,col=25,endLine=51,e
+ndColumn=6::templates/authenticated_provider_template.py:48:25: RU
+F012 Mutable class attributes should be annotated with `typing.Cla
+ssVar`
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/templa
+tes/authenticated_provider_template.py,line=214,col=9,endLine=214,
+endColumn=14::templates/authenticated_provider_template.py:214:9:
+ARG002 Unused method argument: `force`
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/templa
+tes/authenticated_provider_template.py,line=216,col=11,endLine=216
+,endColumn=17::templates/authenticated_provider_template.py:216:11
+: ARG002 Unused method argument: `kwargs`
+::error title=Ruff (S105),file=/Users/adam/Developer/vcs/github.tw
+ardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/tests/te
+st_s3_advanced.py,line=21,col=19,endLine=21,endColumn=32::tests/te
+st_s3_advanced.py:21:19: S105 Possible hardcoded password assigned
+ to: "TEST_SECRET_KEY"
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/tests/
+test_upload.py,line=351,col=9,endLine=351,endColumn=30::tests/test
+_upload.py:351:9: ARG002 Unused method argument: `mock_dropbox_pro
+vider`
+::error title=Ruff (ARG002),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/tests/
+test_utils.py,line=104,col=55,endLine=104,endColumn=66::tests/test
+_utils.py:104:55: ARG002 Unused method argument: `mock_access`
+::error title=Ruff (FBT003),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/tests/
+test_utils.py,line=331,col=62,endLine=331,endColumn=66::tests/test
+_utils.py:331:62: FBT003 Boolean positional value in function call
+::error title=Ruff (FBT003),file=/Users/adam/Developer/vcs/github.
+twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_fs/tests/
+test_utils.py,line=340,col=62,endLine=340,endColumn=67::tests/test
+_utils.py:340:62: FBT003 Boolean positional value in function call
+```
+
+---
+
+_****_
+
+
+
+
+
+Now let's run the tests to see if they're passing:
+
+---
+
+_****_
+
+```bash
+python -m pytest
+```
+
+```
+====================== test session starts =======================
+platform darwin -- Python 3.12.8, pytest-8.3.5, pluggy-1.5.0 -- /U
+sers/adam/Developer/vcs/github.twardoch/pub/twat-packages/_good/tw
+at/plugins/repos/twat_fs/.venv/bin/python
+cachedir: .pytest_cache
+benchmark: 5.1.0 (defaults: timer=time.perf_counter disable_gc=Fal
+se min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precisi
+on=10 warmup=False warmup_iterations=100000)
+rootdir: /Users/adam/Developer/vcs/github.twardoch/pub/twat-packag
+es/_good/twat/plugins/repos/twat_fs
+configfile: pyproject.toml
+testpaths: tests
+plugins: cov-6.0.0, asyncio-0.25.3, anyio-4.8.0, benchmark-5.1.0, 
+timeout-2.3.1, mock-3.14.0, typeguard-4.4.2
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=functi
+on
+collected 46 items / 4 errors                                    
+
+============================= ERRORS =============================
+_______ ERROR collecting tests/test_filebin_pixeldrain.py ________
+ImportError while importing test module '/Users/adam/Developer/vcs
+/github.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_f
+s/tests/test_filebin_pixeldrain.py'.
+Hint: make sure your test modules/packages have valid Python names
+.
+Traceback:
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/
+importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_filebin_pixeldrain.py:10: in <module>
+    import responses
+E   ModuleNotFoundError: No module named 'responses'
+___________ ERROR collecting tests/test_integration.py ___________
+ImportError while importing test module '/Users/adam/Developer/vcs
+/github.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_f
+s/tests/test_integration.py'.
+Hint: make sure your test modules/packages have valid Python names
+.
+Traceback:
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/
+importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_integration.py:17: in <module>
+    from twat_fs.upload_providers import (
+src/twat_fs/upload_providers/fal.py:12: in <module>
+    import fal_client  # type: ignore
+E   ModuleNotFoundError: No module named 'fal_client'
+___________ ERROR collecting tests/test_s3_advanced.py ___________
+ImportError while importing test module '/Users/adam/Developer/vcs
+/github.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_f
+s/tests/test_s3_advanced.py'.
+Hint: make sure your test modules/packages have valid Python names
+.
+Traceback:
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/
+importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_s3_advanced.py:14: in <module>
+    from botocore.exceptions import ClientError
+E   ModuleNotFoundError: No module named 'botocore'
+_____________ ERROR collecting tests/test_upload.py ______________
+ImportError while importing test module '/Users/adam/Developer/vcs
+/github.twardoch/pub/twat-packages/_good/twat/plugins/repos/twat_f
+s/tests/test_upload.py'.
+Hint: make sure your test modules/packages have valid Python names
+.
+Traceback:
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/
+importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_upload.py:14: in <module>
+    from botocore.exceptions import ClientError
+E   ModuleNotFoundError: No module named 'botocore'
+==================== short test summary info =====================
+ERROR tests/test_filebin_pixeldrain.py
+ERROR tests/test_integration.py
+ERROR tests/test_s3_advanced.py
+ERROR tests/test_upload.py
+!!!!!!!!!!!! Interrupted: 4 errors during collection !!!!!!!!!!!!!
+======================= 4 errors in 1.42s ========================
+
+```
+
+---
+
+_****_
+
+
+
+
+
+
+
+Let's try running just the tests for the utils and async_utils modules that we've been working on:
+
+---
+
+_****_
+
+```bash
+python -m pytest tests/test_utils.py tests/test_async_utils.py -v
+```
+
+```
+====================== test session starts =======================
+platform darwin -- Python 3.12.8, pytest-8.3.5, pluggy-1.5.0 -- /U
+sers/adam/Developer/vcs/github.twardoch/pub/twat-packages/_good/tw
+at/plugins/repos/twat_fs/.venv/bin/python
+cachedir: .pytest_cache
+benchmark: 5.1.0 (defaults: timer=time.perf_counter disable_gc=Fal
+se min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precisi
+on=10 warmup=False warmup_iterations=100000)
+rootdir: /Users/adam/Developer/vcs/github.twardoch/pub/twat-packag
+es/_good/twat/plugins/repos/twat_fs
+configfile: pyproject.toml
+plugins: cov-6.0.0, asyncio-0.25.3, anyio-4.8.0, benchmark-5.1.0, 
+timeout-2.3.1, mock-3.14.0, typeguard-4.4.2
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=functi
+on
+collected 45 items                                               
+
+tests/test_utils.py::TestCreateProviderHelp::test_create_provider_
+help PASSED [  2%]
+tests/test_utils.py::TestSafeFileHandle::test_safe_file_handle_wit
+h_valid_file PASSED [  4%]
+tests/test_utils.py::TestSafeFileHandle::test_safe_file_handle_wit
+h_nonexistent_file PASSED [  6%]
+tests/test_utils.py::TestSafeFileHandle::test_safe_file_handle_wit
+h_directory PASSED [  8%]
+tests/test_utils.py::TestValidateFile::test_validate_file_with_val
+id_file PASSED [ 11%]
+tests/test_utils.py::TestValidateFile::test_validate_file_with_non
+existent_file PASSED [ 13%]
+tests/test_utils.py::TestValidateFile::test_validate_file_with_dir
+ectory PASSED [ 15%]
+tests/test_utils.py::TestValidateFile::test_validate_file_with_unr
+eadable_file PASSED [ 17%]
+tests/test_utils.py::TestHandleHttpResponse::test_handle_http_resp
+onse_with_200_requests PASSED [ 20%]
+tests/test_utils.py::TestHandleHttpResponse::test_handle_http_resp
+onse_with_200_aiohttp PASSED [ 22%]
+tests/test_utils.py::TestHandleHttpResponse::test_handle_http_resp
+onse_with_429_requests PASSED [ 24%]
+tests/test_utils.py::TestHandleHttpResponse::test_handle_http_resp
+onse_with_429_aiohttp PASSED [ 26%]
+tests/test_utils.py::TestHandleHttpResponse::test_handle_http_resp
+onse_with_503_requests PASSED [ 28%]
+tests/test_utils.py::TestHandleHttpResponse::test_handle_http_resp
+onse_with_400_requests PASSED [ 31%]
+tests/test_utils.py::TestHandleHttpResponse::test_handle_http_resp
+onse_with_other_error_requests PASSED [ 33%]
+tests/test_utils.py::TestGetEnvCredentials::test_get_env_credentia
+ls_with_all_required_vars PASSED [ 35%]
+tests/test_utils.py::TestGetEnvCredentials::test_get_env_credentia
+ls_with_missing_required_vars PASSED [ 37%]
+tests/test_utils.py::TestGetEnvCredentials::test_get_env_credentia
+ls_with_optional_vars PASSED [ 40%]
+tests/test_utils.py::TestGetEnvCredentials::test_get_env_credentia
+ls_with_missing_optional_vars PASSED [ 42%]
+tests/test_utils.py::TestCreateProviderInstance::test_create_provi
+der_instance_with_get_provider PASSED [ 44%]
+tests/test_utils.py::TestCreateProviderInstance::test_create_provi
+der_instance_with_direct_instantiation FAILED [ 46%]
+tests/test_utils.py::TestCreateProviderInstance::test_create_provi
+der_instance_with_credentials PASSED [ 48%]
+tests/test_utils.py::TestCreateProviderInstance::test_create_provi
+der_instance_with_no_credentials PASSED [ 51%]
+tests/test_utils.py::TestCreateProviderInstance::test_create_provi
+der_instance_with_error FAILED [ 53%]
+tests/test_utils.py::TestStandardUploadWrapper::test_standard_uplo
+ad_wrapper_with_valid_provider PASSED [ 55%]
+tests/test_utils.py::TestStandardUploadWrapper::test_standard_uplo
+ad_wrapper_with_none_provider PASSED [ 57%]
+tests/test_utils.py::TestLogUploadAttempt::test_log_upload_attempt
+_success FAILED [ 60%]
+tests/test_utils.py::TestLogUploadAttempt::test_log_upload_attempt
+_failure PASSED [ 62%]
+tests/test_async_utils.py::TestRunAsync::test_run_async_with_succe
+ssful_coroutine PASSED [ 64%]
+tests/test_async_utils.py::TestRunAsync::test_run_async_with_excep
+tion PASSED [ 66%]
+tests/test_async_utils.py::TestRunAsync::test_run_async_with_exist
+ing_event_loop PASSED [ 68%]
+tests/test_async_utils.py::TestToSync::test_to_sync_with_direct_de
+coration PASSED [ 71%]
+tests/test_async_utils.py::TestToSync::test_to_sync_with_arguments
+ PASSED [ 73%]
+tests/test_async_utils.py::TestToSync::test_to_sync_preserves_docs
+tring PASSED [ 75%]
+tests/test_async_utils.py::TestToSync::test_to_sync_preserves_argu
+ments PASSED [ 77%]
+tests/test_async_utils.py::TestToAsync::test_to_async_with_direct_
+decoration PASSED [ 80%]
+tests/test_async_utils.py::TestToAsync::test_to_async_with_argumen
+ts PASSED [ 82%]
+tests/test_async_utils.py::TestToAsync::test_to_async_preserves_do
+cstring PASSED [ 84%]
+tests/test_async_utils.py::TestToAsync::test_to_async_preserves_ar
+guments PASSED [ 86%]
+tests/test_async_utils.py::TestGatherWithConcurrency::test_gather_
+with_concurrency PASSED [ 88%]
+tests/test_async_utils.py::TestGatherWithConcurrency::test_gather_
+with_concurrency_with_exceptions FAILED [ 91%]
+tests/test_async_utils.py::TestAsyncContextManager::test_async_con
+text_manager PASSED [ 93%]
+tests/test_async_utils.py::TestWithAsyncTimeout::test_with_async_t
+imeout_success PASSED [ 95%]
+tests/test_async_utils.py::TestWithAsyncTimeout::test_with_async_t
+imeout_timeout PASSED [ 97%]
+tests/test_async_utils.py::TestWithAsyncTimeout::test_with_async_t
+imeout_preserves_metadata PASSED [100%]
+
+============================ FAILURES ============================
+_ TestCreateProviderInstance.test_create_provider_instance_with_di
+rect_instantiation _
+
+provider_class = <Mock spec='Provider' id='4408556144'>
+credentials = <Mock name='mock.get_credentials()' id='4406604096'>
+
+    def create_provider_instance(
+        provider_class: type[Provider],
+        credentials: dict[str, Any] | None = None,
+    ) -> ProviderClient | None:
+        """
+        Create a provider instance with standard error handling.
+    
+        Args:
+            provider_class: Provider class to instantiate
+            credentials: Optional credentials for the provider
+    
+        Returns:
+            Optional[ProviderClient]: Provider instance or None if
+ initialization fails
+        """
+        try:
+            if credentials is None:
+                credentials = provider_class.get_credentials()
+    
+            if hasattr(provider_class, "get_provider"):
+>               return provider_class.get_provider()
+
+src/twat_fs/upload_providers/utils.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/
+unittest/mock.py:1139: in __call__
+    return self._mock_call(*args, **kwargs)
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/
+unittest/mock.py:1143: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Mock name='mock.get_provider' id='4405877680'>, args = ()
+kwargs = {}, effect = <class 'AttributeError'>
+
+    def _execute_mock_call(self, /, *args, **kwargs):
+        # separate from _increment_mock_call so that awaited funct
+ions are
+        # executed separately from their call, also AsyncMock over
+rides this method
+    
+        effect = self.side_effect
+        if effect is not None:
+            if _is_exception(effect):
+>               raise effect
+E               AttributeError
+
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/
+unittest/mock.py:1198: AttributeError
+
+During handling of the above exception, another exception occurred
+:
+
+self = <tests.test_utils.TestCreateProviderInstance object at 0x10
+6c22000>
+
+    def test_create_provider_instance_with_direct_instantiation(se
+lf):
+        """Test that create_provider_instance falls back to direct
+ instantiation."""
+        mock_provider = mock.Mock(spec=Provider)
+        mock_provider.get_provider.side_effect = AttributeError
+    
+>       result = create_provider_instance(mock_provider)
+
+tests/test_utils.py:249: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/twat_fs/upload_providers/utils.py:201: in create_provider_inst
+ance
+    logger.warning(f"Failed to initialize provider {provider_class
+.__name__}: {e}")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Mock spec='Provider' id='4408556144'>, name = '__name__'
+
+    def __getattr__(self, name):
+        if name in {'_mock_methods', '_mock_unsafe'}:
+            raise AttributeError(name)
+        elif self._mock_methods is not None:
+            if name not in self._mock_methods or name in _all_magi
+cs:
+>               raise AttributeError("Mock object has no attribute
+ %r" % name)
+E               AttributeError: Mock object has no attribute '__na
+me__'. Did you mean: '__ne__'?
+
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/
+unittest/mock.py:660: AttributeError
+_ TestCreateProviderInstance.test_create_provider_instance_with_er
+ror _
+
+provider_class = <Mock spec='Provider' id='4408552400'>
+credentials = <Mock name='mock.get_credentials()' id='4408555424'>
+
+    def create_provider_instance(
+        provider_class: type[Provider],
+        credentials: dict[str, Any] | None = None,
+    ) -> ProviderClient | None:
+        """
+        Create a provider instance with standard error handling.
+    
+        Args:
+            provider_class: Provider class to instantiate
+            credentials: Optional credentials for the provider
+    
+        Returns:
+            Optional[ProviderClient]: Provider instance or None if
+ initialization fails
+        """
+        try:
+            if credentials is None:
+                credentials = provider_class.get_credentials()
+    
+            if hasattr(provider_class, "get_provider"):
+>               return provider_class.get_provider()
+
+src/twat_fs/upload_providers/utils.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/
+unittest/mock.py:1139: in __call__
+    return self._mock_call(*args, **kwargs)
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/
+unittest/mock.py:1143: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Mock name='mock.get_provider' id='4408556672'>, args = ()
+kwargs = {}, effect = Exception('Test error')
+
+    def _execute_mock_call(self, /, *args, **kwargs):
+        # separate from _increment_mock_call so that awaited funct
+ions are
+        # executed separately from their call, also AsyncMock over
+rides this method
+    
+        effect = self.side_effect
+        if effect is not None:
+            if _is_exception(effect):
+>               raise effect
+E               Exception: Test error
+
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/
+unittest/mock.py:1198: Exception
+
+During handling of the above exception, another exception occurred
+:
+
+self = <tests.test_utils.TestCreateProviderInstance object at 0x10
+6c22f60>
+
+    def test_create_provider_instance_with_error(self):
+        """Test that create_provider_instance returns None if init
+ialization fails."""
+        mock_provider = mock.Mock(spec=Provider)
+        mock_provider.get_provider.side_effect = Exception("Test e
+rror")
+    
+>       result = create_provider_instance(mock_provider)
+
+tests/test_utils.py:278: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/twat_fs/upload_providers/utils.py:201: in create_provider_inst
+ance
+    logger.warning(f"Failed to initialize provider {provider_class
+.__name__}: {e}")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Mock spec='Provider' id='4408552400'>, name = '__name__'
+
+    def __getattr__(self, name):
+        if name in {'_mock_methods', '_mock_unsafe'}:
+            raise AttributeError(name)
+        elif self._mock_methods is not None:
+            if name not in self._mock_methods or name in _all_magi
+cs:
+>               raise AttributeError("Mock object has no attribute
+ %r" % name)
+E               AttributeError: Mock object has no attribute '__na
+me__'. Did you mean: '__ne__'?
+
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/
+unittest/mock.py:660: AttributeError
+______ TestLogUploadAttempt.test_log_upload_attempt_success ______
+
+self = <MagicMock name='info' id='4408968640'>
+
+    def assert_called_once(self):
+        """assert that the mock was called only once.
+        """
+        if not self.call_count == 1:
+            msg = ("Expected '%s' to have been called once. Called
+ %s times.%s"
+                   % (self._mock_name or 'mock',
+                      self.call_count,
+                      self._calls_repr()))
+>           raise AssertionError(msg)
+E           AssertionError: Expected 'info' to have been called on
+ce. Called 0 times.
+
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/
+unittest/mock.py:928: AssertionError
+
+During handling of the above exception, another exception occurred
+:
+
+self = <tests.test_utils.TestLogUploadAttempt object at 0x106c236b
+0>
+mock_logger_info = <MagicMock name='info' id='4408968640'>
+
+    @mock.patch("loguru.logger.info")
+    def test_log_upload_attempt_success(self, mock_logger_info):
+        """Test that log_upload_attempt logs success correctly."""
+        log_upload_attempt("test_provider", "test_file.txt", True)
+    
+>       mock_logger_info.assert_called_once()
+E       AssertionError: Expected 'info' to have been called once. 
+Called 0 times.
+
+tests/test_utils.py:333: AssertionError
+_ TestGatherWithConcurrency.test_gather_with_concurrency_with_exce
+ptions _
+
+self = <tests.test_async_utils.TestGatherWithConcurrency object at
+ 0x106c529c0>
+
+    async def test_gather_with_concurrency_with_exceptions(self):
+        """Test that gather_with_concurrency handles exceptions co
+rrectly."""
+    
+        async def test_task(i):
+            if i % 2 == 0:
+                msg = f"Error in task {i}"
+                raise ValueError(msg)
+            return i
+    
+        # Run 10 tasks with exceptions
+        tasks = [test_task(i) for i in range(10)]
+    
+        # Without return_exceptions=True, the first exception shou
+ld propagate
+        with pytest.raises(ValueError):
+            await gather_with_concurrency(3, *tasks)
+    
+        # With return_exceptions=True, exceptions should be return
+ed
+        result = await gather_with_concurrency(3, *tasks, return_e
+xceptions=True)
+    
+        # Check that all tasks completed
+        assert len(result) == 10
+    
+        # Check that exceptions were returned
+        for i, r in enumerate(result):
+            if i % 2 == 0:
+>               assert isinstance(r, ValueError)
+E               AssertionError: assert False
+E                +  where False = isinstance(RuntimeError('cannot 
+reuse already awaited coroutine'), ValueError)
+
+tests/test_async_utils.py:225: AssertionError
+====================== slowest 10 durations ======================
+0.40s call     tests/test_async_utils.py::TestGatherWithConcurrenc
+y::test_gather_with_concurrency
+0.17s call     tests/test_async_utils.py::TestWithAsyncTimeout::te
+st_with_async_timeout_success
+0.10s call     tests/test_async_utils.py::TestWithAsyncTimeout::te
+st_with_async_timeout_timeout
+0.10s call     tests/test_async_utils.py::TestWithAsyncTimeout::te
+st_with_async_timeout_preserves_metadata
+0.00s setup    tests/test_async_utils.py::TestWithAsyncTimeout::te
+st_with_async_timeout_timeout
+0.00s call     tests/test_utils.py::TestGetEnvCredentials::test_ge
+t_env_credentials_with_optional_vars
+0.00s call     tests/test_utils.py::TestGetEnvCredentials::test_ge
+t_env_credentials_with_missing_required_vars
+0.00s call     tests/test_utils.py::TestGetEnvCredentials::test_ge
+t_env_credentials_with_missing_optional_vars
+0.00s call     tests/test_utils.py::TestGetEnvCredentials::test_ge
+t_env_credentials_with_all_required_vars
+0.00s call     tests/test_async_utils.py::TestRunAsync::test_run_a
+sync_with_existing_event_loop
+==================== short test summary info =====================
+FAILED tests/test_utils.py::TestCreateProviderInstance::test_creat
+e_provider_instance_with_direct_instantiation - AttributeError: Mo
+ck object has no attribute '__name__'. Did you mean: '__ne__'?
+FAILED tests/test_utils.py::TestCreateProviderInstance::test_creat
+e_provider_instance_with_error - AttributeError: Mock object has n
+o attribute '__name__'. Did you mean: '__ne__'?
+FAILED tests/test_utils.py::TestLogUploadAttempt::test_log_upload_
+attempt_success - AssertionError: Expected 'info' to have been cal
+led once. Called 0 times.
+FAILED tests/test_async_utils.py::TestGatherWithConcurrency::test_
+gather_with_concurrency_with_exceptions - AssertionError: assert F
+alse
+ +  where False = isinstance(RuntimeError('cannot reuse already aw
+aited coroutine'), ValueError)
+================== 4 failed, 41 passed in 2.29s ==================
+sys:1: RuntimeWarning: coroutine 'TestRunAsync.test_run_async_with
+_existing_event_loop.<locals>.test_coro' was never awaited
+RuntimeWarning: Enable tracemalloc to get the object allocation tr
+aceback
+
+```
+
+---
+
+_****_
+
+
+
+
+
+
+
+Based on the linter output and test results, I'll now update the documentation files to reflect the current state of the project and prioritize the next steps. Let's start with updating the CHANGELOG.md:
+
+---
+
+_****_
+
+```diff
+  # Development Log
+  
+- ## Changed
++ ## Completed
+  
+  - Refactored all upload providers to use shared utilities from `utils.py`:
+  - Created comprehensive unit tests for utility functions
+  
++ ## In Progress
++ 
++ - Fixing type annotation issues identified by linter
++   - Addressing incompatible return types in async methods
++   - Fixing type mismatches in factory.py and simple.py
++   - Ensuring proper typing for async/await conversions
++   - Resolving "possibly unbound" variable warnings in upload.py
++ 
+  ## Next Steps
+  
+  - Implement additional upload providers from the TODO list
+  - Update documentation with new provider capabilities
+- - Fix type annotation issues identified by linter
++ - Refine HTTP response handling across providers
+  
+  ## Technical Debt
+  - Standardize error handling across all providers
+  - Improve documentation for adding new providers
++ - Fix linter warnings related to boolean arguments and function complexity
+  
+  # Changelog
+  - Standardized async/sync conversion patterns
+  - Created comprehensive unit tests for utility functions
++ - Created provider base classes to reduce inheritance boilerplate
++ 
++ ### In Progress
++ - Fixing type annotation issues identified by linter
++   - Addressing incompatible return types in async methods
++   - Fixing type mismatches in factory.py and simple.py
++   - Ensuring proper typing for async/await conversions
++   - Resolving "possibly unbound" variable warnings in upload.py
+  
+  ### Next Steps
+  - Implement additional upload providers from the TODO list
+  - Update documentation with new provider capabilities
+- - Fix type annotation issues identified by linter
++ - Refine HTTP response handling across providers
+  
+  ## Technical Debt
+  - Update provider implementations to match new protocol type hints
+  - Standardize error handling across all providers
+  - Improve documentation for adding new providers
++ - Fix linter warnings related to boolean arguments and function complexity
+  
+  
+```
+
+---
+
+_****_
+
+
+
+
+
+
+
+Now let's update the README.md file:
+
+---
+
+_****_
+
+```diff
+  * **Async/Sync Utilities**: Created standardized utilities for async/sync conversion to ensure consistent patterns across providers
+  * **Comprehensive Testing**: Added thorough unit tests for utility functions covering edge cases and error conditions
++ * **Provider Base Classes**: Created base classes to reduce inheritance boilerplate and standardize provider implementation
+  
+  ## Project Documentation
+      print(f"Permanent error with {e.provider}: {e}")
+  ```
++ 
++ ### Using the Factory Pattern
++ 
++ ```python
++ from twat_fs.upload_providers.factory import ProviderFactory
++ 
++ # Get a provider instance
++ factory = ProviderFactory()
++ provider = factory.get_provider("s3")
++ 
++ # Upload a file
++ result = provider.upload_file("path/to/file.txt")
++ print(f"File uploaded to: {result.url}")
++ 
++ # Get all available providers
++ available_providers = factory.list_available_providers()
++ print(f"Available providers: {available_providers}")
++ ```
++ 
++ ### Async/Sync Conversion
++ 
++ ```python
++ from twat_fs.upload_providers.async_utils import to_sync, to_async, run_async
++ 
++ # Convert an async function to sync
++ @to_sync
++ async def async_function():
++     # Async implementation
++     return "result"
++ 
++ # Use the sync version
++ result = async_function()  # No need for await
++ 
++ # Convert a sync function to async
++ @to_async
++ def sync_function():
++     # Sync implementation
++     return "result"
++ 
++ # Use the async version
++ async def main():
++     result = await sync_function()
++ 
++ # Run an async function in a sync context
++ result = run_async(async_function())
++ ```
+  
+  ### Command Line Interface
+     * Reduces code duplication
+  
+- 6. **Utility Functions**: Shared functionality across providers
++ 6. **Factory Pattern**: Centralized provider instantiation
++    * Simplifies provider creation
++    * Standardizes error handling during initialization
++    * Reduces code duplication in provider creation
++    * Provides a cleaner API for getting provider instances
++ 
++ 7. **Async/Sync Utilities**: Standardized conversion patterns
++    * `run_async`: For running coroutines in a synchronous context
++    * `to_sync`: Decorator for converting async functions to sync
++    * `to_async`: Decorator for converting sync functions to async
++    * `gather_with_concurrency`: For limiting concurrent async operations
++    * `AsyncContextManager`: Base class for implementing async context managers
++    * `with_async_timeout`: Decorator for adding timeouts to async functions
++ 
++ 8. **Utility Functions**: Shared functionality across providers
+     * File validation and handling
+     * HTTP response processing
+```
+
+---
+
+_****_
+
+
+
+
+
+
+
+
+
+Finally, let's update the TODO.md file based on the linter output and test results:
+
+---
+
+_****_
+
+```diff
+    - Ensure proper typing for async/await conversions
+    - Resolve "possibly unbound" variable warnings in upload.py
++   - Rename TypeVar "T" and "R" to "T_co" and "R_co" in core.py
++   - Add ClassVar annotations to mutable class attributes
++ 
++ - [ ] Fix failing unit tests
++   - Fix TestCreateProviderInstance tests with proper mock setup
++   - Fix TestLogUploadAttempt.test_log_upload_attempt_success test
++   - Fix TestGatherWithConcurrency.test_gather_with_concurrency_with_exceptions test
++ 
++ - [ ] Fix exception handling issues
++   - Use proper exception chaining with `raise ... from err` or `raise ... from None`
++   - Fix B904 linter errors in multiple provider files
+  
+  ## Medium Priority
+    - Improve handling of rate limits (429) and other non-200 responses
+  
++ - [ ] Fix function complexity issues
++   - Refactor complex functions in cli.py and upload.py
++   - Address C901, PLR0911, PLR0912, PLR0915 linter errors
++   - Split large functions into smaller, more focused functions
++ 
++ - [ ] Fix boolean argument issues
++   - Address FBT001, FBT002, FBT003 linter errors
++   - Use keyword arguments for boolean parameters
++   - Refactor functions with too many arguments (PLR0913)
++ 
+  - [ ] Document best practices for creating new providers
+    - Create clear documentation for adding new providers
+    - Show how to leverage the shared utilities
+    - Provide examples of following established patterns
+  
+- - [ ] Add comprehensive type annotations for async operations
+-   - Ensure consistent type handling in async/await conversions
+-   - Improve type hints for async decorators
+-   - Add proper typing for async context managers
++ - [ ] Fix unused arguments and imports
++   - Address ARG002 linter errors in provider classes
++   - Address F401 linter errors for unused imports
++   - Refactor method signatures to remove unused parameters
+  
+  ## New Providers
+```
+
+---
+
+_****_
+
+
+
+
+
+
+
+
+
+Great! I've updated all the documentation files to reflect the current state of the project and prioritize the next steps. Here's a summary of the changes:
+
+1. **CHANGELOG.md**:
+   - Updated to reflect the completed tasks, including the factory pattern, async/sync utilities, and unit tests
+   - Added a new "In Progress" section for the type annotation issues
+   - Updated the "Next Steps" and "Technical Debt" sections to reflect the current priorities
+
+2. **README.md**:
+   - Added information about the factory pattern, async/sync conversion utilities, and provider base classes
+   - Added examples of how to use the factory pattern and async/sync utilities
+   - Updated the architecture section to include the factory pattern and async/sync utilities
+   - Improved the overall documentation to reflect the current state of the project
+
+3. **TODO.md**:
+   - Reorganized the high priority tasks to focus on fixing the linter issues and failing tests
+   - Added specific tasks for fixing type annotation issues, exception handling, function complexity, and boolean argument issues
+   - Removed completed tasks from the main sections and kept them only in the "Completed Tasks" section
+   - Added new tasks based on the linter output and test results
+
+Based on the linter output and test results, the next steps should be:
+
+1. **Fix type annotation issues**:
+   - Rename TypeVar "T" and "R" to "T_co" and "R_co" in core.py
+   - Add ClassVar annotations to mutable class attributes
+   - Fix incompatible return types in async methods
+
+2. **Fix failing unit tests**:
+   - Fix TestCreateProviderInstance tests with proper mock setup
+   - Fix TestLogUploadAttempt.test_log_upload_attempt_success test
+   - Fix TestGatherWithConcurrency.test_gather_with_concurrency_with_exceptions test
+
+3. **Fix exception handling issues**:
+   - Use proper exception chaining with `raise ... from err` or `raise ... from None`
+   - Fix B904 linter errors in multiple provider files
+
+These updates provide a clear roadmap for the next steps in the project and ensure that the documentation accurately reflects the current state of the codebase.
+
+---
+
+_**User**_
+
+Read current @TODO.md , update @CHANGELOG.md file that details all the changes we have done , update README.md so that it explains the project including the recent changes. Then run `./cleanup.py status` to see results of lints and tests, and update @TODO.md so that we have a `- [ ] item` list of things that actually are to be done next (remove things that are done, add things we should do next, re-prioritize existing items). 
+
+---
+
+_**Assistant**_
+
+I've reviewed the current documentation files and can see that they've already been updated to reflect the recent changes and prioritize the next
 
 ---
 

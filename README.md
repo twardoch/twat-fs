@@ -33,6 +33,17 @@ The codebase has undergone significant refactoring to improve maintainability an
 * **Factory Pattern**: Implemented a factory pattern for provider instantiation to simplify creation and standardize error handling
 * **Async/Sync Utilities**: Created standardized utilities for async/sync conversion to ensure consistent patterns across providers
 * **Comprehensive Testing**: Added thorough unit tests for utility functions covering edge cases and error conditions
+* **Provider Base Classes**: Created base classes to reduce inheritance boilerplate and standardize provider implementation
+
+## Current Status
+
+The project is in active development with several key areas of focus:
+
+* **Fixing Type Annotation Issues**: Addressing incompatible return types and type mismatches
+* **Resolving Test Failures**: Fixing failing unit tests in the utils and async_utils modules
+* **Improving Exception Handling**: Implementing proper exception chaining across providers
+* **Addressing Linter Issues**: Fixing various linter warnings, particularly in cleanup.py and cli.py
+* **Expanding Provider Support**: Planning implementation of additional upload providers
 
 ## Project Documentation
 
@@ -80,6 +91,52 @@ except RetryableError as e:
     print(f"Temporary error with {e.provider}: {e}")
 except NonRetryableError as e:
     print(f"Permanent error with {e.provider}: {e}")
+```
+
+### Using the Factory Pattern
+
+```python
+from twat_fs.upload_providers.factory import ProviderFactory
+
+# Get a provider instance
+factory = ProviderFactory()
+provider = factory.get_provider("s3")
+
+# Upload a file
+result = provider.upload_file("path/to/file.txt")
+print(f"File uploaded to: {result.url}")
+
+# Get all available providers
+available_providers = factory.list_available_providers()
+print(f"Available providers: {available_providers}")
+```
+
+### Async/Sync Conversion
+
+```python
+from twat_fs.upload_providers.async_utils import to_sync, to_async, run_async
+
+# Convert an async function to sync
+@to_sync
+async def async_function():
+    # Async implementation
+    return "result"
+
+# Use the sync version
+result = async_function()  # No need for await
+
+# Convert a sync function to async
+@to_async
+def sync_function():
+    # Sync implementation
+    return "result"
+
+# Use the async version
+async def main():
+    result = await sync_function()
+
+# Run an async function in a sync context
+result = run_async(async_function())
 ```
 
 ### Command Line Interface
@@ -215,7 +272,21 @@ The package uses a provider-based architecture with these key components:
    * Provides default implementations
    * Reduces code duplication
 
-6. **Utility Functions**: Shared functionality across providers
+6. **Factory Pattern**: Centralized provider instantiation
+   * Simplifies provider creation
+   * Standardizes error handling during initialization
+   * Reduces code duplication in provider creation
+   * Provides a cleaner API for getting provider instances
+
+7. **Async/Sync Utilities**: Standardized conversion patterns
+   * `run_async`: For running coroutines in a synchronous context
+   * `to_sync`: Decorator for converting async functions to sync
+   * `to_async`: Decorator for converting sync functions to async
+   * `gather_with_concurrency`: For limiting concurrent async operations
+   * `AsyncContextManager`: Base class for implementing async context managers
+   * `with_async_timeout`: Decorator for adding timeouts to async functions
+
+8. **Utility Functions**: Shared functionality across providers
    * File validation and handling
    * HTTP response processing
    * Credential management
@@ -309,17 +380,47 @@ def upload_file(local_path: str | Path, remote_path: str | Path | None = None, *
 
 ## Development
 
-See the [CHANGELOG.md](CHANGELOG.md) for recent changes and the [TODO.md](TODO.md) for upcoming work.
+### Running Tests
 
-### Contributing
+```bash
+# Run all tests
+python -m pytest
 
-Contributions are welcome! Please check the TODO list for areas that need attention.
+# Run specific test modules
+python -m pytest tests/test_utils.py tests/test_async_utils.py -v
+
+# Run with coverage
+python -m pytest --cov=twat_fs
+```
+
+### Linting
+
+```bash
+# Run linter with fixes
+ruff check --output-format=github --fix --unsafe-fixes .
+
+# Format code
+ruff format --respect-gitignore --target-version py312 .
+```
+
+### Project Status
+
+Run the cleanup script to check the status of lints and tests:
+
+```bash
+./cleanup.py status
+```
+
+## Contributing
+
+Contributions are welcome! Please check the TODO.md file for current priorities and planned features.
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests: `python -m pytest`
-5. Submit a pull request
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Run tests and linting to ensure code quality
+4. Commit your changes (`git commit -m 'Add some amazing feature'`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
 
 ### License
 

@@ -158,8 +158,7 @@ File: .cursor/rules/filetree.mdc
 description: File tree of the project
 globs: 
 ---
-[1.1K]  .
-├── [  64]  .benchmarks
+[1.0K]  .
 ├── [  96]  .cursor
 │   └── [ 224]  rules
 │       ├── [ 821]  0project.mdc
@@ -177,14 +176,14 @@ globs:
 │       ├── [2.7K]  .what-is-this.md
 │       ├── [146K]  2025-03-04_03-45-refining-todo-list-from-codebase-review.md
 │       ├── [186K]  2025-03-04_04-43-incorporating-ideas-from-ideas-md-into-todo-md.md
-│       └── [104K]  2025-03-04_05-33-implementing-todo-phases-1,-2,-and-3.md
-├── [6.3K]  CHANGELOG.md
+│       └── [164K]  2025-03-04_05-33-implementing-todo-phases-1,-2,-and-3.md
+├── [7.1K]  CHANGELOG.md
 ├── [ 986]  CLEANUP.txt
 ├── [ 56K]  IDEAS.md
 ├── [1.0K]  LICENSE
 ├── [ 153]  MANIFEST.in
-├── [ 11K]  README.md
-├── [6.8K]  TODO.md
+├── [ 13K]  README.md
+├── [7.8K]  TODO.md
 ├── [   7]  VERSION.txt
 ├── [ 12K]  cleanup.py
 ├── [  96]  dist
@@ -239,7 +238,7 @@ globs:
 ├── [2.8K]  update_providers.py
 └── [383K]  uv.lock
 
-17 directories, 63 files
+16 directories, 63 files
 
 ================
 File: .cursor/rules/quality.mdc
@@ -2323,7 +2322,7 @@ this_file: CHANGELOG.md
 
 # Development Log
 
-## Changed
+## Completed
 
 - Refactored all upload providers to use shared utilities from `utils.py`:
   - `pixeldrain.py`: Fixed recursion issues, improved error handling, standardized logging
@@ -2352,17 +2351,26 @@ this_file: CHANGELOG.md
 
 - Created comprehensive unit tests for utility functions
 
+## In Progress
+
+- Fixing type annotation issues identified by linter
+  - Addressing incompatible return types in async methods
+  - Fixing type mismatches in factory.py and simple.py
+  - Ensuring proper typing for async/await conversions
+  - Resolving "possibly unbound" variable warnings in upload.py
+
 ## Next Steps
 
 - Implement additional upload providers from the TODO list
 - Update documentation with new provider capabilities
-- Fix type annotation issues identified by linter
+- Refine HTTP response handling across providers
 
 ## Technical Debt
 
 - Update provider implementations to match new protocol type hints
 - Standardize error handling across all providers
 - Improve documentation for adding new providers
+- Fix linter warnings related to boolean arguments and function complexity
 
 # Changelog
 
@@ -2443,16 +2451,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implemented a factory pattern for provider instantiation
 - Standardized async/sync conversion patterns
 - Created comprehensive unit tests for utility functions
+- Created provider base classes to reduce inheritance boilerplate
+
+### In Progress
+- Fixing type annotation issues identified by linter
+  - Addressing incompatible return types in async methods
+  - Fixing type mismatches in factory.py and simple.py
+  - Ensuring proper typing for async/await conversions
+  - Resolving "possibly unbound" variable warnings in upload.py
 
 ### Next Steps
 - Implement additional upload providers from the TODO list
 - Update documentation with new provider capabilities
-- Fix type annotation issues identified by linter
+- Refine HTTP response handling across providers
 
 ## Technical Debt
 - Update provider implementations to match new protocol type hints
 - Standardize error handling across all providers
 - Improve documentation for adding new providers
+- Fix linter warnings related to boolean arguments and function complexity
 
 ================
 File: cleanup.py
@@ -4166,6 +4183,7 @@ The codebase has undergone significant refactoring to improve maintainability an
 * **Factory Pattern**: Implemented a factory pattern for provider instantiation to simplify creation and standardize error handling
 * **Async/Sync Utilities**: Created standardized utilities for async/sync conversion to ensure consistent patterns across providers
 * **Comprehensive Testing**: Added thorough unit tests for utility functions covering edge cases and error conditions
+* **Provider Base Classes**: Created base classes to reduce inheritance boilerplate and standardize provider implementation
 
 ## Project Documentation
 
@@ -4213,6 +4231,52 @@ except RetryableError as e:
     print(f"Temporary error with {e.provider}: {e}")
 except NonRetryableError as e:
     print(f"Permanent error with {e.provider}: {e}")
+```
+
+### Using the Factory Pattern
+
+```python
+from twat_fs.upload_providers.factory import ProviderFactory
+
+# Get a provider instance
+factory = ProviderFactory()
+provider = factory.get_provider("s3")
+
+# Upload a file
+result = provider.upload_file("path/to/file.txt")
+print(f"File uploaded to: {result.url}")
+
+# Get all available providers
+available_providers = factory.list_available_providers()
+print(f"Available providers: {available_providers}")
+```
+
+### Async/Sync Conversion
+
+```python
+from twat_fs.upload_providers.async_utils import to_sync, to_async, run_async
+
+# Convert an async function to sync
+@to_sync
+async def async_function():
+    # Async implementation
+    return "result"
+
+# Use the sync version
+result = async_function()  # No need for await
+
+# Convert a sync function to async
+@to_async
+def sync_function():
+    # Sync implementation
+    return "result"
+
+# Use the async version
+async def main():
+    result = await sync_function()
+
+# Run an async function in a sync context
+result = run_async(async_function())
 ```
 
 ### Command Line Interface
@@ -4348,7 +4412,21 @@ The package uses a provider-based architecture with these key components:
    * Provides default implementations
    * Reduces code duplication
 
-6. **Utility Functions**: Shared functionality across providers
+6. **Factory Pattern**: Centralized provider instantiation
+   * Simplifies provider creation
+   * Standardizes error handling during initialization
+   * Reduces code duplication in provider creation
+   * Provides a cleaner API for getting provider instances
+
+7. **Async/Sync Utilities**: Standardized conversion patterns
+   * `run_async`: For running coroutines in a synchronous context
+   * `to_sync`: Decorator for converting async functions to sync
+   * `to_async`: Decorator for converting sync functions to async
+   * `gather_with_concurrency`: For limiting concurrent async operations
+   * `AsyncContextManager`: Base class for implementing async context managers
+   * `with_async_timeout`: Decorator for adding timeouts to async functions
+
+8. **Utility Functions**: Shared functionality across providers
    * File validation and handling
    * HTTP response processing
    * Credential management
@@ -4493,6 +4571,17 @@ Tip: Periodically run `./cleanup.py status` to see results of lints and tests.
   - Fix type mismatches in factory.py and simple.py
   - Ensure proper typing for async/await conversions
   - Resolve "possibly unbound" variable warnings in upload.py
+  - Rename TypeVar "T" and "R" to "T_co" and "R_co" in core.py
+  - Add ClassVar annotations to mutable class attributes
+
+- [ ] Fix failing unit tests
+  - Fix TestCreateProviderInstance tests with proper mock setup
+  - Fix TestLogUploadAttempt.test_log_upload_attempt_success test
+  - Fix TestGatherWithConcurrency.test_gather_with_concurrency_with_exceptions test
+
+- [ ] Fix exception handling issues
+  - Use proper exception chaining with `raise ... from err` or `raise ... from None`
+  - Fix B904 linter errors in multiple provider files
 
 ## Medium Priority
 
@@ -4501,15 +4590,25 @@ Tip: Periodically run `./cleanup.py status` to see results of lints and tests.
   - Standardize handling of various HTTP status codes
   - Improve handling of rate limits (429) and other non-200 responses
 
+- [ ] Fix function complexity issues
+  - Refactor complex functions in cli.py and upload.py
+  - Address C901, PLR0911, PLR0912, PLR0915 linter errors
+  - Split large functions into smaller, more focused functions
+
+- [ ] Fix boolean argument issues
+  - Address FBT001, FBT002, FBT003 linter errors
+  - Use keyword arguments for boolean parameters
+  - Refactor functions with too many arguments (PLR0913)
+
 - [ ] Document best practices for creating new providers
   - Create clear documentation for adding new providers
   - Show how to leverage the shared utilities
   - Provide examples of following established patterns
 
-- [ ] Add comprehensive type annotations for async operations
-  - Ensure consistent type handling in async/await conversions
-  - Improve type hints for async decorators
-  - Add proper typing for async context managers
+- [ ] Fix unused arguments and imports
+  - Address ARG002 linter errors in provider classes
+  - Address F401 linter errors for unused imports
+  - Refactor method signatures to remove unused parameters
 
 ## New Providers
 

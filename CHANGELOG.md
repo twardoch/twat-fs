@@ -41,8 +41,20 @@ this_file: CHANGELOG.md
   - Ensuring proper typing for async/await conversions
   - Resolving "possibly unbound" variable warnings in upload.py
 
+- Fixing failing unit tests
+  - TestCreateProviderInstance tests failing due to missing '__name__' attribute on mocks
+  - TestLogUploadAttempt.test_log_upload_attempt_success test failing because logger.info is not being called
+  - TestGatherWithConcurrency.test_gather_with_concurrency_with_exceptions test failing with RuntimeError instead of ValueError
+
+- Addressing linter issues in cleanup.py
+  - DTZ005: datetime.datetime.now() called without a tz argument
+  - FBT001/FBT002: Boolean-typed positional arguments
+  - S603/S607: Subprocess call security issues
+
 ## Next Steps
 
+- Fix exception handling issues with proper exception chaining
+- Update pyproject.toml to move 'per-file-ignores' to 'lint.per-file-ignores' section
 - Implement additional upload providers from the TODO list
 - Update documentation with new provider capabilities
 - Refine HTTP response handling across providers
@@ -53,6 +65,7 @@ this_file: CHANGELOG.md
 - Standardize error handling across all providers
 - Improve documentation for adding new providers
 - Fix linter warnings related to boolean arguments and function complexity
+- Refactor complex functions in cli.py and upload.py
 
 # Changelog
 
@@ -64,56 +77,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Created utility functions in `utils.py` for common provider operations:
-  - `create_provider_help`: Standardizes provider help dictionaries
-  - `safe_file_handle`: Safely manages file operations
-  - `validate_file`: Validates file existence and permissions
-  - `handle_http_response`: Standardizes HTTP response handling
-  - `get_env_credentials`: Simplifies credential management
-  - `create_provider_instance`: Standardizes provider initialization
-  - `standard_upload_wrapper`: Provides consistent upload handling
-  - `log_upload_attempt`: Standardizes logging for upload attempts
-
-- Created provider templates for standardized implementation:
-  - `simple_provider_template.py`: For providers without authentication
-  - `authenticated_provider_template.py`: For providers requiring credentials
-
-- Implemented a factory pattern for provider instantiation:
-  - Created `factory.py` module with `ProviderFactory` class
-  - Centralized provider instantiation logic
-  - Standardized error handling during initialization
-  - Reduced code duplication in provider creation
-
-- Created async utilities for standardized async/sync conversion:
-  - `run_async`: For running coroutines in a synchronous context
-  - `to_sync`: Decorator for converting async functions to sync
-  - `to_async`: Decorator for converting sync functions to async
-  - `gather_with_concurrency`: For limiting concurrent async operations
-  - `AsyncContextManager`: Base class for implementing async context managers
-  - `with_async_timeout`: Decorator for adding timeouts to async functions
-
-- Added comprehensive unit tests:
-  - `test_utils.py`: Tests for the `utils.py` module
-  - `test_async_utils.py`: Tests for the `async_utils.py` module
-  - Tests cover all utility functions thoroughly
-  - Tests include edge cases and error conditions
-  - Tests ensure backward compatibility
+- Factory pattern for provider instantiation via ProviderFactory class
+- Async/sync conversion utilities in async_utils.py
+- Provider base classes to reduce inheritance boilerplate
+- Comprehensive unit tests for utility functions
+- Provider templates for standardized implementation
 
 ### Changed
-- Refactored all upload providers to use shared utilities from `utils.py`:
-  - `pixeldrain.py`, `bashupload.py`, `catbox.py`, `filebin.py`
-  - `uguu.py`, `www0x0.py`, `dropbox.py`, `s3.py`
-
-- Updated Provider protocols to better handle async/coroutine types
-  - Modified return type of async_upload_file to accept both Awaitable[UploadResult] and Coroutine[Any, Any, UploadResult]
-  - Added type variables for covariant return types (T_co, T_ret)
-  - This change allows for more flexible async implementations while maintaining type safety
-  - Providers can now use either async/await pattern or coroutines without type conflicts
-
-- Created base provider classes to reduce inheritance boilerplate:
-  - `BaseProvider`: Common functionality for all providers
-  - `AsyncBaseProvider`: For providers with native async support
-  - `SyncBaseProvider`: For providers with sync-only implementations
+- Refactored all upload providers to use shared utilities from utils.py
+- Standardized error handling and logging across all providers
+- Improved type annotations and protocol compatibility
+- Separated upload logic into reusable components
 
 ### Fixed
 - Fixed recursion issue in `pixeldrain.py` `get_provider` method
@@ -141,15 +115,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixing type mismatches in factory.py and simple.py
   - Ensuring proper typing for async/await conversions
   - Resolving "possibly unbound" variable warnings in upload.py
+- Fixing failing unit tests
+  - TestCreateProviderInstance tests failing due to missing '__name__' attribute on mocks
+  - TestLogUploadAttempt.test_log_upload_attempt_success test failing because logger.info is not being called
+  - TestGatherWithConcurrency.test_gather_with_concurrency_with_exceptions test failing with RuntimeError instead of ValueError
+- Addressing linter issues in cleanup.py
+  - DTZ005: datetime.datetime.now() called without a tz argument
+  - FBT001/FBT002: Boolean-typed positional arguments
+  - S603/S607: Subprocess call security issues
 
 ### Next Steps
+- Fix exception handling issues with proper exception chaining
+- Update pyproject.toml to move 'per-file-ignores' to 'lint.per-file-ignores' section
 - Implement additional upload providers from the TODO list
 - Update documentation with new provider capabilities
 - Refine HTTP response handling across providers
 
-## Technical Debt
+### Technical Debt
 - Update provider implementations to match new protocol type hints
 - Standardize error handling across all providers
 - Improve documentation for adding new providers
 - Fix linter warnings related to boolean arguments and function complexity
+- Refactor complex functions in cli.py and upload.py
 

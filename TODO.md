@@ -13,6 +13,22 @@ Tip: Periodically run `./cleanup.py status` to see results of lints and tests.
   - Fix type mismatches in factory.py and simple.py
   - Ensure proper typing for async/await conversions
   - Resolve "possibly unbound" variable warnings in upload.py
+  - Rename TypeVar "T" and "R" to "T_co" and "R_co" in core.py
+  - Add ClassVar annotations to mutable class attributes
+
+- [ ] Fix failing unit tests
+  - Fix TestCreateProviderInstance tests with proper mock setup (add '__name__' attribute to mocks)
+  - Fix TestLogUploadAttempt.test_log_upload_attempt_success test (logger.info not being called)
+  - Fix TestGatherWithConcurrency.test_gather_with_concurrency_with_exceptions test (RuntimeError instead of ValueError)
+
+- [ ] Fix exception handling issues
+  - Use proper exception chaining with `raise ... from err` or `raise ... from None`
+  - Fix B904 linter errors in multiple provider files
+
+- [ ] Fix cleanup.py linter issues
+  - Fix DTZ005: Add timezone to datetime.datetime.now() calls
+  - Fix FBT001/FBT002: Boolean-typed positional arguments
+  - Fix S603/S607: Subprocess call security issues
 
 ## Medium Priority
 
@@ -21,15 +37,28 @@ Tip: Periodically run `./cleanup.py status` to see results of lints and tests.
   - Standardize handling of various HTTP status codes
   - Improve handling of rate limits (429) and other non-200 responses
 
+- [ ] Fix function complexity issues
+  - Refactor complex functions in cli.py and upload.py
+  - Address C901, PLR0911, PLR0912, PLR0915 linter errors
+  - Split large functions into smaller, more focused functions
+
+- [ ] Fix boolean argument issues
+  - Address FBT001, FBT002, FBT003 linter errors
+  - Use keyword arguments for boolean parameters
+  - Refactor functions with too many arguments (PLR0913)
+
 - [ ] Document best practices for creating new providers
   - Create clear documentation for adding new providers
   - Show how to leverage the shared utilities
   - Provide examples of following established patterns
 
-- [ ] Add comprehensive type annotations for async operations
-  - Ensure consistent type handling in async/await conversions
-  - Improve type hints for async decorators
-  - Add proper typing for async context managers
+- [ ] Fix unused arguments and imports
+  - Address ARG002 linter errors in provider classes
+  - Address F401 linter errors for unused imports
+  - Refactor method signatures to remove unused parameters
+
+- [ ] Update pyproject.toml
+  - Move 'per-file-ignores' to 'lint.per-file-ignores' section
 
 ## New Providers
 
