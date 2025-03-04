@@ -1,22 +1,30 @@
 # this_file: src/twat_fs/upload_providers/async_utils.py
 
 """
-Utility functions for handling async/sync conversions in upload providers.
-Standardizes patterns for working with async code across providers.
+Core async utilities for upload providers.
+Provides common functionality for async operations, timeouts, and concurrency control.
 """
 
 from __future__ import annotations
 
 import asyncio
 import functools
-from typing import Any, TypeVar, ParamSpec, overload
-from collections.abc import Callable
-from collections.abc import Coroutine
+import time
+from typing import (
+    Any,
+    Callable,
+    TypeVar,
+    ParamSpec,
+    overload,
+    cast,
+)
+from collections.abc import Coroutine, Awaitable
 
 from loguru import logger
 
 # Type variables for generic functions
 T = TypeVar("T")
+T_co = TypeVar("T_co", covariant=True)
 P = ParamSpec("P")
 
 
@@ -157,9 +165,9 @@ def to_async(
 
 async def gather_with_concurrency(
     limit: int,
-    *tasks: Coroutine[Any, Any, T],
+    *tasks: Coroutine[Any, Any, T_co],
     return_exceptions: bool = False,
-) -> list[T]:
+) -> list[T_co]:
     """
     Run coroutines with a concurrency limit.
 
@@ -175,9 +183,14 @@ async def gather_with_concurrency(
     """
     semaphore = asyncio.Semaphore(limit)
 
-    async def with_semaphore(task: Coroutine[Any, Any, T]) -> T:
+    async def with_semaphore(task: Coroutine[Any, Any, T_co]) -> T_co:
         async with semaphore:
-            return await task
+            try:
+                return await task
+            except Exception as e:
+                if return_exceptions:
+                    return e
+                raise
 
     return await asyncio.gather(
         *(with_semaphore(task) for task in tasks),
