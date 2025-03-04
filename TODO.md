@@ -6,7 +6,7 @@ this_file: TODO.md
 
 Tip: Periodically run `./cleanup.py status` to see results of lints and tests.
 
-## High Priority
+## Phase 1
 
 - [ ] Fix type annotation issues identified by linter
   - Address incompatible return types in async methods
@@ -16,11 +16,14 @@ Tip: Periodically run `./cleanup.py status` to see results of lints and tests.
   - Rename TypeVar "T" and "R" to "T_co" and "R_co" in core.py
   - Add ClassVar annotations to mutable class attributes
 
+## Phase 2
+
 - [ ] Fix failing unit tests
   - Fix TestCreateProviderInstance tests with proper mock setup (add '__name__' attribute to mocks)
   - Fix TestLogUploadAttempt.test_log_upload_attempt_success test (logger.info not being called)
   - Fix TestGatherWithConcurrency.test_gather_with_concurrency_with_exceptions test (RuntimeError instead of ValueError)
 
+## Phase 3
 - [ ] Fix exception handling issues
   - Use proper exception chaining with `raise ... from err` or `raise ... from None`
   - Fix B904 linter errors in multiple provider files
