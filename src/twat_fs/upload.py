@@ -25,6 +25,7 @@ from twat_fs.upload_providers import (
     RetryableError,
     NonRetryableError,
     UploadResult,
+    ProviderFactory,
 )
 from twat_fs.upload_providers.core import with_retry, RetryStrategy
 
@@ -75,12 +76,12 @@ def _test_provider_online(
         with open(test_file, "rb") as f:
             original_hash = hashlib.sha256(f.read()).hexdigest()
 
-        # Get the provider module and client
-        provider_module = get_provider_module(provider_name)
+        # Get the provider module and client using the factory
+        provider_module = ProviderFactory.get_provider_module(provider_name)
         if not provider_module:
             return False, f"Provider module {provider_name} not found", None
 
-        client = provider_module.get_provider()
+        client = ProviderFactory.create_provider(provider_name)
         if not client:
             return False, f"Provider {provider_name} not configured", None
 
@@ -399,16 +400,12 @@ def setup_providers(
 
 
 def _get_provider_module(provider: str) -> Provider | None:
-    """
-    Import a provider module dynamically.
-
-    Args:
-        provider: Name of the provider to import
-
-    Returns:
-        Optional[Provider]: The imported provider module or None if import fails
-    """
-    return get_provider_module(provider)
+    """Get a provider module with error handling."""
+    try:
+        return ProviderFactory.get_provider_module(provider)
+    except Exception as e:
+        logger.error(f"Error getting provider module {provider}: {e}")
+        return None
 
 
 def _try_upload_with_provider(
@@ -420,109 +417,134 @@ def _try_upload_with_provider(
     force: bool = False,
     upload_path: str | None = None,
 ) -> UploadResult:
-    """
-    Try to upload a file using a specific provider.
-
-    Args:
-        provider_name: Name of the provider to use
-        file_path: Path to the file to upload
-        remote_path: Optional remote path
-        unique: If True, ensures unique filename
-        force: If True, overwrites existing file
-        upload_path: Custom upload path
-
-    Returns:
-        UploadResult: Result containing URL and timing info
-
-    Raises:
-        ValueError: If provider is not available or upload fails
-    """
-    # Get provider module
-    provider_module = get_provider_module(provider_name)
-    if not provider_module:
-        msg = f"Provider '{provider_name}' not available"
-        raise ValueError(msg)
-
-    # Get provider client
-    client = provider_module.get_provider()
-    if not client:
-        msg = f"Provider '{provider_name}' not configured"
-        raise ValueError(msg)
-
-    # Track timing
+    """Try to upload a file with a specific provider."""
+    # Initialize timing variables
     start_time = time.time()
     read_start = time.time()
+    read_duration = 0.0
+    upload_start = 0.0
+    upload_duration = 0.0
+    validation_start = 0.0
+    validation_duration = 0.0
 
-    # Track file read time
-    path = Path(str(file_path))
-    if path.exists():
-        with open(path, "rb") as f:
-            _ = f.read()  # Read file to measure read time
-    read_duration = time.time() - read_start
-
-    # Track upload time
-    upload_start = time.time()
-    upload_result = client.upload_file(
-        file_path,
-        remote_path,
-        unique=unique,
-        force=force,
-        upload_path=upload_path,
-    )
-    upload_duration = time.time() - upload_start
-
-    # Track validation time
-    validation_start = time.time()
-    url = (
-        upload_result.url if isinstance(upload_result, UploadResult) else upload_result
-    )
     try:
-        response = requests.head(
-            url,
-            timeout=30,
-            allow_redirects=True,
-            headers={"User-Agent": "twat-fs/1.0"},
+        # Get the provider module
+        provider_module = _get_provider_module(provider_name)
+        if not provider_module:
+            return UploadResult(
+                url="",
+                metadata={
+                    "provider": provider_name,
+                    "success": False,
+                    "error": f"Provider {provider_name} not found",
+                },
+            )
+
+        # Create the provider using the factory
+        provider = ProviderFactory.create_provider(provider_name)
+        if not provider:
+            return UploadResult(
+                url="",
+                metadata={
+                    "provider": provider_name,
+                    "success": False,
+                    "error": f"Provider {provider_name} not configured",
+                },
+            )
+
+        # Track file read time
+        path = Path(str(file_path))
+        if path.exists():
+            with open(path, "rb") as f:
+                _ = f.read()  # Read file to measure read time
+        read_duration = time.time() - read_start
+
+        # Track upload time
+        upload_start = time.time()
+        upload_result = provider.upload_file(
+            file_path,
+            remote_path,
+            unique=unique,
+            force=force,
+            upload_path=upload_path,
         )
-        if response.status_code not in (200, 201, 202, 203, 204):
-            logger.warning(f"URL validation failed: status {response.status_code}")
+        upload_duration = time.time() - upload_start
+
+        # Track validation time
+        validation_start = time.time()
+        url = (
+            upload_result.url
+            if isinstance(upload_result, UploadResult)
+            else upload_result
+        )
+        try:
+            response = requests.head(
+                url,
+                timeout=30,
+                allow_redirects=True,
+                headers={"User-Agent": "twat-fs/1.0"},
+            )
+            if response.status_code not in (200, 201, 202, 203, 204):
+                logger.warning(f"URL validation failed: status {response.status_code}")
+        except Exception as e:
+            logger.warning(f"URL validation failed: {e}")
+        validation_duration = time.time() - validation_start
+
+        end_time = time.time()
+        total_duration = end_time - start_time
+
+        # Create timing metrics
+        timing = {
+            "start_time": start_time,
+            "end_time": end_time,
+            "total_duration": total_duration,
+            "read_duration": read_duration,
+            "upload_duration": upload_duration,
+            "validation_duration": validation_duration,
+            "provider": provider_name,
+        }
+
+        # Convert string result to UploadResult if needed
+        result = (
+            UploadResult(url=upload_result, metadata={"provider": provider_name})
+            if isinstance(upload_result, str)
+            else upload_result
+        )
+
+        # Add timing information
+        result.metadata["timing"] = timing
+
+        # Log timing information
+        logger.info(
+            f"Upload timing for {provider_name}: "
+            f"total={total_duration:.2f}s, "
+            f"read={read_duration:.2f}s, "
+            f"upload={upload_duration:.2f}s, "
+            f"validation={validation_duration:.2f}s"
+        )
+
+        return result
     except Exception as e:
-        logger.warning(f"URL validation failed: {e}")
-    validation_duration = time.time() - validation_start
+        end_time = time.time()
+        total_duration = end_time - start_time
 
-    end_time = time.time()
-    total_duration = end_time - start_time
-
-    # Create timing metrics
-    timing = {
-        "start_time": start_time,
-        "end_time": end_time,
-        "total_duration": total_duration,
-        "read_duration": read_duration,
-        "upload_duration": upload_duration,
-        "validation_duration": validation_duration,
-        "provider": provider_name,
-    }
-
-    # Convert string result to UploadResult if needed
-    result = (
-        UploadResult(url=upload_result, metadata={"provider": provider_name})
-        if isinstance(upload_result, str)
-        else upload_result
-    )
-
-    # Add timing information
-    result.metadata["timing"] = timing
-
-    # Log timing information
-    logger.info(
-        f"Upload timing for {provider_name}: "
-        f"total={total_duration:.2f}s, "
-        f"read={read_duration:.2f}s, "
-        f"upload={upload_duration:.2f}s, "
-        f"validation={validation_duration:.2f}s"
-    )
-
-    return result
+        return UploadResult(
+            url="",
+            metadata={
+                "provider": provider_name,
+                "success": False,
+                "error": f"Upload failed: {e}",
+                "timing": {
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "total_duration": total_duration,
+                    "read_duration": read_duration,
+                    "upload_duration": upload_duration,
+                    "validation_duration": validation_duration,
+                    "provider": provider_name,
+                },
+            },
+        )
 
 
 def _try_next_provider(

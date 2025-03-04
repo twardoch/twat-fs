@@ -26,10 +26,11 @@ from twat_fs.upload_providers.core import (
     with_url_validation,
     with_timing,
 )
+from twat_fs.upload_providers.async_utils import to_sync, to_async
 
 if TYPE_CHECKING:
     from twat_fs.upload_providers.types import UploadResult
-    from collections.abc import Awaitable
+    from collections.abc import Awaitable, Coroutine
     from collections.abc import Generator
 
 
@@ -125,7 +126,7 @@ class BaseProvider(ABC, Provider):
         force: bool = False,
         upload_path: str | None = None,
         **kwargs: Any,
-    ) -> Awaitable[UploadResult]:
+    ) -> Awaitable[UploadResult] | Coroutine[Any, Any, UploadResult]:
         """
         Upload a file using this provider.
 
@@ -196,3 +197,111 @@ class BaseProvider(ABC, Provider):
             UploadResult containing the URL and status
         """
         ...
+
+
+class AsyncBaseProvider(BaseProvider):
+    """
+    Base class for providers that implement async upload methods.
+
+    This class provides a standard implementation of the sync upload_file method
+    that calls the async version using the to_sync utility.
+    """
+
+    def upload_file(
+        self,
+        local_path: str | Path,
+        remote_path: str | Path | None = None,
+        *,
+        unique: bool = False,
+        force: bool = False,
+        upload_path: str | None = None,
+        **kwargs: Any,
+    ) -> UploadResult:
+        """
+        Upload a file using the async implementation.
+
+        This method converts the async_upload_file method to a sync method.
+
+        Args:
+            local_path: Path to the file to upload
+            remote_path: Optional remote path to use
+            unique: If True, ensures unique filename
+            force: If True, overwrites existing file
+            upload_path: Custom upload path
+            **kwargs: Additional provider-specific arguments
+
+        Returns:
+            UploadResult: Upload result with URL and metadata
+        """
+        # Use the to_sync utility to convert the async method to sync
+        sync_upload = to_sync(self.async_upload_file)
+        return sync_upload(
+            local_path,
+            remote_path,
+            unique=unique,
+            force=force,
+            upload_path=upload_path,
+            **kwargs,
+        )
+
+    def upload_file_impl(self, file: BinaryIO) -> UploadResult:
+        """
+        Implementation that converts the file handle to a path and calls async_upload_file.
+
+        Args:
+            file: Open file handle to upload
+
+        Returns:
+            UploadResult: Upload result with URL and metadata
+        """
+        # Get the path from the file handle
+        path = Path(file.name)
+
+        # Use the to_sync utility to convert the async method to sync
+        sync_upload = to_sync(self.async_upload_file)
+        return sync_upload(path)
+
+
+class SyncBaseProvider(BaseProvider):
+    """
+    Base class for providers that implement sync upload methods.
+
+    This class provides a standard implementation of the async upload_file method
+    that calls the sync version using the to_async utility.
+    """
+
+    async def async_upload_file(
+        self,
+        file_path: str | Path,
+        remote_path: str | Path | None = None,
+        *,
+        unique: bool = False,
+        force: bool = False,
+        upload_path: str | None = None,
+        **kwargs: Any,
+    ) -> UploadResult:
+        """
+        Upload a file using the sync implementation.
+
+        This method converts the upload_file method to an async method.
+
+        Args:
+            file_path: Path to the file to upload
+            remote_path: Optional remote path to use
+            unique: If True, ensures unique filename
+            force: If True, overwrites existing file
+            upload_path: Custom upload path
+            **kwargs: Additional provider-specific arguments
+
+        Returns:
+            UploadResult: Upload result with URL and metadata
+        """
+        # Use the to_async utility to convert the sync method to async
+        return self.upload_file(
+            file_path,
+            remote_path,
+            unique=unique,
+            force=force,
+            upload_path=upload_path,
+            **kwargs,
+        )

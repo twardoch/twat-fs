@@ -4,6 +4,8 @@ this_file: TODO.md
 
 # TODO
 
+Tip: Periodically run `./cleanup.py status` to see results of lints and tests.
+
 ## Phase 1
 
 - [ ] Implement a factory pattern for provider instantiation
