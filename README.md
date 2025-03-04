@@ -24,6 +24,7 @@ File system utilities for twat, focusing on robust and extensible file upload ca
 
 The codebase has undergone significant refactoring to improve maintainability and extensibility:
 
+* **Fixed Provider Instantiation**: Improved the `create_provider_instance` function to correctly handle credential management and provider instantiation order
 * **Centralized Utilities**: Created a `utils.py` module with shared functionality for all providers
 * **Standardized Implementation**: All providers now follow consistent patterns and inherit from `BaseProvider`
 * **Improved Error Handling**: Enhanced error classification and handling across all providers
@@ -40,7 +41,7 @@ The codebase has undergone significant refactoring to improve maintainability an
 The project is in active development with several key areas of focus:
 
 * **Fixing Type Annotation Issues**: Addressing incompatible return types and type mismatches
-* **Resolving Test Failures**: Fixing failing unit tests in the utils and async_utils modules
+* **Resolving Remaining Test Failures**: Fixing failing unit tests in the utils and async_utils modules
 * **Improving Exception Handling**: Implementing proper exception chaining across providers
 * **Addressing Linter Issues**: Fixing various linter warnings, particularly in cleanup.py and cli.py
 * **Expanding Provider Support**: Planning implementation of additional upload providers
@@ -109,6 +110,28 @@ print(f"File uploaded to: {result.url}")
 # Get all available providers
 available_providers = factory.list_available_providers()
 print(f"Available providers: {available_providers}")
+```
+
+### Provider Instantiation
+
+The package uses a robust provider instantiation system that follows this order:
+
+1. If no credentials are provided, try to get them from the provider class
+2. If the provider class has a `get_provider` method, use that
+3. If `get_provider` fails, fall back to direct instantiation
+
+This ensures that providers are instantiated correctly regardless of how they're configured:
+
+```python
+from twat_fs.upload_providers.utils import create_provider_instance
+from twat_fs.upload_providers import s3
+
+# Get a provider instance with explicit credentials
+credentials = {"AWS_S3_BUCKET": "my-bucket", "AWS_ACCESS_KEY_ID": "key", "AWS_SECRET_ACCESS_KEY": "secret"}
+provider = create_provider_instance(s3.S3Provider, credentials)
+
+# Get a provider instance using environment variables
+provider = create_provider_instance(s3.S3Provider)
 ```
 
 ### Async/Sync Conversion

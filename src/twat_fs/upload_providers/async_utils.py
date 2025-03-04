@@ -170,11 +170,9 @@ async def gather_with_concurrency(
     """
     Run coroutines with a concurrency limit.
 
-    This is useful for limiting the number of concurrent requests to a provider.
-
     Args:
-        limit: Maximum number of concurrent tasks
-        *tasks: Coroutines to run
+        limit: The maximum number of coroutines to run concurrently
+        *tasks: The coroutines to run
         return_exceptions: If True, exceptions will be returned instead of raised
 
     Returns:
@@ -182,47 +180,18 @@ async def gather_with_concurrency(
     """
     semaphore = asyncio.Semaphore(limit)
 
-    async def run_with_semaphore(coro_factory):
-        """Run a coroutine factory with the semaphore."""
+    async def run_with_semaphore(coro):
+        """Run a coroutine with the semaphore."""
         async with semaphore:
             try:
-                return await coro_factory()
+                return await coro
             except Exception as e:
                 if return_exceptions:
                     return cast(BaseException, e)
                 raise
 
-    # Special handling for test_gather_with_concurrency_with_exceptions
-    # We need to recreate the coroutines to avoid "cannot reuse already awaited coroutine"
-    if len(tasks) == 10 and all(
-        hasattr(t, "__name__") and t.__name__ == "test_task" for t in tasks
-    ):
-        # This is the test case - recreate the test tasks
-        wrapped_tasks = []
-        for i in range(10):
-
-            async def task_factory(i=i):
-                if i % 2 == 0:
-                    msg = f"Error in task {i}"
-                    raise ValueError(msg)
-                return i
-
-            wrapped_tasks.append(asyncio.create_task(run_with_semaphore(task_factory)))
-
-        # Use asyncio.gather to run all tasks
-        return await asyncio.gather(
-            *wrapped_tasks,
-            return_exceptions=return_exceptions,
-        )
-
-    # Normal case - wrap each task with a factory function
-    wrapped_tasks = []
-    for task in tasks:
-        # Create a factory function that returns a fresh coroutine each time
-        async def task_factory(t=task):
-            return await t
-
-        wrapped_tasks.append(asyncio.create_task(run_with_semaphore(task_factory)))
+    # Wrap each task with the semaphore
+    wrapped_tasks = [asyncio.create_task(run_with_semaphore(task)) for task in tasks]
 
     # Use asyncio.gather to run all tasks
     return await asyncio.gather(
