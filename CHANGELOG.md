@@ -4,7 +4,7 @@ this_file: CHANGELOG.md
 
 # Development Log
 
-## Changed
+## Completed
 
 - Refactored all upload providers to use shared utilities from `utils.py`:
   - `pixeldrain.py`: Fixed recursion issues, improved error handling, standardized logging
@@ -33,17 +33,26 @@ this_file: CHANGELOG.md
 
 - Created comprehensive unit tests for utility functions
 
+## In Progress
+
+- Fixing type annotation issues identified by linter
+  - Addressing incompatible return types in async methods
+  - Fixing type mismatches in factory.py and simple.py
+  - Ensuring proper typing for async/await conversions
+  - Resolving "possibly unbound" variable warnings in upload.py
+
 ## Next Steps
 
 - Implement additional upload providers from the TODO list
 - Update documentation with new provider capabilities
-- Fix type annotation issues identified by linter
+- Refine HTTP response handling across providers
 
 ## Technical Debt
 
 - Update provider implementations to match new protocol type hints
 - Standardize error handling across all providers
 - Improve documentation for adding new providers
+- Fix linter warnings related to boolean arguments and function complexity
 
 # Changelog
 
@@ -124,14 +133,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implemented a factory pattern for provider instantiation
 - Standardized async/sync conversion patterns
 - Created comprehensive unit tests for utility functions
+- Created provider base classes to reduce inheritance boilerplate
+
+### In Progress
+- Fixing type annotation issues identified by linter
+  - Addressing incompatible return types in async methods
+  - Fixing type mismatches in factory.py and simple.py
+  - Ensuring proper typing for async/await conversions
+  - Resolving "possibly unbound" variable warnings in upload.py
 
 ### Next Steps
 - Implement additional upload providers from the TODO list
 - Update documentation with new provider capabilities
-- Fix type annotation issues identified by linter
+- Refine HTTP response handling across providers
 
 ## Technical Debt
 - Update provider implementations to match new protocol type hints
 - Standardize error handling across all providers
 - Improve documentation for adding new providers
+- Fix linter warnings related to boolean arguments and function complexity
 
