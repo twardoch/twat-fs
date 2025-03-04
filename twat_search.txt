@@ -164,7 +164,7 @@ globs:
 │   └── [ 224]  rules
 │       ├── [ 821]  0project.mdc
 │       ├── [ 516]  cleanup.mdc
-│       ├── [2.5K]  filetree.mdc
+│       ├── [3.2K]  filetree.mdc
 │       └── [2.0K]  quality.mdc
 ├── [  96]  .github
 │   └── [ 128]  workflows
@@ -204,13 +204,13 @@ globs:
 │       ├── [ 25K]  upload.py
 │       └── [ 704]  upload_providers
 │           ├── [1.9K]  __init__.py
-│           ├── [6.2K]  async_utils.py
+│           ├── [6.1K]  async_utils.py
 │           ├── [5.5K]  bashupload.py
 │           ├── [4.9K]  catbox.py
 │           ├── [ 12K]  core.py
 │           ├── [ 24K]  dropbox.py
 │           ├── [5.4K]  factory.py
-│           ├── [7.7K]  fal.py
+│           ├── [7.6K]  fal.py
 │           ├── [6.7K]  filebin.py
 │           ├── [ 11K]  litterbox.py
 │           ├── [6.9K]  pixeldrain.py
@@ -235,7 +235,7 @@ globs:
 │   ├── [ 180]  test_twat_fs.py
 │   ├── [ 29K]  test_upload.py
 │   └── [ 13K]  test_utils.py
-├── [105K]  twat_search.txt
+├── [185K]  twat_search.txt
 ├── [2.8K]  update_providers.py
 └── [383K]  uv.lock
 
