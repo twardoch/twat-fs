@@ -27,22 +27,21 @@ this_file: CHANGELOG.md
   - Added standardized logging with `log_upload_attempt`
   - Enhanced type hints for better IDE support
 
-## In Progress
+- Implemented a factory pattern for provider instantiation to simplify provider creation and standardize error handling during initialization
 
-- Implementing a factory pattern for provider instantiation to simplify provider creation and standardize error handling during initialization
+- Standardized async/sync conversion patterns for providers that support both operations
 
-- Standardizing async/sync conversion patterns for providers that support both operations
+- Created comprehensive unit tests for utility functions
 
 ## Next Steps
 
-- Write unit tests for utility functions
 - Implement additional upload providers from the TODO list
 - Update documentation with new provider capabilities
+- Fix type annotation issues identified by linter
 
 ## Technical Debt
 
 - Update provider implementations to match new protocol type hints
-- Add tests for utility functions
 - Standardize error handling across all providers
 - Improve documentation for adding new providers
 
@@ -70,6 +69,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `simple_provider_template.py`: For providers without authentication
   - `authenticated_provider_template.py`: For providers requiring credentials
 
+- Implemented a factory pattern for provider instantiation:
+  - Created `factory.py` module with `ProviderFactory` class
+  - Centralized provider instantiation logic
+  - Standardized error handling during initialization
+  - Reduced code duplication in provider creation
+
+- Created async utilities for standardized async/sync conversion:
+  - `run_async`: For running coroutines in a synchronous context
+  - `to_sync`: Decorator for converting async functions to sync
+  - `to_async`: Decorator for converting sync functions to async
+  - `gather_with_concurrency`: For limiting concurrent async operations
+  - `AsyncContextManager`: Base class for implementing async context managers
+  - `with_async_timeout`: Decorator for adding timeouts to async functions
+
+- Added comprehensive unit tests:
+  - `test_utils.py`: Tests for the `utils.py` module
+  - `test_async_utils.py`: Tests for the `async_utils.py` module
+  - Tests cover all utility functions thoroughly
+  - Tests include edge cases and error conditions
+  - Tests ensure backward compatibility
+
 ### Changed
 - Refactored all upload providers to use shared utilities from `utils.py`:
   - `pixeldrain.py`, `bashupload.py`, `catbox.py`, `filebin.py`
@@ -80,6 +100,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added type variables for covariant return types (T_co, T_ret)
   - This change allows for more flexible async implementations while maintaining type safety
   - Providers can now use either async/await pattern or coroutines without type conflicts
+
+- Created base provider classes to reduce inheritance boilerplate:
+  - `BaseProvider`: Common functionality for all providers
+  - `AsyncBaseProvider`: For providers with native async support
+  - `SyncBaseProvider`: For providers with sync-only implementations
 
 ### Fixed
 - Fixed recursion issue in `pixeldrain.py` `get_provider` method
@@ -96,19 +121,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized error handling and logging across all providers
 - Improved type annotations and protocol compatibility
 - Separated upload logic into reusable components
-
-### In Progress
-- Implementing a factory pattern for provider instantiation to simplify provider creation and standardize error handling during initialization
-- Standardizing async/sync conversion patterns for providers that support both operations
+- Implemented a factory pattern for provider instantiation
+- Standardized async/sync conversion patterns
+- Created comprehensive unit tests for utility functions
 
 ### Next Steps
-- Write unit tests for utility functions
 - Implement additional upload providers from the TODO list
 - Update documentation with new provider capabilities
+- Fix type annotation issues identified by linter
 
 ## Technical Debt
 - Update provider implementations to match new protocol type hints
-- Add tests for utility functions
 - Standardize error handling across all providers
 - Improve documentation for adding new providers
 

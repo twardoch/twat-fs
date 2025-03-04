@@ -22,7 +22,6 @@ from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from twat_fs.upload_providers.types import UploadResult
-from twat_fs.upload_providers.core import convert_to_upload_result
 from twat_fs.upload_providers.simple import BaseProvider
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
 from twat_fs.upload_providers.utils import (

@@ -9,12 +9,12 @@ Files are automatically deleted after 3 days.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, BinaryIO, ClassVar, cast
+from typing import BinaryIO, ClassVar, cast
 
 import aiohttp
 import asyncio
 
-from twat_fs.upload_providers.protocols import Provider, ProviderClient, ProviderHelp
+from twat_fs.upload_providers.protocols import ProviderClient, ProviderHelp
 from twat_fs.upload_providers.types import UploadResult
 from twat_fs.upload_providers.core import NonRetryableError
 from twat_fs.upload_providers.simple import BaseProvider

@@ -6,26 +6,13 @@ this_file: TODO.md
 
 Tip: Periodically run `./cleanup.py status` to see results of lints and tests.
 
-## Phase 1
+## High Priority
 
-- [ ] Implement a factory pattern for provider instantiation
-  - Create a provider factory that simplifies the creation of providers
-  - Reduce code duplication in `get_provider()` methods
-  - Standardize error handling during initialization
-
-## Phase 2
-
-- [ ] Standardize async/sync conversion patterns
-  - Create helper functions for common async patterns
-  - Ensure consistent type hints for async operations
-  - Standardize conversion logic across providers
-
-## Phase 3
-
-- [ ] Write unit tests for utils.py functions
-  - Test each utility function thoroughly
-  - Cover edge cases and error conditions
-  - Ensure backward compatibility
+- [ ] Fix type annotation issues identified by linter
+  - Address incompatible return types in async methods
+  - Fix type mismatches in factory.py and simple.py
+  - Ensure proper typing for async/await conversions
+  - Resolve "possibly unbound" variable warnings in upload.py
 
 ## Medium Priority
 
@@ -33,11 +20,6 @@ Tip: Periodically run `./cleanup.py status` to see results of lints and tests.
   - Ensure all providers use `handle_http_response()` consistently
   - Standardize handling of various HTTP status codes
   - Improve handling of rate limits (429) and other non-200 responses
-
-- [ ] Create provider base classes to reduce inheritance boilerplate
-  - Implement a base class for async-capable providers
-  - Implement a base class for providers requiring credentials
-  - Reduce duplicate code through inheritance
 
 - [ ] Document best practices for creating new providers
   - Create clear documentation for adding new providers
@@ -183,3 +165,37 @@ Tip: Periodically run `./cleanup.py status` to see results of lints and tests.
   Created two template files in the `templates` directory:
   - `simple_provider_template.py` for providers without authentication
   - `authenticated_provider_template.py` for providers requiring credentials
+
+- [x] Implement a factory pattern for provider instantiation
+  
+  Created a factory.py module with a ProviderFactory class that:
+  - Centralizes provider instantiation logic
+  - Standardizes error handling during initialization
+  - Reduces code duplication in provider creation
+  - Provides a cleaner API for getting provider instances
+
+- [x] Standardize async/sync conversion patterns
+  
+  Created an async_utils.py module with utilities for async/sync conversion:
+  - `run_async` for running coroutines in a synchronous context
+  - `to_sync` decorator for converting async functions to sync
+  - `to_async` decorator for converting sync functions to async
+  - `gather_with_concurrency` for limiting concurrent async operations
+  - `AsyncContextManager` base class for implementing async context managers
+  - `with_async_timeout` decorator for adding timeouts to async functions
+
+- [x] Write unit tests for utils.py functions
+  
+  Created comprehensive test files:
+  - test_utils.py for testing the utils.py module
+  - test_async_utils.py for testing the async_utils.py module
+  - Tests cover all utility functions thoroughly
+  - Tests include edge cases and error conditions
+  - Tests ensure backward compatibility
+
+- [x] Create provider base classes to reduce inheritance boilerplate
+  
+  Created base classes in simple.py:
+  - BaseProvider: Common functionality for all providers
+  - AsyncBaseProvider: For providers with native async support
+  - SyncBaseProvider: For providers with sync-only implementations

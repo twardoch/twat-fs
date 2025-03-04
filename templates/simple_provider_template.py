@@ -8,15 +8,13 @@ Replace PROVIDER_NAME with the actual provider name.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, BinaryIO, ClassVar, cast
+from typing import BinaryIO, ClassVar, cast
 
 # Import the appropriate HTTP library (aiohttp or requests)
 import requests  # or import aiohttp
-import asyncio
 
-from twat_fs.upload_providers.protocols import Provider, ProviderClient, ProviderHelp
+from twat_fs.upload_providers.protocols import ProviderClient, ProviderHelp
 from twat_fs.upload_providers.types import UploadResult
-from twat_fs.upload_providers.core import NonRetryableError, RetryableError
 from twat_fs.upload_providers.simple import BaseProvider
 from twat_fs.upload_providers.utils import (
     create_provider_help,

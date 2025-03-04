@@ -97,7 +97,7 @@ class Www0x0Provider(BaseProvider):
                     "raw_url": url,
                 },
             )
-        except (RetryableError, NonRetryableError) as e:
+        except (RetryableError, NonRetryableError):
             # Re-raise these errors to allow for retries
             raise
         except Exception as e:

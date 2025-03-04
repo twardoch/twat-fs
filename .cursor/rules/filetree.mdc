@@ -2,13 +2,13 @@
 description: File tree of the project
 globs: 
 ---
-[ 992]  .
+[1.1K]  .
 ├── [  64]  .benchmarks
 ├── [  96]  .cursor
 │   └── [ 224]  rules
 │       ├── [ 821]  0project.mdc
 │       ├── [ 516]  cleanup.mdc
-│       ├── [2.5K]  filetree.mdc
+│       ├── [3.2K]  filetree.mdc
 │       └── [2.0K]  quality.mdc
 ├── [  96]  .github
 │   └── [ 128]  workflows
@@ -16,17 +16,24 @@ globs:
 │       └── [1.4K]  release.yml
 ├── [3.5K]  .gitignore
 ├── [ 532]  .pre-commit-config.yaml
+├── [  96]  .specstory
+│   └── [ 192]  history
+│       ├── [2.7K]  .what-is-this.md
+│       ├── [146K]  2025-03-04_03-45-refining-todo-list-from-codebase-review.md
+│       ├── [186K]  2025-03-04_04-43-incorporating-ideas-from-ideas-md-into-todo-md.md
+│       └── [104K]  2025-03-04_05-33-implementing-todo-phases-1,-2,-and-3.md
+├── [6.3K]  CHANGELOG.md
+├── [ 986]  CLEANUP.txt
+├── [ 56K]  IDEAS.md
 ├── [1.0K]  LICENSE
-├── [2.9K]  LOG.md
 ├── [ 153]  MANIFEST.in
-├── [ 12K]  README.md
-├── [5.2K]  TODO.md
+├── [ 11K]  README.md
+├── [6.8K]  TODO.md
 ├── [   7]  VERSION.txt
-├── [ 11K]  cleanup.py
+├── [ 12K]  cleanup.py
 ├── [  96]  dist
 ├── [  96]  examples
 │   └── [ 948]  upload_example.py
-├── [ 306]  filetree.sh
 ├── [ 439]  mypy.ini
 ├── [7.0K]  pyproject.toml
 ├── [ 128]  src
@@ -38,34 +45,42 @@ globs:
 │       │   ├── [1.5K]  _test.jpg
 │       │   └── [383K]  test.jpg
 │       ├── [   1]  py.typed
-│       ├── [ 24K]  upload.py
-│       └── [ 640]  upload_providers
-│           ├── [3.5K]  __init__.py
-│           ├── [6.1K]  bashupload.py
-│           ├── [5.3K]  catbox.py
+│       ├── [ 25K]  upload.py
+│       └── [ 704]  upload_providers
+│           ├── [1.9K]  __init__.py
+│           ├── [6.1K]  async_utils.py
+│           ├── [5.5K]  bashupload.py
+│           ├── [4.9K]  catbox.py
 │           ├── [ 12K]  core.py
-│           ├── [ 20K]  dropbox.py
-│           ├── [8.5K]  fal.py
-│           ├── [5.0K]  filebin.py
-│           ├── [ 10K]  litterbox.py
-│           ├── [6.1K]  pixeldrain.py
-│           ├── [4.0K]  protocols.py
-│           ├── [5.1K]  s3.py
-│           ├── [6.0K]  simple.py
+│           ├── [ 24K]  dropbox.py
+│           ├── [5.4K]  factory.py
+│           ├── [7.6K]  fal.py
+│           ├── [6.7K]  filebin.py
+│           ├── [ 11K]  litterbox.py
+│           ├── [6.9K]  pixeldrain.py
+│           ├── [3.9K]  protocols.py
+│           ├── [ 10K]  s3.py
+│           ├── [9.3K]  simple.py
 │           ├── [ 728]  types.py
-│           ├── [4.3K]  uguu.py
+│           ├── [5.1K]  uguu.py
 │           ├── [6.8K]  utils.py
-│           └── [4.1K]  www0x0.py
-├── [ 352]  tests
+│           └── [5.0K]  www0x0.py
+├── [ 128]  templates
+│   ├── [9.6K]  authenticated_provider_template.py
+│   └── [6.5K]  simple_provider_template.py
+├── [ 416]  tests
 │   ├── [  63]  __init__.py
 │   ├── [  96]  data
 │   │   └── [ 100]  test.txt
-│   ├── [3.1K]  test_filebin_pixeldrain.py
+│   ├── [8.6K]  test_async_utils.py
+│   ├── [3.8K]  test_filebin_pixeldrain.py
 │   ├── [9.0K]  test_integration.py
 │   ├── [8.7K]  test_s3_advanced.py
 │   ├── [ 180]  test_twat_fs.py
-│   └── [ 29K]  test_upload.py
+│   ├── [ 29K]  test_upload.py
+│   └── [ 13K]  test_utils.py
+├── [185K]  twat_search.txt
 ├── [2.8K]  update_providers.py
-└── [382K]  uv.lock
+└── [383K]  uv.lock
 
-14 directories, 51 files
+17 directories, 63 files

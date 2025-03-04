@@ -7,19 +7,17 @@ This module provides functionality to upload files to FAL's storage service.
 
 from __future__ import annotations
 from typing import Any, BinaryIO, ClassVar, cast
-import os
 from pathlib import Path
 
 import fal_client  # type: ignore
 from loguru import logger  # type: ignore
 
-from twat_fs.upload_providers.protocols import Provider, ProviderClient, ProviderHelp
+from twat_fs.upload_providers.protocols import ProviderClient, ProviderHelp
 from twat_fs.upload_providers.simple import BaseProvider
 from twat_fs.upload_providers.core import (
     RetryableError,
     NonRetryableError,
     convert_to_upload_result,
-    async_to_sync,
 )
 from twat_fs.upload_providers.utils import (
     create_provider_help,
@@ -65,9 +63,8 @@ class FalProvider(BaseProvider):
             return fal_client.SyncClient(key=self.key)
         except Exception as e:
             logger.error(f"Failed to create FAL client: {e}")
-            raise NonRetryableError(
-                f"Failed to create FAL client: {e}", self.provider_name
-            )
+            msg = f"Failed to create FAL client: {e}"
+            raise NonRetryableError(msg, self.provider_name)
 
     @classmethod
     def get_credentials(cls) -> dict[str, str] | None:

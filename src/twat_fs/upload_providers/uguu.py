@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import requests
 from pathlib import Path
-from typing import Any, BinaryIO, cast, ClassVar
+from typing import BinaryIO, cast, ClassVar
 
 from twat_fs.upload_providers.types import UploadResult
 from twat_fs.upload_providers.core import RetryableError, NonRetryableError
@@ -99,7 +99,7 @@ class UguuProvider(BaseProvider):
                     "raw_url": url,
                 },
             )
-        except (RetryableError, NonRetryableError) as e:
+        except (RetryableError, NonRetryableError):
             # Re-raise these errors to allow for retries
             raise
         except Exception as e:

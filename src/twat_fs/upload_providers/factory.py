@@ -8,12 +8,10 @@ This module centralizes the creation of providers and standardizes error handlin
 from __future__ import annotations
 
 import importlib
-from typing import Any, Type, TypeVar, cast, TYPE_CHECKING
-from pathlib import Path
+from typing import TypeVar, cast, TYPE_CHECKING
 
 from loguru import logger
 
-from twat_fs.upload_providers.core import RetryableError, NonRetryableError
 from twat_fs.upload_providers.protocols import Provider, ProviderClient, ProviderHelp
 
 if TYPE_CHECKING:
@@ -135,7 +133,7 @@ class ProviderFactory:
                 return None
 
             # Get credentials and create provider
-            credentials = provider_module.get_credentials()
+            provider_module.get_credentials()
 
             # Use the module's get_provider method
             provider = provider_module.get_provider()

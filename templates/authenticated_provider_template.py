@@ -7,17 +7,15 @@ Replace PROVIDER_NAME with the actual provider name.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
-from typing import Any, BinaryIO, ClassVar, cast, Dict, Optional
+from typing import Any, BinaryIO, ClassVar, cast
 
 # Import the appropriate HTTP library and provider-specific libraries
 import requests  # or import aiohttp
-import asyncio
 
-from twat_fs.upload_providers.protocols import Provider, ProviderClient, ProviderHelp
+from twat_fs.upload_providers.protocols import ProviderClient, ProviderHelp
 from twat_fs.upload_providers.types import UploadResult
-from twat_fs.upload_providers.core import NonRetryableError, RetryableError
+from twat_fs.upload_providers.core import NonRetryableError
 from twat_fs.upload_providers.simple import BaseProvider
 from twat_fs.upload_providers.utils import (
     create_provider_help,
@@ -52,7 +50,7 @@ class ProviderNameProvider(BaseProvider):
         "PROVIDER_OPTIONS",
     ]
 
-    def __init__(self, credentials: Dict[str, str]) -> None:
+    def __init__(self, credentials: dict[str, str]) -> None:
         """
         Initialize the provider with credentials.
 
@@ -73,7 +71,7 @@ class ProviderNameProvider(BaseProvider):
         # )
 
     @classmethod
-    def get_credentials(cls) -> Optional[Dict[str, str]]:
+    def get_credentials(cls) -> dict[str, str] | None:
         """
         Get credentials from environment variables.
 
@@ -86,7 +84,7 @@ class ProviderNameProvider(BaseProvider):
         )
 
     @classmethod
-    def get_provider(cls) -> Optional[ProviderClient]:
+    def get_provider(cls) -> ProviderClient | None:
         """
         Initialize and return the provider client.
 
@@ -105,7 +103,7 @@ class ProviderNameProvider(BaseProvider):
             logger.error(f"Failed to initialize {cls.provider_name} provider: {e}")
             return None
 
-    def _do_upload(self, file_path: Path, remote_path: Optional[Path] = None) -> str:
+    def _do_upload(self, file_path: Path, remote_path: Path | None = None) -> str:
         """
         Internal implementation of the file upload.
 
@@ -150,11 +148,12 @@ class ProviderNameProvider(BaseProvider):
             data = response.json()
             url = data.get("url", "")
             if not url:
-                raise NonRetryableError("No URL found in response", self.provider_name)
+                msg = "No URL found in response"
+                raise NonRetryableError(msg, self.provider_name)
             return str(url)
 
     def upload_file_impl(
-        self, file: BinaryIO, remote_path: Optional[Path] = None
+        self, file: BinaryIO, remote_path: Path | None = None
     ) -> UploadResult:
         """
         Implement the actual file upload logic.
@@ -262,12 +261,12 @@ class ProviderNameProvider(BaseProvider):
 
 
 # Module-level functions to implement the Provider protocol
-def get_credentials() -> Optional[Dict[str, str]]:
+def get_credentials() -> dict[str, str] | None:
     """Get credentials for the provider."""
     return ProviderNameProvider.get_credentials()
 
 
-def get_provider() -> Optional[ProviderClient]:
+def get_provider() -> ProviderClient | None:
     """Get an instance of the provider."""
     return ProviderNameProvider.get_provider()
 

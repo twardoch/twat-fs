@@ -63,10 +63,12 @@ src/
   twat_fs/
     upload_providers/
       __init__.py
+      async_utils.py
       bashupload.py
       catbox.py
       core.py
       dropbox.py
+      factory.py
       fal.py
       filebin.py
       litterbox.py
@@ -83,20 +85,26 @@ src/
     cli.py
     py.typed
     upload.py
+templates/
+  authenticated_provider_template.py
+  simple_provider_template.py
 tests/
   data/
     test.txt
   __init__.py
+  test_async_utils.py
   test_filebin_pixeldrain.py
   test_integration.py
   test_s3_advanced.py
   test_twat_fs.py
   test_upload.py
+  test_utils.py
 .gitignore
 .pre-commit-config.yaml
+CHANGELOG.md
 cleanup.py
+IDEAS.md
 LICENSE
-LOG.md
 MANIFEST.in
 mypy.ini
 pyproject.toml
@@ -150,7 +158,7 @@ File: .cursor/rules/filetree.mdc
 description: File tree of the project
 globs: 
 ---
-[ 992]  .
+[1.1K]  .
 ├── [  64]  .benchmarks
 ├── [  96]  .cursor
 │   └── [ 224]  rules
@@ -164,17 +172,24 @@ globs:
 │       └── [1.4K]  release.yml
 ├── [3.5K]  .gitignore
 ├── [ 532]  .pre-commit-config.yaml
+├── [  96]  .specstory
+│   └── [ 192]  history
+│       ├── [2.7K]  .what-is-this.md
+│       ├── [146K]  2025-03-04_03-45-refining-todo-list-from-codebase-review.md
+│       ├── [186K]  2025-03-04_04-43-incorporating-ideas-from-ideas-md-into-todo-md.md
+│       └── [104K]  2025-03-04_05-33-implementing-todo-phases-1,-2,-and-3.md
+├── [6.3K]  CHANGELOG.md
+├── [ 986]  CLEANUP.txt
+├── [ 56K]  IDEAS.md
 ├── [1.0K]  LICENSE
-├── [2.9K]  LOG.md
 ├── [ 153]  MANIFEST.in
-├── [ 12K]  README.md
-├── [5.2K]  TODO.md
+├── [ 11K]  README.md
+├── [6.8K]  TODO.md
 ├── [   7]  VERSION.txt
-├── [ 11K]  cleanup.py
+├── [ 12K]  cleanup.py
 ├── [  96]  dist
 ├── [  96]  examples
 │   └── [ 948]  upload_example.py
-├── [ 306]  filetree.sh
 ├── [ 439]  mypy.ini
 ├── [7.0K]  pyproject.toml
 ├── [ 128]  src
@@ -186,37 +201,45 @@ globs:
 │       │   ├── [1.5K]  _test.jpg
 │       │   └── [383K]  test.jpg
 │       ├── [   1]  py.typed
-│       ├── [ 24K]  upload.py
-│       └── [ 640]  upload_providers
-│           ├── [3.5K]  __init__.py
-│           ├── [6.1K]  bashupload.py
-│           ├── [5.3K]  catbox.py
+│       ├── [ 25K]  upload.py
+│       └── [ 704]  upload_providers
+│           ├── [1.9K]  __init__.py
+│           ├── [6.2K]  async_utils.py
+│           ├── [5.5K]  bashupload.py
+│           ├── [4.9K]  catbox.py
 │           ├── [ 12K]  core.py
-│           ├── [ 20K]  dropbox.py
-│           ├── [8.5K]  fal.py
-│           ├── [5.0K]  filebin.py
-│           ├── [ 10K]  litterbox.py
-│           ├── [6.1K]  pixeldrain.py
-│           ├── [4.0K]  protocols.py
-│           ├── [5.1K]  s3.py
-│           ├── [6.0K]  simple.py
+│           ├── [ 24K]  dropbox.py
+│           ├── [5.4K]  factory.py
+│           ├── [7.7K]  fal.py
+│           ├── [6.7K]  filebin.py
+│           ├── [ 11K]  litterbox.py
+│           ├── [6.9K]  pixeldrain.py
+│           ├── [3.9K]  protocols.py
+│           ├── [ 10K]  s3.py
+│           ├── [9.3K]  simple.py
 │           ├── [ 728]  types.py
-│           ├── [4.3K]  uguu.py
+│           ├── [5.1K]  uguu.py
 │           ├── [6.8K]  utils.py
-│           └── [4.1K]  www0x0.py
-├── [ 352]  tests
+│           └── [5.0K]  www0x0.py
+├── [ 128]  templates
+│   ├── [9.6K]  authenticated_provider_template.py
+│   └── [6.5K]  simple_provider_template.py
+├── [ 416]  tests
 │   ├── [  63]  __init__.py
 │   ├── [  96]  data
 │   │   └── [ 100]  test.txt
-│   ├── [3.1K]  test_filebin_pixeldrain.py
+│   ├── [8.6K]  test_async_utils.py
+│   ├── [3.8K]  test_filebin_pixeldrain.py
 │   ├── [9.0K]  test_integration.py
 │   ├── [8.7K]  test_s3_advanced.py
 │   ├── [ 180]  test_twat_fs.py
-│   └── [ 29K]  test_upload.py
+│   ├── [ 29K]  test_upload.py
+│   └── [ 13K]  test_utils.py
+├── [105K]  twat_search.txt
 ├── [2.8K]  update_providers.py
-└── [382K]  uv.lock
+└── [383K]  uv.lock
 
-14 directories, 51 files
+17 directories, 63 files
 
 ================
 File: .cursor/rules/quality.mdc
@@ -411,32 +434,59 @@ def main(file_path: str, service: str = "bash"):
 File: src/twat_fs/upload_providers/__init__.py
 ================
 def get_provider_module(provider: str) -> Provider | None:
-        if provider.lower() == "simple":
-            module = importlib.import_module(f".{provider}", __package__)
-            if "No module named" in str(e):
-                logger.debug(f"Provider module {provider} not found")
-                logger.warning(f"Error importing provider {provider}: {e}")
-        missing_attrs = [attr for attr in required_attrs if not hasattr(module, attr)]
-            logger.warning(
-                f"Provider {provider} is missing required attributes: {', '.join(missing_attrs)}"
-        if not hasattr(module, "PROVIDER_HELP"):
-            logger.warning(f"Provider {provider} is missing help information")
-        return cast(Provider, module)
-        logger.error(f"Unexpected error loading provider {provider}: {e}")
+    return ProviderFactory.get_provider_module(provider)
 def get_provider_help(provider: str) -> ProviderHelp | None:
-        module = get_provider_module(provider)
-                return getattr(module, "PROVIDER_HELP", None)
-        logger.error(f"Error getting help for provider {provider}: {e}")
+    return ProviderFactory.get_provider_help(provider)
+
+================
+File: src/twat_fs/upload_providers/async_utils.py
+================
+T = TypeVar("T")
+P = ParamSpec("P")
+def run_async(coro: Coroutine[Any, Any, T]) -> T:
+        return asyncio.run(coro)
+        if "There is no current event loop in thread" in str(e):
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+                return loop.run_until_complete(coro)
+                loop.close()
+def to_sync(func: Callable[P, Coroutine[Any, Any, T]]) -> Callable[P, T]: ...
+def to_sync(
+    def decorator(async_func: Callable[P, Coroutine[Any, Any, T]]) -> Callable[P, T]:
+        @functools.wraps(async_func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            return run_async(async_func(*args, **kwargs))
+    return decorator(func)
+def to_async(func: Callable[P, T]) -> Callable[P, Coroutine[Any, Any, T]]: ...
+def to_async(
+    def decorator(sync_func: Callable[P, T]) -> Callable[P, Coroutine[Any, Any, T]]:
+        @functools.wraps(sync_func)
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            return sync_func(*args, **kwargs)
+async def gather_with_concurrency(
+    semaphore = asyncio.Semaphore(limit)
+    async def with_semaphore(task: Coroutine[Any, Any, T]) -> T:
+    return await asyncio.gather(
+        *(with_semaphore(task) for task in tasks),
+class AsyncContextManager:
+    async def __aenter__(self) -> Any:
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+def with_async_timeout(
+    def decorator(
+        @functools.wraps(func)
+                return await asyncio.wait_for(func(*args, **kwargs), timeout=timeout)
+                logger.warning(
+                raise TimeoutError(msg) from None
 
 ================
 File: src/twat_fs/upload_providers/bashupload.py
 ================
-class BashUploadProvider(Provider, ProviderClient):
+PROVIDER_HELP: ProviderHelp = create_provider_help(
+class BashUploadProvider(BaseProvider):
     def get_credentials(cls) -> None:
     def get_provider(cls) -> ProviderClient | None:
-        return cls()
-    async def _do_upload(self, file_path: Path) -> UploadResult:
-        validate_file(file_path)
+        return cast(ProviderClient, cls())
+    async def _do_upload(self, file_path: Path) -> str:
         data = aiohttp.FormData()
         with open(file_path, "rb") as f:
             data.add_field("file", f, filename=file_path.name)
@@ -447,29 +497,30 @@ class BashUploadProvider(Provider, ProviderClient):
                     for line in response_text.splitlines():
                         if line.startswith("wget "):
                             url = line.split(" ")[1].strip()
-                            log_upload_attempt(self.provider_name, file_path, True)
-                            return UploadResult(
                     raise NonRetryableError(msg, self.provider_name)
-    def upload_file(
-        return asyncio.run(self._do_upload(Path(str(local_path))))
-    async def async_upload_file(
-            result = await self._do_upload(Path(str(file_path)))
-            return cast(Awaitable[UploadResult], result)
-            log_upload_attempt(self.provider_name, file_path, False, e)
-def get_provider() -> BashUploadProvider:
-    return BashUploadProvider()
-    provider = get_provider()
-    return provider.upload_file(
+    def upload_file_impl(self, file: BinaryIO) -> UploadResult:
+            temp_path = Path(file.name)
+            url = asyncio.run(self._do_upload(temp_path))
+            log_upload_attempt(
+            return UploadResult(
+                    "error": str(e),
+def get_credentials() -> None:
+    return BashUploadProvider.get_credentials()
+def get_provider() -> ProviderClient | None:
+    return BashUploadProvider.get_provider()
+def upload_file(
+    return standard_upload_wrapper(
+        get_provider(),
 
 ================
 File: src/twat_fs/upload_providers/catbox.py
 ================
-class CatboxProvider(Provider, ProviderClient):
+PROVIDER_HELP: ProviderHelp = create_provider_help(
+class CatboxProvider(BaseProvider):
     def get_credentials(cls) -> None:
     def get_provider(cls) -> ProviderClient | None:
-        return cls()
-    async def _do_upload(self, file_path: Path) -> UploadResult:
-        validate_file(file_path)
+        return cast(ProviderClient, cls())
+    async def _do_upload(self, file_path: Path) -> str:
         data = aiohttp.FormData()
         data.add_field("reqtype", "fileupload")
         with open(file_path, "rb") as f:
@@ -477,19 +528,20 @@ class CatboxProvider(Provider, ProviderClient):
             async with aiohttp.ClientSession() as session:
                 async with session.post(self.upload_url, data=data) as response:
                     handle_http_response(response, self.provider_name)
-                    url = await response.text()
-                    log_upload_attempt(self.provider_name, file_path, True)
-                    return UploadResult(url=url)
-    def upload_file(
-        return asyncio.run(self._do_upload(Path(str(local_path))))
-    async def async_upload_file(
-            result = await self._do_upload(Path(str(file_path)))
-            return cast(Awaitable[UploadResult], result)
-            log_upload_attempt(self.provider_name, file_path, False, e)
-def get_provider() -> CatboxProvider:
-    return CatboxProvider()
-    provider = get_provider()
-    return provider.upload_file(
+                    return await response.text()
+    def upload_file_impl(self, file: BinaryIO) -> UploadResult:
+            temp_path = Path(file.name)
+            url = asyncio.run(self._do_upload(temp_path))
+            log_upload_attempt(
+            return UploadResult(
+                    "error": str(e),
+def get_credentials() -> None:
+    return CatboxProvider.get_credentials()
+def get_provider() -> ProviderClient | None:
+    return CatboxProvider.get_provider()
+def upload_file(
+    return standard_upload_wrapper(
+        get_provider(),
 
 ================
 File: src/twat_fs/upload_providers/core.py
@@ -572,9 +624,10 @@ def with_timing(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
 ================
 File: src/twat_fs/upload_providers/dropbox.py
 ================
+PROVIDER_HELP: ProviderHelp = create_provider_help(
 load_dotenv()
 class DropboxCredentials(TypedDict):
-class DropboxClient:
+class DropboxClient(BaseProvider):
     def __init__(self, credentials: DropboxCredentials) -> None:
         self.dbx = self._create_client()
     def _create_client(self) -> dropbox.Dropbox:
@@ -587,21 +640,16 @@ class DropboxClient:
                     self.dbx.refresh_access_token()
                     logger.debug(f"Unable to refresh access token: {refresh_err}")
                 logger.debug(f"Authentication error: {e}")
-    def upload_file(
-        logger.debug(f"Starting upload process for {file_path}")
-        path = Path(file_path)
-        if not path.exists():
-            raise FileNotFoundError(msg)
-        if not os.access(path, os.R_OK):
-            raise PermissionError(msg)
+    def upload_file_impl(
+            path = Path(file.name)
             self._refresh_token_if_needed()
-            upload_path = _normalize_path(upload_path)
+            actual_upload_path = _normalize_path(actual_upload_path)
             remote_path = path.name if remote_path is None else str(remote_path)
                 timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
                 name, ext = os.path.splitext(remote_path)
-            db_path = _normalize_path(os.path.join(upload_path, remote_path))
+            db_path = _normalize_path(os.path.join(actual_upload_path, remote_path))
             logger.debug(f"Target Dropbox path: {db_path}")
-            _ensure_upload_directory(self.dbx, upload_path)
+            _ensure_upload_directory(self.dbx, actual_upload_path)
             exists, remote_metadata = _check_file_exists(self.dbx, db_path)
                 raise DropboxFileExistsError(msg)
             file_size = os.path.getsize(path)
@@ -609,42 +657,47 @@ class DropboxClient:
                 _upload_large_file(self.dbx, path, db_path, SMALL_FILE_THRESHOLD)
             url = _get_share_url(self.dbx, db_path)
                 raise DropboxUploadError(msg)
-            logger.debug(f"Successfully uploaded to Dropbox: {url}")
-            return convert_to_upload_result(url)
+            log_upload_attempt(
+            return UploadResult(
             logger.error(f"Failed to upload to Dropbox: {e}")
-            raise DropboxUploadError(msg) from e
+                    "error": str(e),
+    def upload_file(
+        path = Path(local_path)
+        validate_file(path)
+            with open(path, "rb") as file:
+                return self.upload_file_impl(
+            raise ValueError(msg) from e
     def get_account_info(self) -> None:
             logger.error(f"Failed to get account info: {e}")
-def get_credentials() -> DropboxCredentials | None:
-    access_token = os.getenv("DROPBOX_ACCESS_TOKEN")
-        logger.debug("DROPBOX_ACCESS_TOKEN environment variable not set")
-        "refresh_token": os.getenv("DROPBOX_REFRESH_TOKEN"),
-        "app_key": os.getenv("DROPBOX_APP_KEY"),
-        "app_secret": os.getenv("DROPBOX_APP_SECRET"),
-def get_provider() -> DropboxClient | None:
-        credentials = get_credentials()
-        client = DropboxClient(credentials)
-            client.get_account_info()
-                    logger.warning(
-                    logger.error(
-                logger.error(f"Dropbox authentication failed: {e}")
-            logger.error(f"Failed to initialize Dropbox client: {e}")
-        logger.error(f"Error initializing Dropbox client: {e}")
+    def get_credentials(cls) -> dict[str, Any] | None:
+        creds = get_env_credentials(required_vars, optional_vars)
+            "refresh_token": creds.get("DROPBOX_REFRESH_TOKEN"),
+            "app_key": creds.get("DROPBOX_APP_KEY"),
+            "app_secret": creds.get("DROPBOX_APP_SECRET"),
+    def get_provider(cls) -> ProviderClient | None:
+            credentials = cls.get_credentials()
+            client = cls(cast(DropboxCredentials, credentials))
+                client.get_account_info()
+                return cast(ProviderClient, client)
+                        logger.warning(
+                        logger.error(
+                    logger.error(f"Dropbox authentication failed: {e}")
+                logger.error(f"Failed to initialize Dropbox client: {e}")
+            logger.error(f"Error initializing Dropbox client: {e}")
+def get_credentials() -> dict[str, Any] | None:
+    return DropboxClient.get_credentials()
+def get_provider() -> ProviderClient | None:
+    return DropboxClient.get_provider()
     client = get_provider()
         raise ValueError(msg)
-        remote_path = Path(file_path).name
+        remote_path = Path(local_path).name
         return client.upload_file(
-        raise ValueError(msg) from e
 class DropboxUploadError(Exception):
 class PathConflictError(DropboxUploadError):
 class DropboxFileExistsError(Exception):
     def __init__(self, message: str, url: str | None = None):
         super().__init__(message)
 class FolderExistsError(PathConflictError):
-def _validate_file(local_path: Path) -> None:
-    if not get_provider():
-    if not local_path.exists():
-    if not os.access(local_path, os.R_OK):
 def _get_download_url(url: str) -> str | None:
         parsed = parse.urlparse(url)
         query = dict(parse.parse_qsl(parsed.query))
@@ -664,6 +717,7 @@ def _get_share_url(dbx: dropbox.Dropbox, db_path: str) -> str:
         url = get_url()
         if not isinstance(url, str):
             msg = f"Expected string URL but got {type(url)}"
+        raise DropboxUploadError(msg) from e
 def _ensure_upload_directory(dbx: Any, upload_path: str) -> None:
     logger.debug(f"Ensuring upload directory exists: {upload_path}")
             logger.debug(f"Attempting to create directory: {upload_path}")
@@ -720,95 +774,121 @@ def _handle_api_error(e: Any, operation: str) -> None:
                 logger.error(f"Path conflict during {operation}: {e}")
         logger.error(f"API error during {operation}: {e}")
         logger.error(f"Unexpected error during {operation}: {e}")
-def _validate_credentials(credentials: DropboxCredentials) -> None:
-def _get_client(credentials: DropboxCredentials) -> Any:
-def _refresh_token(credentials: DropboxCredentials) -> DropboxCredentials | None:
+
+================
+File: src/twat_fs/upload_providers/factory.py
+================
+T = TypeVar("T", bound=Provider)
+class ProviderFactory:
+    def get_provider_module(provider_name: str) -> Provider | None:
+            if provider_name.lower() == "simple":
+                module = importlib.import_module(
+                if "No module named" in str(e):
+                    logger.debug(f"Provider module {provider_name} not found")
+                    logger.warning(f"Error importing provider {provider_name}: {e}")
+                attr for attr in required_attrs if not hasattr(module, attr)
+                logger.warning(
+                    f"Provider {provider_name} is missing required attributes: {', '.join(missing_attrs)}"
+            if not hasattr(module, "PROVIDER_HELP"):
+                logger.warning(f"Provider {provider_name} is missing help information")
+            return cast(Provider, module)
+            logger.error(f"Unexpected error loading provider {provider_name}: {e}")
+    def get_provider_help(provider_name: str) -> ProviderHelp | None:
+            module = ProviderFactory.get_provider_module(provider_name)
+                    return getattr(module, "PROVIDER_HELP", None)
+            logger.error(f"Error getting help for provider {provider_name}: {e}")
+    def create_provider(provider_name: str) -> ProviderClient | None:
+            provider_module = ProviderFactory.get_provider_module(provider_name)
+                logger.warning(f"Provider module {provider_name} not found")
+            provider_module.get_credentials()
+            provider = provider_module.get_provider()
+                logger.warning(f"Failed to initialize provider {provider_name}")
+            logger.error(f"Error creating provider {provider_name}: {e}")
+    def create_providers(
+            providers[name] = ProviderFactory.create_provider(name)
 
 ================
 File: src/twat_fs/upload_providers/fal.py
 ================
-class FalProvider(ProviderClient, Provider):
+PROVIDER_HELP: ProviderHelp = create_provider_help(
+class FalProvider(BaseProvider):
     def __init__(self, key: str) -> None:
-        self.client = fal_client.SyncClient(key=key)
+        super().__init__()
+        self.client = self._create_client()
+    def _create_client(self) -> Any:
+            return fal_client.SyncClient(key=self.key)
+            logger.error(f"Failed to create FAL client: {e}")
+            raise NonRetryableError(msg, self.provider_name)
     def get_credentials(cls) -> dict[str, str] | None:
-        key = os.getenv("FAL_KEY")
+        creds = get_env_credentials(cls.REQUIRED_ENV_VARS, cls.OPTIONAL_ENV_VARS)
     def get_provider(cls) -> ProviderClient | None:
         creds = cls.get_credentials()
             logger.debug("FAL_KEY not set in environment")
-            return cls(key=str(creds["key"]).strip())
+            provider = cls(key=str(creds["key"]).strip())
+            return cast(ProviderClient, provider)
             logger.warning(f"Failed to initialize FAL provider: {err}")
-    @with_async_retry(
-    async def async_upload_file(
+    def _do_upload(self, file: BinaryIO) -> str:
         if not hasattr(self.client, "upload_file"):
-            raise NonRetryableError(msg, "fal")
             logger.debug("FAL: API credentials verified")
             if "401" in str(e) or "unauthorized" in str(e).lower():
-            raise RetryableError(msg, "fal")
-            file_path_str = str(file_path)
-                result = self.client.upload_file(file_path_str)
-                if "TypeError" in str(e) or "str" in str(e):
-                    with open(file_path_str, "rb") as f:
-                        result = self.client.upload_file(f)
+            raise RetryableError(msg, self.provider_name)
+            result = self.client.upload_file(file)
             result_str = str(result).strip()
+    def upload_file_impl(self, file: BinaryIO) -> UploadResult:
+            url = self._do_upload(file)
+            log_upload_attempt(self.provider_name, file.name, success=True)
             return convert_to_upload_result(
-    def upload_file(
-        result: UploadResult = async_to_sync(self.async_upload_file)(
+            log_upload_attempt(self.provider_name, file.name, success=False, error=e)
 def get_credentials() -> dict[str, str] | None:
     return FalProvider.get_credentials()
 def get_provider() -> ProviderClient | None:
     return FalProvider.get_provider()
-    provider = get_provider()
-    return provider.upload_file(
+def upload_file(
+    return standard_upload_wrapper(
+        provider=get_provider(),
 
 ================
 File: src/twat_fs/upload_providers/filebin.py
 ================
+PROVIDER_HELP: ProviderHelp = create_provider_help(
 class FilebinProvider(BaseProvider):
     def __init__(self) -> None:
-        super().__init__()
+    def _generate_bin_name(self) -> str:
+        timestamp = int(time.time())
+        suffix = "".join(
+            secrets.choice(string.ascii_lowercase + string.digits) for _ in range(6)
+    def _do_upload(self, file: BinaryIO, filename: str) -> str:
+        bin_name = self._generate_bin_name()
+        for attempt in range(max_retries):
+                file.seek(0)  # Reset file pointer for each attempt
+                response = requests.put(
+                    handle_http_response(response, self.provider_name)
+                        time.sleep(retry_delay)
+                raise NonRetryableError(msg, self.provider_name)
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
             filename = Path(file.name).name
-            timestamp = int(time.time())
-            suffix = "".join(
-                secrets.choice(string.ascii_lowercase + string.digits) for _ in range(6)
-            for attempt in range(max_retries):
-                    response = requests.put(
-                        logger.debug(
-                        return UploadResult(
-                            url=str(file_url),
-                        time.sleep(retry_delay)
-                        file.seek(0)  # Reset file pointer for retry
-                        file.seek(0)
-                raise ValueError(last_error)
-            raise ValueError(msg)
-            logger.error(f"Failed to upload to filebin.net: {e}")
+            url = self._do_upload(file, filename)
+            log_upload_attempt(
+            return UploadResult(
                     "error": str(e),
     def get_credentials(cls) -> None:
     def get_provider(cls) -> ProviderClient | None:
         return cast(ProviderClient, cls())
 def get_credentials() -> None:
+    return FilebinProvider.get_credentials()
 def get_provider() -> ProviderClient | None:
     return FilebinProvider.get_provider()
 def upload_file(
-    provider = get_provider()
-    return provider.upload_file(local_path, remote_path)
+    return standard_upload_wrapper(
+        get_provider(),
 
 ================
 File: src/twat_fs/upload_providers/litterbox.py
 ================
-T = TypeVar("T")
-P = ParamSpec("P")
-def _ensure_coroutine(
-    @wraps(func)
-    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> UploadResult:
-        result = await func(*args, **kwargs)
-        if isinstance(result, str):
-            return convert_to_upload_result(result)
-        if not isinstance(result, UploadResult):
-            msg = f"Expected UploadResult or str, got {type(result)}"
-            raise RuntimeError(msg)
-class LitterboxProvider(ProviderClient, Provider):
+PROVIDER_HELP: ProviderHelp = create_provider_help(
+class LitterboxProvider(BaseProvider):
     def __init__(
+        super().__init__()
         if not isinstance(default_expiration, ExpirationTime):
                 default_expiration = ExpirationTime(default_expiration)
                 raise ValueError(msg) from e
@@ -819,59 +899,73 @@ class LitterboxProvider(ProviderClient, Provider):
         ).strip()
             expiration = ExpirationTime(str(default_expiration))
             logger.warning(
-        return cls(default_expiration=expiration)
-    async def async_upload_file(
-        file_path = Path(str(file_path))
-        if not file_path.exists():
-            raise FileNotFoundError(msg)
-        expiration = kwargs.get("expiration") or self.default_expiration
+        provider = cls(default_expiration=expiration)
+        return cast(ProviderClient, provider)
+    async def _do_upload_async(
         data = aiohttp.FormData()
         data.add_field("reqtype", "fileupload")
         data.add_field(
             str(
-                if isinstance(expiration, ExpirationTime)
-            with open(str(file_path), "rb") as f:
-                file_content = f.read()
-                filename=str(file_path.name),
+                if isinstance(expiration_value, ExpirationTime)
+            file_content = file.read()
+            file_name = os.path.basename(file.name)
             async with aiohttp.ClientSession() as session:
                     async with session.post(LITTERBOX_API_URL, data=data) as response:
-                            raise RetryableError(msg, "litterbox")
-                            error_text = await response.text()
-                                raise NonRetryableError(msg, "litterbox")
+                        handle_http_response(response, self.provider_name)
                         url = await response.text()
                         if not url.startswith("http"):
-                        return convert_to_upload_result(
-                    raise RetryableError(msg, "litterbox") from e
+                            raise NonRetryableError(msg, self.provider_name)
+                    raise RetryableError(msg, self.provider_name) from e
+    def _do_upload(
+        return async_to_sync(self._do_upload_async)(file, expiration)
+    def upload_file_impl(self, file: BinaryIO) -> UploadResult:
+            url = self._do_upload(file)
+            log_upload_attempt(self.provider_name, file.name, success=True)
+            return convert_to_upload_result(
+            log_upload_attempt(self.provider_name, file.name, success=False, error=e)
     def upload_file(
-        return cast(
-            async_to_sync(self.async_upload_file)(
+        path = Path(local_path)
+        self._validate_file(path)
+        with self._open_file(path) as file:
+                    url = self._do_upload(file, expiration)
+                            "expiration": str(expiration),
+                    log_upload_attempt(
+                return super().upload_file(
 def get_credentials() -> dict[str, Any] | None:
     return LitterboxProvider.get_credentials()
 def get_provider() -> ProviderClient | None:
     return LitterboxProvider.get_provider()
     provider = get_provider()
-    return provider.upload_file(local_path, remote_path, expiration=expiration)
+        raise ValueError(msg)
+    return provider.upload_file(
 
 ================
 File: src/twat_fs/upload_providers/pixeldrain.py
 ================
+PROVIDER_HELP: ProviderHelp = create_provider_help(
 class PixeldrainProvider(BaseProvider):
     def __init__(self) -> None:
-        super().__init__()
-    def upload_file_impl(self, file: BinaryIO) -> UploadResult:
-            for attempt in range(max_retries):
-                    response = requests.post(
-                            time.sleep(retry_delay)
-                            file.seek(0)
-                        data = response.json()
-                    logger.debug(f"Successfully uploaded to pixeldrain.com: {url}")
-                    return UploadResult(
-                raise ValueError(last_error)
+    def _process_response(self, response: requests.Response) -> str:
+        handle_http_response(response, self.provider_name)
+            data = response.json()
+            raise ValueError(msg) from e
             raise ValueError(msg)
-            logger.error(f"Failed to upload to pixeldrain.com: {e}")
+    def _upload_with_retry(self, file: BinaryIO) -> str:
+        for attempt in range(max_retries):
+                file.seek(0)
+                response = requests.post(
+                return self._process_response(response)
+                    delay = min(retry_delay * (2**attempt), 30.0)
+                    time.sleep(delay)
+                    if isinstance(e, RetryableError | requests.RequestException):
+        raise ValueError(str(last_error)) from last_error
+    def upload_file_impl(self, file: BinaryIO) -> UploadResult:
+            url = self._upload_with_retry(file)
+            log_upload_attempt(
+            return UploadResult(
+                    "raw_response": {"id": url.split("/")[-1]},
                     "error": str(e),
     def get_credentials(cls) -> None:
-        return convert_to_upload_result(None)
     def get_provider(cls) -> ProviderClient | None:
         return cast(ProviderClient, cls())
     def _get_file_url(self, file_id: str | None) -> str | None:
@@ -880,8 +974,8 @@ def get_credentials() -> None:
 def get_provider() -> ProviderClient | None:
     return PixeldrainProvider.get_provider()
 def upload_file(
-    provider = get_provider()
-    return provider.upload_file(local_path, remote_path)
+    return standard_upload_wrapper(
+        get_provider(),
 
 ================
 File: src/twat_fs/upload_providers/protocols.py
@@ -899,37 +993,51 @@ class Provider(Protocol):
 ================
 File: src/twat_fs/upload_providers/s3.py
 ================
+PROVIDER_HELP: ProviderHelp = create_provider_help(
+class S3Provider(BaseProvider):
+    def __init__(self, credentials: dict[str, Any]) -> None:
+        self.client = self._create_client()
+    def _create_client(self) -> Any:
+        if self.credentials.get("AWS_DEFAULT_REGION"):
+        if self.credentials.get("AWS_ENDPOINT_URL"):
+        if self.credentials.get("AWS_S3_PATH_STYLE", "").lower() == "true":
+            client_kwargs["config"] = Config(s3={"addressing_style": "path"})
+        if self.credentials.get("AWS_ACCESS_KEY_ID"):
+        if self.credentials.get("AWS_SECRET_ACCESS_KEY"):
+        if self.credentials.get("AWS_SESSION_TOKEN"):
+            return boto3.client("s3", **client_kwargs)
+            raise NonRetryableError(msg, self.provider_name)
+    def _get_s3_url(self, key: str) -> str:
+        if endpoint_url := self.credentials.get("AWS_ENDPOINT_URL"):
+            region = self.credentials.get("AWS_DEFAULT_REGION", "us-east-1")
+    def _do_upload(self, file: BinaryIO, key: str) -> str:
+            file.seek(0)
+            self.client.upload_fileobj(file, bucket, key)
+            return self._get_s3_url(key)
+            error_str = str(e)
+                raise RetryableError(msg, self.provider_name)
+    def upload_file_impl(
+            key = str(remote_path or Path(file.name).name)
+            url = self._do_upload(file, key)
+            log_upload_attempt(
+            return UploadResult(
+                    "error": str(e),
+    def get_credentials(cls) -> dict[str, Any] | None:
+        creds = get_env_credentials(cls.REQUIRED_ENV_VARS, cls.OPTIONAL_ENV_VARS)
+    def get_provider(cls) -> ProviderClient | None:
+            credentials = cls.get_credentials()
+            provider = cls(credentials)
+                provider.client.list_buckets()
+                return cast(ProviderClient, provider)
+                logger.warning(f"Failed to validate S3 client: {e}")
+            logger.error(f"Error initializing S3 provider: {e}")
 def get_credentials() -> dict[str, Any] | None:
-    bucket = os.getenv("AWS_S3_BUCKET")
-        logger.debug("Required AWS_S3_BUCKET environment variable not set")
-    region = os.getenv("AWS_DEFAULT_REGION")
-    path_style = os.getenv("AWS_S3_PATH_STYLE", "").lower() == "true"
-    endpoint_url = os.getenv("AWS_ENDPOINT_URL")
-    role_arn = os.getenv("AWS_ROLE_ARN")
-    access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
-    secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    session_token = os.getenv("AWS_SESSION_TOKEN")
-def get_provider(creds: dict[str, Any] | None = None):
-        creds = get_credentials()
-    if creds.get("region"):
-    if creds.get("endpoint_url"):
-    if creds.get("path_style"):
-        client_kwargs["config"] = Config(s3={"addressing_style": "path"})
-        client = boto3.client("s3", **client_kwargs)
-            client.list_buckets()
-            logger.warning(f"Failed to validate S3 client: {e}")
-        logger.warning(f"Failed to create S3 client: {e}")
+    return S3Provider.get_credentials()
+def get_provider() -> ProviderClient | None:
+    return S3Provider.get_provider()
 def upload_file(
-    local_path = Path(local_path)
-        raise ValueError(msg)
-    client = get_provider(creds)
-    key = str(remote_path or local_path.name)
-        with open(local_path, "rb") as f:
-            client.upload_fileobj(f, creds["bucket"], key)
-            if creds.get("endpoint_url")
-        return convert_to_upload_result(
-        logger.warning(f"S3 upload failed: {e}")
-        raise ValueError(msg) from e
+    return standard_upload_wrapper(
+        get_provider(),
 
 ================
 File: src/twat_fs/upload_providers/simple.py
@@ -966,6 +1074,13 @@ class BaseProvider(ABC, Provider):
         if not os.access(file_path, os.R_OK):
             raise PermissionError(msg)
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
+class AsyncBaseProvider(BaseProvider):
+        sync_upload = to_sync(self.async_upload_file)
+        return sync_upload(
+        path = Path(file.name)
+        return sync_upload(path)
+class SyncBaseProvider(BaseProvider):
+        return self.upload_file(
 
 ================
 File: src/twat_fs/upload_providers/types.py
@@ -977,29 +1092,29 @@ class UploadResult:
 ================
 File: src/twat_fs/upload_providers/uguu.py
 ================
+PROVIDER_HELP: ProviderHelp = create_provider_help(
 class UguuProvider(BaseProvider):
     def __init__(self) -> None:
-        super().__init__()
+    def _do_upload(self, file: BinaryIO) -> str:
+        response = requests.post(self.upload_url, files=files, timeout=30)
+        handle_http_response(response, self.provider_name)
+        result = response.json()
+            raise NonRetryableError(msg, self.provider_name)
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
-            response = requests.post(self.url, files=files, timeout=30)
-                raise RetryableError(msg, "uguu")
-                raise NonRetryableError(msg, "uguu")
-            result = response.json()
-            logger.debug(f"Successfully uploaded to uguu.se: {url}")
+            url = self._do_upload(file)
+            log_upload_attempt(
             return UploadResult(
-            raise RetryableError(msg, "uguu") from e
                     "error": str(e),
-    def get_credentials(cls) -> dict[str, Any] | None:
+    def get_credentials(cls) -> None:
     def get_provider(cls) -> ProviderClient | None:
         return cast(ProviderClient, cls())
-def get_credentials() -> dict[str, Any] | None:
+def get_credentials() -> None:
     return UguuProvider.get_credentials()
 def get_provider() -> ProviderClient | None:
     return UguuProvider.get_provider()
 def upload_file(
-    provider = get_provider()
-        raise ValueError(msg)
-    return provider.upload_file(local_path, remote_path)
+    return standard_upload_wrapper(
+        get_provider(),
 
 ================
 File: src/twat_fs/upload_providers/utils.py
@@ -1043,29 +1158,30 @@ def log_upload_attempt(
 ================
 File: src/twat_fs/upload_providers/www0x0.py
 ================
+PROVIDER_HELP: ProviderHelp = create_provider_help(
 class Www0x0Provider(BaseProvider):
     def __init__(self) -> None:
-        super().__init__()
+    def _do_upload(self, file: BinaryIO) -> str:
+        response = requests.post(self.upload_url, files=files, timeout=30)
+        handle_http_response(response, self.provider_name)
+        url = response.text.strip()
+        if not url.startswith("http"):
+            raise NonRetryableError(msg, self.provider_name)
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
-            response = requests.post(self.url, files=files, timeout=30)
-                raise RetryableError(msg, "www0x0")
-                raise NonRetryableError(msg, "www0x0")
-            url = response.text.strip()
-            if not url.startswith("http"):
-            logger.debug(f"Successfully uploaded to 0x0.st: {url}")
+            url = self._do_upload(file)
+            log_upload_attempt(
             return UploadResult(
-            raise RetryableError(msg, "www0x0") from e
                     "error": str(e),
     def get_credentials(cls) -> None:
     def get_provider(cls) -> ProviderClient | None:
         return cast(ProviderClient, cls())
 def get_credentials() -> None:
+    return Www0x0Provider.get_credentials()
 def get_provider() -> ProviderClient | None:
     return Www0x0Provider.get_provider()
 def upload_file(
-    provider = get_provider()
-        raise ValueError(msg)
-    return provider.upload_file(local_path, remote_path)
+    return standard_upload_wrapper(
+        get_provider(),
 
 ================
 File: src/twat_fs/__init__.py
@@ -1163,8 +1279,8 @@ def _test_provider_online(
     if not test_file.exists():
         with open(test_file, "rb") as f:
             original_hash = hashlib.sha256(f.read()).hexdigest()
-        provider_module = get_provider_module(provider_name)
-        client = provider_module.get_provider()
+        provider_module = ProviderFactory.get_provider_module(provider_name)
+        client = ProviderFactory.create_provider(provider_name)
         start_time = time.time()
         read_start = time.time()
             _ = f.read()  # Read file to measure read time
@@ -1196,6 +1312,7 @@ def setup_provider(
             setup_info = help_info.get("setup", "")
             setup_info = help_info.get("setup", "").lower()
                     retention_note = setup_info[setup_info.find("note:") :].strip()
+            client = provider_module.get_provider()
                 setup_info = help_info.get("setup", "") if help_info else ""
             has_async = hasattr(client, "async_upload_file") and not getattr(
             has_sync = hasattr(client, "upload_file") and not getattr(
@@ -1208,20 +1325,24 @@ def setup_provider(
 def setup_providers(
         result = setup_provider(provider, verbose=verbose, online=online)
 def _get_provider_module(provider: str) -> Provider | None:
-    return get_provider_module(provider)
+        return ProviderFactory.get_provider_module(provider)
+        logger.error(f"Error getting provider module {provider}: {e}")
 def _try_upload_with_provider(
-        raise ValueError(msg)
-    path = Path(str(file_path))
-    if path.exists():
-        with open(path, "rb") as f:
-    upload_result = client.upload_file(
-        upload_result.url if isinstance(upload_result, UploadResult) else upload_result
-            logger.warning(f"URL validation failed: status {response.status_code}")
-        logger.warning(f"URL validation failed: {e}")
-        UploadResult(url=upload_result, metadata={"provider": provider_name})
-        if isinstance(upload_result, str)
-    logger.info(
+        provider_module = _get_provider_module(provider_name)
+            return UploadResult(
+        provider = ProviderFactory.create_provider(provider_name)
+        path = Path(str(file_path))
+        if path.exists():
+            with open(path, "rb") as f:
+        upload_result = provider.upload_file(
+            if isinstance(upload_result, UploadResult)
+                logger.warning(f"URL validation failed: status {response.status_code}")
+            logger.warning(f"URL validation failed: {e}")
+            UploadResult(url=upload_result, metadata={"provider": provider_name})
+            if isinstance(upload_result, str)
+        logger.info(
 def _try_next_provider(
+        raise ValueError(msg)
     tried = tried_providers or set()
         tried.add(provider)
             result = _try_upload_with_provider(
@@ -1244,6 +1365,89 @@ def _try_upload_with_fallback(
         return _try_upload_with_fallback(
 
 ================
+File: templates/authenticated_provider_template.py
+================
+PROVIDER_HELP: ProviderHelp = create_provider_help(
+class ProviderNameProvider(BaseProvider):
+    def __init__(self, credentials: dict[str, str]) -> None:
+        self.api_key = credentials.get("PROVIDER_API_KEY")
+        self.api_secret = credentials.get("PROVIDER_API_SECRET")
+        self.region = credentials.get("PROVIDER_REGION", "default_region")
+    def get_credentials(cls) -> dict[str, str] | None:
+        return get_env_credentials(
+    def get_provider(cls) -> ProviderClient | None:
+        credentials = cls.get_credentials()
+            return cast(ProviderClient, cls(credentials))
+            logger.error(f"Failed to initialize {cls.provider_name} provider: {e}")
+    def _do_upload(self, file_path: Path, remote_path: Path | None = None) -> str:
+        with open(file_path, "rb") as f:
+            response = requests.post(
+            handle_http_response(response, self.provider_name)
+            data = response.json()
+            url = data.get("url", "")
+                raise NonRetryableError(msg, self.provider_name)
+            return str(url)
+    def upload_file_impl(
+            temp_path = Path(file.name)
+            url = self._do_upload(temp_path, remote_path)
+            log_upload_attempt(
+            return UploadResult(
+                    "remote_path": str(remote_path) if remote_path else None,
+                    "error": str(e),
+    def upload_file(
+        path = Path(local_path)
+        self._validate_file(path)
+            remote = Path(str(remote_path))
+            remote = Path(upload_path) / path.name
+            suffix = uuid.uuid4().hex[:8]
+            remote = remote.with_stem(f"{remote.stem}_{suffix}")
+        with self._open_file(path) as file:
+            result = self.upload_file_impl(file, remote)
+            if not result.metadata.get("success", True):
+                msg = f"Upload failed: {result.metadata.get('error', 'Unknown error')}"
+                raise RuntimeError(msg)
+def get_credentials() -> dict[str, str] | None:
+    return ProviderNameProvider.get_credentials()
+def get_provider() -> ProviderClient | None:
+    return ProviderNameProvider.get_provider()
+    return standard_upload_wrapper(
+        get_provider(),
+
+================
+File: templates/simple_provider_template.py
+================
+PROVIDER_HELP: ProviderHelp = create_provider_help(
+class ProviderNameProvider(BaseProvider):
+    def get_credentials(cls) -> None:
+    def get_provider(cls) -> ProviderClient | None:
+        return cast(ProviderClient, cls())
+    def _do_upload(self, file_path: Path) -> str:
+        with open(file_path, "rb") as f:
+            response = requests.post(
+            handle_http_response(response, self.provider_name)
+            url = response.text.strip()  # Modify based on provider response format
+    async def _do_upload_async(self, file_path: Path) -> str:
+        data = aiohttp.FormData()
+        data.add_field("file", open(file_path, "rb"), filename=file_path.name)
+        async with aiohttp.ClientSession() as session:
+            async with session.post(self.upload_url, data=data) as response:
+                response_text = await response.text()
+                return response_text.strip()
+    def upload_file_impl(self, file: BinaryIO) -> UploadResult:
+            temp_path = Path(file.name)
+            url = self._do_upload(temp_path)
+            log_upload_attempt(
+            return UploadResult(
+                    "error": str(e),
+def get_credentials() -> None:
+    return ProviderNameProvider.get_credentials()
+def get_provider() -> ProviderClient | None:
+    return ProviderNameProvider.get_provider()
+def upload_file(
+    return standard_upload_wrapper(
+        get_provider(),
+
+================
 File: tests/data/test.txt
 ================
 This is a test file for upload testing.
@@ -1255,14 +1459,95 @@ File: tests/__init__.py
 
 
 ================
+File: tests/test_async_utils.py
+================
+class TestRunAsync:
+    def test_run_async_with_successful_coroutine(self):
+        async def test_coro():
+        result = run_async(test_coro())
+    def test_run_async_with_exception(self):
+            raise ValueError(msg)
+        with pytest.raises(ValueError, match="test_error"):
+            run_async(test_coro())
+    def test_run_async_with_existing_event_loop(self):
+        with mock.patch("asyncio.run") as mock_run:
+            mock_run.side_effect = RuntimeError(
+            mock_loop = mock.MagicMock()
+            with mock.patch("asyncio.new_event_loop", return_value=mock_loop):
+                with mock.patch("asyncio.set_event_loop"):
+                    mock_loop.run_until_complete.assert_called_once()
+                    mock_loop.close.assert_called_once()
+class TestToSync:
+    def test_to_sync_with_direct_decoration(self):
+        async def test_func():
+        result = test_func()
+        assert not asyncio.iscoroutinefunction(test_func)
+    def test_to_sync_with_arguments(self):
+        @to_sync(name="custom_name")
+    def test_to_sync_preserves_docstring(self):
+    def test_to_sync_preserves_arguments(self):
+        async def test_func(arg1, arg2=None):
+        result = test_func("test", arg2="value")
+class TestToAsync:
+    def test_to_async_with_direct_decoration(self):
+        def test_func():
+        assert asyncio.iscoroutinefunction(test_func)
+        result = run_async(test_func())
+    def test_to_async_with_arguments(self):
+        @to_async(name="custom_name")
+    def test_to_async_preserves_docstring(self):
+    def test_to_async_preserves_arguments(self):
+        def test_func(arg1, arg2=None):
+        result = run_async(test_func("test", arg2="value"))
+class TestGatherWithConcurrency:
+    async def test_gather_with_concurrency(self):
+        async def test_task(i):
+            max_concurrent = max(max_concurrent, concurrent)
+            await asyncio.sleep(0.1)  # Simulate work
+            results.append(i)
+        tasks = [test_task(i) for i in range(10)]
+        result = await gather_with_concurrency(3, *tasks)
+        assert len(result) == 10
+        assert set(result) == set(range(10))
+    async def test_gather_with_concurrency_with_exceptions(self):
+        with pytest.raises(ValueError):
+            await gather_with_concurrency(3, *tasks)
+        result = await gather_with_concurrency(3, *tasks, return_exceptions=True)
+        for i, r in enumerate(result):
+                assert isinstance(r, ValueError)
+                assert str(r) == f"Error in task {i}"
+class TestAsyncContextManager:
+    async def test_async_context_manager(self):
+        class TestManager(AsyncContextManager):
+            def __init__(self):
+            async def __aenter__(self):
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+        manager = TestManager()
+class TestWithAsyncTimeout:
+    async def test_with_async_timeout_success(self):
+        @with_async_timeout(0.5)
+            await asyncio.sleep(0.1)
+        result = await test_func()
+    async def test_with_async_timeout_timeout(self):
+        @with_async_timeout(0.1)
+            await asyncio.sleep(0.5)
+        with pytest.raises(TimeoutError):
+            await test_func()
+    async def test_with_async_timeout_preserves_metadata(self):
+        result = await test_func("test", arg2="value")
+
+================
 File: tests/test_filebin_pixeldrain.py
 ================
 def test_file(tmp_path: Path) -> Path:
     file_path.write_text("test content")
 def test_filebin_upload_success(test_file: Path) -> None:
     responses.add(
+        re.compile(
     provider = filebin.FilebinProvider()
     result = provider.upload_file(test_file)
+    assert isinstance(result, UploadResult)
+    assert re.match(r"https://filebin\.net/.+/test\.txt", result.url)
 def test_filebin_upload_failure(test_file: Path) -> None:
     with pytest.raises(RuntimeError, match="Upload failed"):
         provider.upload_file(test_file)
@@ -1597,6 +1882,94 @@ def test_custom_provider_list_circular_fallback(
     mock_catbox_provider.upload_file.side_effect = RetryableError(
         RetryableError("Dropbox failed first", "dropbox"),  # First try fails
     url = upload_file(test_file, provider=["catbox", "s3", "dropbox"])
+
+================
+File: tests/test_utils.py
+================
+class TestCreateProviderHelp:
+    def test_create_provider_help(self):
+        result = create_provider_help(setup, deps)
+        assert isinstance(result, dict)
+class TestSafeFileHandle:
+    def test_safe_file_handle_with_valid_file(self):
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file.write(b"test content")
+            with safe_file_handle(temp_path) as file:
+                assert file.read() == b"test content"
+            os.unlink(temp_path)
+    def test_safe_file_handle_with_nonexistent_file(self):
+        with pytest.raises(FileNotFoundError):
+            with safe_file_handle("/path/to/nonexistent/file"):
+    def test_safe_file_handle_with_directory(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with pytest.raises(ValueError):
+                with safe_file_handle(temp_dir):
+class TestValidateFile:
+    def test_validate_file_with_valid_file(self):
+            validate_file(Path(temp_path))
+    def test_validate_file_with_nonexistent_file(self):
+            validate_file(Path("/path/to/nonexistent/file"))
+    def test_validate_file_with_directory(self):
+                validate_file(Path(temp_dir))
+    @mock.patch("os.access", return_value=False)
+    def test_validate_file_with_unreadable_file(self, mock_access):
+            with pytest.raises(PermissionError):
+class TestHandleHttpResponse:
+    def test_handle_http_response_with_200_requests(self):
+        response = mock.Mock(spec=requests.Response)
+        handle_http_response(response, "test_provider")
+    def test_handle_http_response_with_200_aiohttp(self):
+        response = mock.Mock(spec=aiohttp.ClientResponse)
+    def test_handle_http_response_with_429_requests(self):
+        with pytest.raises(RetryableError):
+    def test_handle_http_response_with_429_aiohttp(self):
+    def test_handle_http_response_with_503_requests(self):
+    def test_handle_http_response_with_400_requests(self):
+        with pytest.raises(NonRetryableError):
+    def test_handle_http_response_with_other_error_requests(self):
+class TestGetEnvCredentials:
+    def test_get_env_credentials_with_all_required_vars(self):
+        with mock.patch.dict(
+            result = get_env_credentials(["TEST_VAR1", "TEST_VAR2"])
+    def test_get_env_credentials_with_missing_required_vars(self):
+        with mock.patch.dict(os.environ, {"TEST_VAR1": "value1"}):
+    def test_get_env_credentials_with_optional_vars(self):
+            result = get_env_credentials(
+    def test_get_env_credentials_with_missing_optional_vars(self):
+class TestCreateProviderInstance:
+    def test_create_provider_instance_with_get_provider(self):
+        mock_provider = mock.Mock(spec=Provider)
+        mock_client = mock.Mock(spec=ProviderClient)
+        result = create_provider_instance(mock_provider)
+        mock_provider.get_provider.assert_called_once()
+    def test_create_provider_instance_with_direct_instantiation(self):
+        mock_provider.assert_called_once()
+    def test_create_provider_instance_with_credentials(self):
+        create_provider_instance(mock_provider, credentials)
+        mock_provider.get_credentials.assert_not_called()
+    def test_create_provider_instance_with_no_credentials(self):
+        create_provider_instance(mock_provider)
+        mock_provider.get_credentials.assert_called_once()
+    def test_create_provider_instance_with_error(self):
+        mock_provider.get_provider.side_effect = Exception("Test error")
+class TestStandardUploadWrapper:
+    def test_standard_upload_wrapper_with_valid_provider(self):
+        mock_provider = mock.Mock(spec=ProviderClient)
+        mock_provider.upload_file.return_value = UploadResult(
+        result = standard_upload_wrapper(
+        mock_provider.upload_file.assert_called_once_with(
+    def test_standard_upload_wrapper_with_none_provider(self):
+            standard_upload_wrapper(
+class TestLogUploadAttempt:
+    @mock.patch("loguru.logger.info")
+    def test_log_upload_attempt_success(self, mock_logger_info):
+        log_upload_attempt("test_provider", "test_file.txt", True)
+        mock_logger_info.assert_called_once()
+    @mock.patch("loguru.logger.error")
+    def test_log_upload_attempt_failure(self, mock_logger_error):
+        error = Exception("Test error")
+        log_upload_attempt("test_provider", "test_file.txt", False, error)
+        mock_logger_error.assert_called_once()
 
 ================
 File: .gitignore
@@ -1942,6 +2315,146 @@ repos:
         args: [--fix=lf]
 
 ================
+File: CHANGELOG.md
+================
+---
+this_file: CHANGELOG.md
+---
+
+# Development Log
+
+## Changed
+
+- Refactored all upload providers to use shared utilities from `utils.py`:
+  - `pixeldrain.py`: Fixed recursion issues, improved error handling, standardized logging
+  - `bashupload.py`: Implemented consistent error handling, standardized logging
+  - `catbox.py`: Separated upload logic, standardized provider help format
+  - `filebin.py`: Improved error handling, standardized logging
+  - `uguu.py`: Separated upload logic, standardized provider help format
+  - `www0x0.py`: Separated upload logic, standardized provider help format
+  - `dropbox.py`: Made DropboxClient inherit from BaseProvider, standardized provider help format
+  - `s3.py`: Created S3Provider class inheriting from BaseProvider, improved error handling
+  - `fal.py`: Made FalProvider inherit from BaseProvider, improved error handling and credential management
+  - `litterbox.py`: Made LitterboxProvider inherit from BaseProvider, improved error handling with special handling for expiration parameter
+
+- Created provider templates for standardized implementation:
+  - `simple_provider_template.py`: Template for providers without authentication
+  - `authenticated_provider_template.py`: Template for providers requiring credentials
+
+- Updated `catbox.py` and `bashupload.py` to properly implement both `Provider` and `ProviderClient` protocols
+  - Improved error handling with `RetryableError` and `NonRetryableError`
+  - Added standardized logging with `log_upload_attempt`
+  - Enhanced type hints for better IDE support
+
+- Implemented a factory pattern for provider instantiation to simplify provider creation and standardize error handling during initialization
+
+- Standardized async/sync conversion patterns for providers that support both operations
+
+- Created comprehensive unit tests for utility functions
+
+## Next Steps
+
+- Implement additional upload providers from the TODO list
+- Update documentation with new provider capabilities
+- Fix type annotation issues identified by linter
+
+## Technical Debt
+
+- Update provider implementations to match new protocol type hints
+- Standardize error handling across all providers
+- Improve documentation for adding new providers
+
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- Created utility functions in `utils.py` for common provider operations:
+  - `create_provider_help`: Standardizes provider help dictionaries
+  - `safe_file_handle`: Safely manages file operations
+  - `validate_file`: Validates file existence and permissions
+  - `handle_http_response`: Standardizes HTTP response handling
+  - `get_env_credentials`: Simplifies credential management
+  - `create_provider_instance`: Standardizes provider initialization
+  - `standard_upload_wrapper`: Provides consistent upload handling
+  - `log_upload_attempt`: Standardizes logging for upload attempts
+
+- Created provider templates for standardized implementation:
+  - `simple_provider_template.py`: For providers without authentication
+  - `authenticated_provider_template.py`: For providers requiring credentials
+
+- Implemented a factory pattern for provider instantiation:
+  - Created `factory.py` module with `ProviderFactory` class
+  - Centralized provider instantiation logic
+  - Standardized error handling during initialization
+  - Reduced code duplication in provider creation
+
+- Created async utilities for standardized async/sync conversion:
+  - `run_async`: For running coroutines in a synchronous context
+  - `to_sync`: Decorator for converting async functions to sync
+  - `to_async`: Decorator for converting sync functions to async
+  - `gather_with_concurrency`: For limiting concurrent async operations
+  - `AsyncContextManager`: Base class for implementing async context managers
+  - `with_async_timeout`: Decorator for adding timeouts to async functions
+
+- Added comprehensive unit tests:
+  - `test_utils.py`: Tests for the `utils.py` module
+  - `test_async_utils.py`: Tests for the `async_utils.py` module
+  - Tests cover all utility functions thoroughly
+  - Tests include edge cases and error conditions
+  - Tests ensure backward compatibility
+
+### Changed
+- Refactored all upload providers to use shared utilities from `utils.py`:
+  - `pixeldrain.py`, `bashupload.py`, `catbox.py`, `filebin.py`
+  - `uguu.py`, `www0x0.py`, `dropbox.py`, `s3.py`
+
+- Updated Provider protocols to better handle async/coroutine types
+  - Modified return type of async_upload_file to accept both Awaitable[UploadResult] and Coroutine[Any, Any, UploadResult]
+  - Added type variables for covariant return types (T_co, T_ret)
+  - This change allows for more flexible async implementations while maintaining type safety
+  - Providers can now use either async/await pattern or coroutines without type conflicts
+
+- Created base provider classes to reduce inheritance boilerplate:
+  - `BaseProvider`: Common functionality for all providers
+  - `AsyncBaseProvider`: For providers with native async support
+  - `SyncBaseProvider`: For providers with sync-only implementations
+
+### Fixed
+- Fixed recursion issue in `pixeldrain.py` `get_provider` method
+- Improved error handling with proper exception chaining across all providers
+- Enhanced HTTP response handling with standardized status code processing
+- Fixed type annotation issues in multiple providers
+- Resolved inconsistencies in async/sync conversion patterns
+
+## Development Log
+
+### Completed
+- Refactored all upload providers to use shared utilities from `utils.py`
+- Created provider templates for standardized implementation
+- Standardized error handling and logging across all providers
+- Improved type annotations and protocol compatibility
+- Separated upload logic into reusable components
+- Implemented a factory pattern for provider instantiation
+- Standardized async/sync conversion patterns
+- Created comprehensive unit tests for utility functions
+
+### Next Steps
+- Implement additional upload providers from the TODO list
+- Update documentation with new provider capabilities
+- Fix type annotation issues identified by linter
+
+## Technical Debt
+- Update provider implementations to match new protocol type hints
+- Standardize error handling across all providers
+- Improve documentation for adding new providers
+
+================
 File: cleanup.py
 ================
 LOG_FILE = Path("CLEANUP.txt")
@@ -2079,6 +2592,1129 @@ def main() -> NoReturn:
     main()
 
 ================
+File: IDEAS.md
+================
+Below is a set of ideas for additional services you could integrate as new upload providers. Each of these services offers its own API for file uploads (and sometimes transformations), and by following the established provider protocols and using your shared utilities (e.g. for file validation, error handling, and async-to-sync conversions), integration can be relatively straightforward.
+
+### 0.1. Proposed Additional Upload Providers
+
+- **Transfer.sh**  
+  A free, lightweight file hosting service with a very simple REST API. Its API is based on standard HTTP POST requests, much like filebin or pixeldrain. It’s ideal for temporary or quick file sharing.
+
+- **AnonFiles**  
+  Another free file hosting service with an easy-to-use API. AnonFiles returns a direct download link upon successful upload, which makes it a good candidate for integration as a fallback provider.
+
+- **Filestack**  
+  A robust solution that not only handles file uploads but also offers transformation (e.g. resizing, format conversion) and delivery via its CDN. Although it’s a paid service, its extensive SDKs and API make it a strong choice if you want to offer advanced features.
+
+- **Uploadcare**  
+  Similar to Filestack, Uploadcare offers a complete file pipeline with uploading, storage, and on‑the‑fly transformation features. Integrating it would add a high level of flexibility and reliability.
+
+- **Google Drive**  
+  While its API (using OAuth 2.0) can be more complex, Google Drive is widely used and offers robust file storage. A basic integration could allow users to upload files directly to Google Drive as part of a broader fallback strategy.
+
+- **OneDrive**  
+  Microsoft’s cloud storage service also provides a REST API for file management. OneDrive’s integration would appeal to business users within the Microsoft ecosystem, complementing Dropbox and S3 in your provider mix.
+
+- **pCloud**  
+  pCloud provides both free and premium cloud storage options with a clear API for file uploads. Its service can be integrated using similar patterns to other cloud providers.
+
+- **Backblaze B2**  
+  This is a cost-effective, S3‑compatible cloud storage solution. Given its S3 API compatibility, integration could reuse much of your S3 provider’s logic, making it a natural extension for your fallback system.
+
+- **MediaFire**  
+  MediaFire is a well‑known file hosting service with API support for file uploads. Its service may be particularly appealing if you wish to offer an alternative to the more technical cloud providers.
+
+- **Cloudinary**  
+  While Cloudinary is primarily focused on images and videos, it also supports file uploads along with advanced media processing and delivery features. This integration would be especially useful if you want to provide on‑the‑fly media transformations in your app.
+
+### 0.2. Integration Approach
+
+For each new provider, you would:
+  
+- **Implement the Provider Protocol:**  
+  Create a new module in `src/twat_fs/upload_providers/` that implements the `Provider` and `ProviderClient` protocols. Define methods such as `get_credentials()`, `get_provider()`, and `upload_file()` (and optionally `async_upload_file()`).
+
+- **Leverage Shared Utilities:**  
+  Use your existing utilities (e.g., in `utils.py` for file validation and HTTP response handling) to ensure consistency with existing providers.
+
+- **Add to Provider Preference List:**  
+  Once implemented, add the new provider’s identifier to the `PROVIDERS_PREFERENCE` list so that it’s available in fallback scenarios.
+
+By following these steps, you can expand your upload functionality to support a broader range of file hosting services, providing flexibility to your users and increasing the robustness of your fallback system.
+
+Would you like to see a detailed example or further discussion on one of these proposals?
+
+
+
+
+
+
+# Proposing Additional Upload Service Integrations
+
+Based on the codebase analysis, I'll propose several additional services that could be easily integrated with the "upload" functionality. The current architecture is well-designed for extensibility, with a clear provider protocol and shared utilities.
+
+### 0.3. Current Upload Provider Architecture
+
+The project already supports multiple upload providers:
+- Simple file hosts (catbox.moe, litterbox, www0x0.st, uguu.se, bashupload.com, filebin.net, pixeldrain.com)
+- Cloud storage (Dropbox, AWS S3)
+- AI platforms (FAL.ai)
+
+The architecture includes:
+- A provider protocol that defines the interface for all upload providers
+- Shared utilities for HTTP requests, error handling, and file validation
+- A fallback system that tries alternative providers if one fails
+
+## 1. Proposed New Upload Services
+
+### 1.1. Google Drive
+
+**Integration Approach:**
+- Use the Google Drive API with OAuth2 authentication
+- Support both simple file uploads and folder organization
+- Implement public sharing links with configurable permissions
+
+**Implementation Details:**
+```python
+# src/twat_fs/upload_providers/gdrive.py
+from pathlib import Path
+from typing import Any, cast
+import os
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+
+from twat_fs.upload_providers.protocols import Provider, ProviderClient
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.utils import validate_file, log_upload_attempt
+
+PROVIDER_HELP = {
+    "setup": "Requires Google Drive API credentials. Set GOOGLE_CREDENTIALS_FILE environment variable.",
+    "deps": "google-api-python-client google-auth-httplib2 google-auth-oauthlib"
+}
+
+class GoogleDriveProvider(Provider, ProviderClient):
+    """Provider for Google Drive uploads"""
+    
+    PROVIDER_HELP = PROVIDER_HELP
+    provider_name = "gdrive"
+    
+    @classmethod
+    def get_credentials(cls) -> dict[str, Any] | None:
+        """Get Google Drive credentials from environment."""
+        creds_file = os.getenv("GOOGLE_CREDENTIALS_FILE")
+        if not creds_file:
+            return None
+            
+        # Implement OAuth2 flow and token management
+        # Return credentials dictionary
+    
+    @classmethod
+    def get_provider(cls) -> ProviderClient | None:
+        """Get an instance of the provider."""
+        creds = cls.get_credentials()
+        if not creds:
+            return None
+        return cls(creds)
+        
+    def upload_file(self, local_path: str | Path, remote_path: str | Path | None = None, **kwargs) -> UploadResult:
+        """Upload file to Google Drive and return shareable link."""
+        # Implementation using Google Drive API
+```
+
+### 1.2. GitHub Gist/Repository
+
+**Integration Approach:**
+- Use GitHub API to create gists (for small text files) or repository files
+- Support both public and private uploads with configurable visibility
+- Generate direct links to raw content
+
+**Implementation Details:**
+```python
+# src/twat_fs/upload_providers/github.py
+import os
+import base64
+from pathlib import Path
+import requests
+from typing import Any, cast
+
+from twat_fs.upload_providers.protocols import Provider, ProviderClient
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.utils import validate_file, log_upload_attempt
+
+PROVIDER_HELP = {
+    "setup": "Requires GitHub Personal Access Token. Set GITHUB_TOKEN environment variable.",
+    "deps": "requests"
+}
+
+class GitHubProvider(Provider, ProviderClient):
+    """Provider for GitHub Gist/Repository uploads"""
+    
+    PROVIDER_HELP = PROVIDER_HELP
+    provider_name = "github"
+    
+    @classmethod
+    def get_credentials(cls) -> dict[str, Any] | None:
+        """Get GitHub credentials from environment."""
+        token = os.getenv("GITHUB_TOKEN")
+        if not token:
+            return None
+        return {"token": token}
+    
+    @classmethod
+    def get_provider(cls) -> ProviderClient | None:
+        """Get an instance of the provider."""
+        creds = cls.get_credentials()
+        if not creds:
+            return None
+        return cls(creds)
+        
+    def upload_file(self, local_path: str | Path, remote_path: str | Path | None = None, **kwargs) -> UploadResult:
+        """Upload file to GitHub and return URL."""
+        # Implementation using GitHub API for gists or repository files
+```
+
+### 1.3. Imgur
+
+**Integration Approach:**
+- Use Imgur API for image uploads
+- Support both authenticated and anonymous uploads
+- Provide direct image links and album organization
+
+**Implementation Details:**
+```python
+# src/twat_fs/upload_providers/imgur.py
+import os
+import base64
+from pathlib import Path
+import requests
+from typing import Any, cast
+
+from twat_fs.upload_providers.protocols import Provider, ProviderClient
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.utils import validate_file, log_upload_attempt
+
+PROVIDER_HELP = {
+    "setup": "For authenticated uploads, set IMGUR_CLIENT_ID and IMGUR_CLIENT_SECRET environment variables.",
+    "deps": "requests"
+}
+
+class ImgurProvider(Provider, ProviderClient):
+    """Provider for Imgur image uploads"""
+    
+    PROVIDER_HELP = PROVIDER_HELP
+    provider_name = "imgur"
+    
+    @classmethod
+    def get_credentials(cls) -> dict[str, Any] | None:
+        """Get Imgur credentials from environment."""
+        client_id = os.getenv("IMGUR_CLIENT_ID")
+        if not client_id:
+            return None
+        return {
+            "client_id": client_id,
+            "client_secret": os.getenv("IMGUR_CLIENT_SECRET")
+        }
+    
+    @classmethod
+    def get_provider(cls) -> ProviderClient | None:
+        """Get an instance of the provider."""
+        creds = cls.get_credentials()
+        if not creds:
+            return None
+        return cls(creds)
+        
+    def upload_file(self, local_path: str | Path, remote_path: str | Path | None = None, **kwargs) -> UploadResult:
+        """Upload image to Imgur and return URL."""
+        # Implementation using Imgur API
+```
+
+### 1.4. Azure Blob Storage
+
+**Integration Approach:**
+- Use Azure Storage SDK for blob uploads
+- Support container management and access policies
+- Generate SAS tokens for time-limited access
+
+**Implementation Details:**
+```python
+# src/twat_fs/upload_providers/azure.py
+import os
+from pathlib import Path
+from typing import Any, cast
+from azure.storage.blob import BlobServiceClient, ContentSettings
+
+from twat_fs.upload_providers.protocols import Provider, ProviderClient
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.utils import validate_file, log_upload_attempt
+
+PROVIDER_HELP = {
+    "setup": "Requires Azure Storage connection string. Set AZURE_STORAGE_CONNECTION_STRING and AZURE_CONTAINER_NAME environment variables.",
+    "deps": "azure-storage-blob"
+}
+
+class AzureBlobProvider(Provider, ProviderClient):
+    """Provider for Azure Blob Storage uploads"""
+    
+    PROVIDER_HELP = PROVIDER_HELP
+    provider_name = "azure"
+    
+    @classmethod
+    def get_credentials(cls) -> dict[str, Any] | None:
+        """Get Azure credentials from environment."""
+        conn_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+        container = os.getenv("AZURE_CONTAINER_NAME")
+        if not conn_string or not container:
+            return None
+        return {
+            "connection_string": conn_string,
+            "container": container
+        }
+    
+    @classmethod
+    def get_provider(cls) -> ProviderClient | None:
+        """Get an instance of the provider."""
+        creds = cls.get_credentials()
+        if not creds:
+            return None
+        return cls(creds)
+        
+    def upload_file(self, local_path: str | Path, remote_path: str | Path | None = None, **kwargs) -> UploadResult:
+        """Upload file to Azure Blob Storage and return URL."""
+        # Implementation using Azure Storage SDK
+```
+
+### 1.5. Cloudinary
+
+**Integration Approach:**
+- Use Cloudinary API for media uploads with transformation capabilities
+- Support image and video optimization
+- Provide CDN-backed URLs with transformation options
+
+**Implementation Details:**
+```python
+# src/twat_fs/upload_providers/cloudinary.py
+import os
+from pathlib import Path
+from typing import Any, cast
+import cloudinary
+import cloudinary.uploader
+
+from twat_fs.upload_providers.protocols import Provider, ProviderClient
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.utils import validate_file, log_upload_attempt
+
+PROVIDER_HELP = {
+    "setup": "Requires Cloudinary credentials. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.",
+    "deps": "cloudinary"
+}
+
+class CloudinaryProvider(Provider, ProviderClient):
+    """Provider for Cloudinary media uploads"""
+    
+    PROVIDER_HELP = PROVIDER_HELP
+    provider_name = "cloudinary"
+    
+    @classmethod
+    def get_credentials(cls) -> dict[str, Any] | None:
+        """Get Cloudinary credentials from environment."""
+        cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
+        api_key = os.getenv("CLOUDINARY_API_KEY")
+        api_secret = os.getenv("CLOUDINARY_API_SECRET")
+        
+        if not all([cloud_name, api_key, api_secret]):
+            return None
+            
+        return {
+            "cloud_name": cloud_name,
+            "api_key": api_key,
+            "api_secret": api_secret
+        }
+    
+    @classmethod
+    def get_provider(cls) -> ProviderClient | None:
+        """Get an instance of the provider."""
+        creds = cls.get_credentials()
+        if not creds:
+            return None
+        return cls(creds)
+        
+    def upload_file(self, local_path: str | Path, remote_path: str | Path | None = None, **kwargs) -> UploadResult:
+        """Upload media to Cloudinary and return URL."""
+        # Implementation using Cloudinary API
+```
+
+### 1.6. Backblaze B2
+
+**Integration Approach:**
+- Use B2 SDK for object storage uploads
+- Support bucket management and lifecycle policies
+- Generate authorized URLs with expiration
+
+**Implementation Details:**
+```python
+# src/twat_fs/upload_providers/b2.py
+import os
+from pathlib import Path
+from typing import Any, cast
+import b2sdk.v1 as b2
+
+from twat_fs.upload_providers.protocols import Provider, ProviderClient
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.utils import validate_file, log_upload_attempt
+
+PROVIDER_HELP = {
+    "setup": "Requires Backblaze B2 credentials. Set B2_APPLICATION_KEY_ID, B2_APPLICATION_KEY, and B2_BUCKET_NAME environment variables.",
+    "deps": "b2sdk"
+}
+
+class B2Provider(Provider, ProviderClient):
+    """Provider for Backblaze B2 uploads"""
+    
+    PROVIDER_HELP = PROVIDER_HELP
+    provider_name = "b2"
+    
+    @classmethod
+    def get_credentials(cls) -> dict[str, Any] | None:
+        """Get B2 credentials from environment."""
+        key_id = os.getenv("B2_APPLICATION_KEY_ID")
+        app_key = os.getenv("B2_APPLICATION_KEY")
+        bucket = os.getenv("B2_BUCKET_NAME")
+        
+        if not all([key_id, app_key, bucket]):
+            return None
+            
+        return {
+            "key_id": key_id,
+            "app_key": app_key,
+            "bucket": bucket
+        }
+    
+    @classmethod
+    def get_provider(cls) -> ProviderClient | None:
+        """Get an instance of the provider."""
+        creds = cls.get_credentials()
+        if not creds:
+            return None
+        return cls(creds)
+        
+    def upload_file(self, local_path: str | Path, remote_path: str | Path | None = None, **kwargs) -> UploadResult:
+        """Upload file to B2 and return URL."""
+        # Implementation using B2 SDK
+```
+
+### 1.7. Pastebin/Hastebin
+
+**Integration Approach:**
+- Use Pastebin/Hastebin APIs for text file uploads
+- Support syntax highlighting and expiration settings
+- Generate direct links to raw content
+
+**Implementation Details:**
+```python
+# src/twat_fs/upload_providers/pastebin.py
+import os
+from pathlib import Path
+import requests
+from typing import Any, cast
+
+from twat_fs.upload_providers.protocols import Provider, ProviderClient
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.utils import validate_file, log_upload_attempt
+
+PROVIDER_HELP = {
+    "setup": "For authenticated uploads, set PASTEBIN_API_KEY environment variable.",
+    "deps": "requests"
+}
+
+class PastebinProvider(Provider, ProviderClient):
+    """Provider for Pastebin text uploads"""
+    
+    PROVIDER_HELP = PROVIDER_HELP
+    provider_name = "pastebin"
+    
+    @classmethod
+    def get_credentials(cls) -> dict[str, Any] | None:
+        """Get Pastebin credentials from environment."""
+        api_key = os.getenv("PASTEBIN_API_KEY")
+        if not api_key:
+            return None
+        return {"api_key": api_key}
+    
+    @classmethod
+    def get_provider(cls) -> ProviderClient | None:
+        """Get an instance of the provider."""
+        creds = cls.get_credentials()
+        if not creds:
+            return None
+        return cls(creds)
+        
+    def upload_file(self, local_path: str | Path, remote_path: str | Path | None = None, **kwargs) -> UploadResult:
+        """Upload text to Pastebin and return URL."""
+        # Implementation using Pastebin API
+```
+
+## 2. Implementation Strategy
+
+To integrate these new providers:
+
+1. **Create provider modules** following the established pattern
+2. **Implement the Provider protocol** with required methods:
+   - `get_credentials()` - Fetch credentials from environment variables
+   - `get_provider()` - Initialize and return provider client
+   - `upload_file()` - Handle file uploads and return URLs
+
+3. **Add to PROVIDERS_PREFERENCE** in `src/twat_fs/upload_providers/__init__.py`
+4. **Add dependency options** to `pyproject.toml` for each provider
+5. **Create tests** for each new provider
+
+### 2.1. Key Benefits of These Additions
+
+1. **Diverse Storage Options**: From ephemeral pastes to permanent cloud storage
+2. **Media Specialization**: Providers optimized for specific content types (images, code, documents)
+3. **Enterprise Integration**: Support for major cloud platforms (Azure, Google)
+4. **Cost Flexibility**: Mix of free and paid services with different pricing models
+5. **Feature Diversity**: From simple file hosting to advanced media transformation
+
+These additions would significantly expand the utility of the upload functionality while maintaining the existing architecture's flexibility and robustness.
+
+
+
+
+### 2.2. Key Points
+- It seems likely that Google Drive, SendSpace, and GitHub can be easily integrated into the upload functionality, given their APIs and existing Python libraries.
+- Research suggests Transfer.sh, File.io, and Anonfile are also viable, offering simple APIs for temporary file hosting.
+- The evidence leans toward Microsoft OneDrive, Box.com, MediaFire, pCloud, GitLab, Bitbucket, and IPFS as additional options, though they may require more setup.
+
+---
+
+### 2.3. Direct Answer
+
+#### 2.3.1. Introduction
+The "twat-fs" package currently supports file uploads to services like Dropbox, Amazon S3, and several file hosting platforms. To expand this, you can integrate additional services that offer APIs for file uploads, providing more options for users. These new services should be easy to integrate, have reliable APIs, and cater to diverse needs like cloud storage, temporary hosting, or version control.
+
+#### 2.3.2. Proposed Services
+Here are some services that can be easily integrated into the upload functionality:
+
+- **Google Drive**: A popular cloud storage service with a robust API ([Google Drive API](https://developers.google.com/drive)), ideal for long-term storage and collaboration, though it requires setting up credentials.
+- **SendSpace**: A file hosting service with a simple API ([SendSpace Developer](https://sendspace.com/developer)), perfect for quick uploads and direct download links, needing only an API key.
+- **GitHub**: Useful for hosting files in repositories, with an API for creating files ([GitHub API](https://docs.github.com/en/rest)), suitable for text files or small binaries, requiring a personal access token.
+- **Transfer.sh**: Offers temporary file hosting with a straightforward API ([Transfer.sh](https://transfer.sh/)), easy to integrate for short-term sharing.
+- **File.io**: Provides file hosting with direct download links via API ([File.io Docs](https://file.io/docs)), simple and user-friendly for uploads.
+- **Anonfile**: Another file hosting service with API support ([Anonfile Docs](https://anonfile.com/docs)), reliable for hosting files with direct access.
+
+These services cover a range of use cases, from robust cloud storage to temporary file sharing, enhancing the package's versatility. An unexpected detail is that GitHub, primarily for code, can also host files, offering version control benefits.
+
+#### 2.3.3. Considerations
+Some services, like Google Drive and OneDrive, may require more setup for authentication, while simpler providers like Transfer.sh and File.io align with existing "simple" providers in the package. Users can choose based on their needs, such as storage space, privacy, or ease of use.
+
+---
+
+### 2.4. Survey Note: Detailed Analysis of Proposed Upload Services
+
+This section provides a comprehensive analysis of potential services for integration into the "twat-fs" package's upload functionality, expanding on the direct answer with detailed reasoning and evaluation. The analysis is structured to cover the selection process, categorization, and justification, ensuring a thorough understanding for developers and users.
+
+#### 2.4.1. Background and Context
+The "twat-fs" package, as observed from the provided repository, is a file system utility focused on robust and extensible file upload capabilities, supporting multiple providers such as Dropbox, Amazon S3, and various file hosting services like catbox.moe and filebin.net. The current providers, listed in the `PROVIDERS_PREFERENCE` in `src/twat_fs/upload_providers/__init__.py`, include bashupload.com, catbox.moe, Dropbox, FAL.ai, filebin.net, litterbox.catbox.moe, pixeldrain.com, Amazon S3, uguu.se, and 0x0.st. These providers follow a pattern where each has a module implementing the `ProviderClient` protocol, with methods like `upload_file` and possibly `async_upload_file`, often inheriting from `BaseProvider` for simple providers.
+
+The task is to propose additional services that can be easily integrated, meaning they should have accessible APIs, preferably with Python libraries, and minimal setup complexity to align with the existing structure. The analysis considers services that are reliable, have good uptime, and cater to diverse user needs, such as cloud storage, temporary hosting, or version-controlled file management.
+
+#### 2.4.2. Selection Process
+The selection process involved identifying popular file hosting and storage services, evaluating their APIs for ease of integration, and ensuring they are not already covered by the existing providers. The process considered:
+
+- **API Availability**: Services must offer APIs for file uploads, preferably with Python libraries or straightforward HTTP requests.
+- **Setup Complexity**: Preference for services with minimal authentication requirements, similar to simple providers, or those with clear credential setup like Dropbox and S3.
+- **User Familiarity**: Services widely used by developers and general users for file storage and sharing.
+- **Unique Features**: Services offering distinct benefits, such as encryption, version control, or temporary hosting.
+
+The initial list included cloud storage services (Google Drive, Microsoft OneDrive, Box.com), file hosting services (SendSpace, MediaFire, pCloud, Transfer.sh, File.io, Anonfile, Bayfiles), version control platforms (GitHub, GitLab, Bitbucket), and decentralized storage (IPFS). After evaluation, the focus was narrowed to balance simplicity and diversity, resulting in the proposed list.
+
+#### 2.4.3. Proposed Services and Categorization
+The proposed services are categorized into three main groups: cloud storage services, file hosting services, and version control platforms, with a note on decentralized storage for future consideration. Below is a detailed breakdown:
+
+| **Category**            | **Service**       | **Description**                                                                 | **API Details**                                                                 | **Ease of Integration**                     |
+|-------------------------|-------------------|---------------------------------------------------------------------------------|--------------------------------------------------------------------------------|---------------------------------------------|
+| Cloud Storage Services  | Google Drive      | Popular cloud storage with collaboration features, suitable for long-term use.  | Requires Google Drive API ([Google Drive API](https://developers.google.com/drive)), needs credentials setup. | Moderate, involves authentication flow.     |
+| Cloud Storage Services  | Microsoft OneDrive| Cloud storage from Microsoft, similar to Google Drive, with sharing options.    | Uses Microsoft Graph API, requires credentials ([Microsoft Graph](https://docs.microsoft.com/en-us/graph/)). | Moderate, authentication setup needed.      |
+| Cloud Storage Services  | Box.com           | Cloud storage service like Dropbox, with API for file uploads.                  | Box SDK available ([Box Developer](https://developer.box.com/)), needs credentials. | Moderate, similar to Dropbox.               |
+| File Hosting Services   | SendSpace         | Dedicated file hosting, provides direct download links.                         | API requires key ([SendSpace Developer](https://sendspace.com/developer)), simple HTTP requests. | High, minimal setup, API key based.         |
+| File Hosting Services   | MediaFire         | File hosting with API for uploads, offers download links.                       | Requires API key and secret ([MediaFire Docs](https://www.mediafire.com/docs/)). | High, straightforward with credentials.     |
+| File Hosting Services   | pCloud            | Cloud storage with API, focuses on privacy.                                     | Python library available ([pCloud SDK](https://www.pcloud.com/developers/)), needs credentials. | Moderate, authentication required.          |
+| File Hosting Services   | Transfer.sh       | Temporary file hosting, simple API for quick uploads.                           | HTTP POST based ([Transfer.sh](https://transfer.sh/)), no authentication needed. | Very high, aligns with simple providers.    |
+| File Hosting Services   | File.io           | File hosting with direct download links, API supported.                         | Simple API ([File.io Docs](https://file.io/docs)), minimal setup.               | Very high, easy integration.                |
+| File Hosting Services   | Anonfile          | File hosting service, provides API for uploads and links.                       | API documented ([Anonfile Docs](https://anonfile.com/docs)), simple HTTP.       | Very high, similar to existing simple providers. |
+| Version Control Platforms | GitHub          | Hosts files in repositories, offers version control, raw URLs for access.       | Uses GitHub API for file creation ([GitHub API](https://docs.github.com/en/rest)), needs token. | Moderate, requires repository and token.    |
+| Version Control Platforms | GitLab          | Similar to GitHub, hosts files with version control.                            | API for file uploads ([GitLab API](https://docs.gitlab.com/ee/api/)), needs token. | Moderate, similar to GitHub.                |
+| Version Control Platforms | Bitbucket       | Version control platform, can host files in repositories.                       | API for file operations ([Bitbucket API](https://developer.atlassian.com/bitbucket/api/2/reference/)), needs credentials. | Moderate, requires setup.                   |
+| Decentralized Storage   | IPFS             | Decentralized file system, files pinned to nodes for access.                    | Requires IPFS client, complex setup ([IPFS Docs](https://docs.ipfs.io/)).       | Low, more advanced, not user-friendly.      |
+
+#### 2.4.4. Detailed Justification
+The proposed services were selected based on their alignment with the existing provider structure and user needs. Here's a detailed justification for each category:
+
+- **Cloud Storage Services (Google Drive, Microsoft OneDrive, Box.com)**: These services are widely used for long-term file storage and collaboration. They require authentication, which aligns with existing providers like Dropbox and S3, but offer additional features like file sharing permissions. Google Drive, for instance, has a free tier with 15GB, making it accessible, while OneDrive and Box.com cater to enterprise users. Integration involves setting up credentials, which is documented in their respective APIs ([Google Drive API](https://developers.google.com/drive), [Microsoft Graph](https://docs.microsoft.com/en-us/graph/), [Box Developer](https://developer.box.com/)).
+
+- **File Hosting Services (SendSpace, MediaFire, pCloud, Transfer.sh, File.io, Anonfile)**: These services focus on providing direct download links, similar to existing simple providers like filebin.net and www0x0.st. Transfer.sh, File.io, and Anonfile are particularly easy to integrate, requiring minimal or no authentication, aligning with the package's "simple" provider pattern. SendSpace and MediaFire require API keys, which is manageable, while pCloud offers privacy-focused storage. Their APIs are documented ([SendSpace Developer](https://sendspace.com/developer), [MediaFire Docs](https://www.mediafire.com/docs/), [pCloud SDK](https://www.pcloud.com/developers/), [Transfer.sh](https://transfer.sh/), [File.io Docs](https://file.io/docs), [Anonfile Docs](https://anonfile.com/docs)), ensuring straightforward implementation.
+
+- **Version Control Platforms (GitHub, GitLab, Bitbucket)**: These platforms, while primarily for code, can host files in repositories, offering version control benefits. GitHub, for example, allows unlimited storage for public repositories, with raw URLs for direct access, making it suitable for text files or small binaries. Integration involves using their APIs for file creation ([GitHub API](https://docs.github.com/en/rest), [GitLab API](https://docs.gitlab.com/ee/api/), [Bitbucket API](https://developer.atlassian.com/bitbucket/api/2/reference/)), requiring personal access tokens, which is similar to Dropbox's setup.
+
+- **Decentralized Storage (IPFS)**: IPFS offers a unique decentralized approach, but its integration is more complex due to pinning files to nodes and ensuring availability. While interesting for future expansion, it's less user-friendly and not prioritized for easy integration ([IPFS Docs](https://docs.ipfs.io/)).
+
+#### 2.4.5. Prioritization and Recommendations
+Given the need for easy integration, the top recommendations are:
+- **Primary Recommendations**: Google Drive, SendSpace, GitHub, Transfer.sh, File.io. These cover cloud storage, simple hosting, and version control, with varying setup complexities.
+- **Secondary Recommendations**: Microsoft OneDrive, Box.com, MediaFire, pCloud, Anonfile, GitLab, Bitbucket. These offer additional options but may require more setup or have specific use cases.
+
+An unexpected detail is the inclusion of GitHub, primarily a code platform, which can host files, offering version control benefits not typically associated with file hosting services. This expands the package's scope to include repository-based file management.
+
+#### 2.4.6. Implementation Considerations
+For integration, new provider modules would be created in `src/twat_fs/upload_providers/`, following the existing pattern. Simple providers like Transfer.sh and File.io would inherit from `BaseProvider` and implement `upload_file_impl`, while cloud storage services like Google Drive would require handling authentication and possibly async operations. The package's existing structure, with environment variable-based credentials and utility functions in `utils.py`, supports this expansion.
+
+#### 2.4.7. Conclusion
+The proposed services enhance the "twat-fs" package by offering diverse options for file uploads, from temporary hosting to robust cloud storage and version-controlled repositories. Users can select based on their needs, such as storage space, privacy, or ease of use, ensuring the package remains versatile and user-friendly.
+
+---
+
+### 2.5. Key Citations
+- [Google Drive API Documentation](https://developers.google.com/drive)
+- [SendSpace Developer Portal](https://sendspace.com/developer)
+- [GitHub REST API Documentation](https://docs.github.com/en/rest)
+- [Transfer.sh Official Website](https://transfer.sh/)
+- [File.io API Documentation](https://file.io/docs)
+- [Anonfile API Documentation](https://anonfile.com/docs)
+- [Microsoft Graph API Documentation](https://docs.microsoft.com/en-us/graph/)
+- [Box Developer Documentation](https://developer.box.com/)
+- [MediaFire API Documentation](https://www.mediafire.com/docs/)
+- [pCloud SDK Documentation](https://www.pcloud.com/developers/)
+- [GitLab API Documentation](https://docs.gitlab.com/ee/api/)
+- [Bitbucket API Reference](https://developer.atlassian.com/bitbucket/api/2/reference/)
+- [IPFS Official Documentation](https://docs.ipfs.io/)
+
+
+
+
+
+
+
+
+# Expanding File Upload Capabilities in twat-fs: Strategic Integration of Modern Storage Services
+
+The twat-fs package demonstrates an elegant abstraction layer for multi-provider file uploads, with existing implementations for services like Dropbox and AWS S3[1]. This technical analysis proposes twelve new service integrations across six categories, examining implementation requirements and architectural considerations for each.
+
+## 3. Cloud Storage Expansion
+
+### 3.1. Google Drive Integration
+Google Drive's REST API supports OAuth2 authentication and resumable uploads. Implementation would require:
+```python
+# google_drive.py
+PROVIDER_HELP = {
+    "setup": "Requires OAuth2 credentials: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN",
+    "deps": "google-auth, google-api-python-client"
+}
+
+class GoogleDriveProvider(ProviderClient):
+    def __init__(self):
+        from google.oauth2.credentials import Credentials
+        self.service = build('drive', 'v3', credentials=Credentials(
+            token=os.getenv('GOOGLE_ACCESS_TOKEN'),
+            refresh_token=os.getenv('GOOGLE_REFRESH_TOKEN'),
+            client_id=os.getenv('GOOGLE_CLIENT_ID'),
+            client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
+            token_uri='https://oauth2.googleapis.com/token'
+        ))
+    
+    async def upload_file(self, path: Path) -> str:
+        media = MediaFileUpload(path, resumable=True)
+        file = self.service.files().create(
+            media_body=media, 
+            fields='webViewLink'
+        ).execute()
+        return file['webViewLink']
+```
+Key considerations include OAuth token refresh handling and supporting Google Workspace domain restrictions[1].
+
+### 3.2. Backblaze B2 Implementation
+Backblaze's S3-compatible API allows reuse of existing S3 provider logic with endpoint configuration:
+```bash
+# Environment variables
+export AWS_ENDPOINT_URL=https://s3.us-west-002.backblazeb2.com
+export AWS_S3_BUCKET=your-bucket
+export AWS_ACCESS_KEY_ID=002yourkey
+export AWS_SECRET_ACCESS_KEY=yourSecretKey
+```
+This compatibility reduces implementation effort while adding Backblaze-specific error handling for rate limits[1].
+
+## 4. Developer Platform Integrations
+
+### 4.1. GitHub Gists API
+Text file sharing through GitHub's Gist API:
+```python
+# github_gist.py
+PROVIDER_HELP = {
+    "setup": "Requires GITHUB_TOKEN with gist scope",
+    "deps": "PyGithub"
+}
+
+async def upload_file(path: Path) -> str:
+    gist = github.Github(os.getenv('GITHUB_TOKEN')).get_user().create_gist(
+        public=False, 
+        files={path.name: github.InputFileContent(path.read_text())}
+    )
+    return next(iter(gist.files.values())).raw_url
+```
+Handles text files under 10MB with automatic gist management[1].
+
+### 4.2. GitLab Snippet Support
+Similar to GitHub but with self-hosted instance support:
+```python
+base_url = os.getenv('GITLAB_URL', 'https://gitlab.com')
+async with aiohttp.ClientSession(base_url) as session:
+    await session.post(
+        '/api/v4/snippets',
+        headers={'PRIVATE-TOKEN': os.getenv('GITLAB_TOKEN')},
+        data={'files[][content]': path.read_text()}
+    )
+```
+Supports enterprise deployments through environment configuration[1].
+
+## 5. Image Optimization Services
+
+### 5.1. Imgur API Integration
+Specialized image hosting with compression:
+```python
+# imgur.py
+async def upload_image(path: Path) -> str:
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            'https://api.imgur.com/3/image',
+            headers={'Authorization': f'Client-ID {os.getenv("IMGUR_CLIENT_ID")}'},
+            data={'image': path.read_bytes()}
+        ) as resp:
+            return (await resp.json())['data']['link']
+```
+Requires handling Imgur's specific API limits (1,250 uploads/day)[1].
+
+### 5.2. Cloudinary Transformation
+Cloud-based image processing with upload:
+```python
+# cloudinary.py
+params = {
+    'api_key': os.getenv('CLOUDINARY_KEY'),
+    'timestamp': int(time.time()),
+    'eager': 'c_thumb,g_face,w_200'
+}
+signature = hashlib.sha256(f'{params}{os.getenv("CLOUDINARY_SECRET")}').hexdigest()
+```
+Enables on-the-fly image transformations during upload[1].
+
+## 6. Enterprise File Transfer
+
+### 6.1. Aspera Faspex Integration
+High-speed transfer protocol implementation:
+```python
+# aspera.py
+async def upload_large_file(path: Path):
+    proc = await asyncio.subprocess.create_subprocess_exec(
+        'ascp', 
+        '-QT', '-l100m', 
+        path, f'{os.getenv("ASPERA_USER")}@aspera.example.com:/uploads'
+    )
+    await proc.wait()
+```
+Requires Aspera Connect CLI tools and special error handling for partial transfers[1].
+
+### 6.2. Signiant Accelerator
+Enterprise-grade transfer protocol support:
+```python
+class SigniantProvider(ProviderClient):
+    def __init__(self):
+        self.job_api = SigniantJobAPI(
+            os.getenv('SIGNIANT_KEY'),
+            os.getenv('SIGNIANT_SECRET')
+        )
+    
+    async def upload_file(self, path: Path):
+        job = self.job_api.create_job(
+            source=path,
+            destination='signiant://target/path'
+        )
+        return job.monitor().get_url()
+```
+Implements job monitoring and bandwidth optimization[1].
+
+## 7. Decentralized Storage Options
+
+### 7.1. IPFS via Pinata Cloud
+Distributed storage with persistence guarantees:
+```python
+# ipfs.py
+async def pin_file(path: Path) -> str:
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            'https://api.pinata.cloud/pinning/pinFileToIPFS',
+            headers={'pinata_api_key': os.getenv('PINATA_KEY'),
+                     'pinata_secret_api_key': os.getenv('PINATA_SECRET')},
+            data={'file': path.open('rb')}
+        ) as resp:
+            return f"ipfs://{(await resp.json())['IpfsHash']}"
+```
+Supports both public gateways and private IPFS clusters[1].
+
+### 7.2. Storj Decentralized S3
+Blockchain-based storage using S3 compatibility:
+```bash
+export AWS_ENDPOINT_URL=https://gateway.storjshare.io
+export AWS_S3_PATH_STYLE=true
+```
+Leverages existing S3 provider with custom endpoint configuration[1].
+
+## 8. Specialized Hosting Services
+
+### 8.1. npm Package Publishing
+Developer-centric package hosting:
+```python
+# npm.py
+async def publish_file(path: Path):
+    proc = await asyncio.subprocess.create_subprocess_exec(
+        'npm', 'publish', path,
+        env={'NPM_TOKEN': os.getenv('NPM_TOKEN')}
+    )
+    await proc.wait()
+    return f'https://npmjs.com/package/{path.stem}'
+```
+Requires strict adherence to npm package format specifications[1].
+
+### 8.2. WeTransfer API
+User-friendly file sharing implementation:
+```python
+# wetransfer.py
+async def create_transfer(path: Path) -> str:
+    async with aiohttp.ClientSession() as session:
+        transfer = await session.post(
+            'https://api.wetransfer.com/v2/transfers',
+            headers={'x-api-key': os.getenv('WETRANSFER_KEY')},
+            json={'name': path.name, 'files': [{'name': path.name}]}
+        )
+        upload_url = (await transfer.json())['files'][0]['upload_url']
+        await session.put(upload_url, data=path.read_bytes())
+        return (await transfer.json())['url']
+```
+Implements multi-step upload process with expiration handling[1].
+
+## 9. Implementation Strategy
+
+### 9.1. Protocol Compliance
+All new providers must implement the core Provider protocol:
+```python
+class Provider(Protocol):
+    @classmethod
+    def get_credentials(cls) -> dict[str, Any] | None: ...
+    
+    @classmethod 
+    def get_provider(cls) -> ProviderClient | None: ...
+
+class ProviderClient(Protocol):
+    async def async_upload_file(self, path: Path) -> str: ...
+    def upload_file(self, path: Path) -> str: ...
+```
+This ensures compatibility with existing retry and fallback mechanisms[1].
+
+### 9.2. Error Handling Matrix
+Service-specific exception mapping:
+
+| Service         | Retryable Errors                     | Fatal Errors                     |
+|-----------------|--------------------------------------|----------------------------------|
+| Google Drive    | Rate limits, 5xx errors             | Quota exceeded, Auth failures   |
+| Backblaze B2    | 429 Too Many Requests                | Invalid credentials, 403 Forbid |
+| GitHub Gists    | Secondary rate limits                | Invalid scopes, 401 Unauthorized|
+
+Standardized using the existing RetryableError/NonRetryableError hierarchy[1].
+
+### 9.3. Performance Optimization
+Leverage existing utilities for common patterns:
+```python
+from .utils import (
+    chunked_upload,
+    exponential_backoff,
+    validate_mime_type,
+    generate_presigned_url
+)
+
+class EnterpriseProvider(ProviderClient):
+    @exponential_backoff(max_retries=5)
+    async def upload_file(self, path: Path):
+        await validate_mime_type(path, allowed=['image/*'])
+        return await chunked_upload(
+            session=self.session,
+            url=self.upload_url,
+            data=path
+        )
+```
+Reuse of established patterns reduces implementation complexity[1].
+
+## 10. Conclusion
+
+The proposed integrations expand twat-fs' capabilities across multiple domains while maintaining architectural consistency. Implementation priority should consider:
+
+1. Authentication complexity (OAuth2 vs API key)
+2. Enterprise demand (Aspera/Signiant)
+3. Community usage (GitHub/npm)
+4. Emerging technologies (IPFS/Storj)
+
+A phased rollout approach with metrics collection on provider usage would optimize maintenance efforts. All integrations should include: 
+
+- Environment variable documentation
+- Rate limit tracking
+- Automated credential validation
+- End-to-end test cases
+
+This expansion positions twat-fs as a universal file transfer solution adaptable to diverse organizational needs.
+
+Citations:
+[1] https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/3134098/8707773d-201a-4a0d-86a1-d4017414fc32/paste.txt
+
+
+
+
+
+
+
+Here are some services that could be easily integrated with the "upload" functionality of `twat-fs`, expanding its capabilities and user base:
+
+### 10.1. Image and Media Hosting Services
+
+*   **Imgur:** A widely used image hosting service, especially popular in online communities. Integrating Imgur would allow users to easily upload and share images online, which is a common use case for file uploading tools. Imgur has a relatively straightforward API, making integration feasible.
+*   **Flickr:** Similar to Imgur but focused more on photography and professional images. Flickr integration could cater to users who need to share and host photos online, offering another specialized image hosting option.
+
+### 10.2. Cloud Storage and Collaboration Platforms
+
+*   **Google Drive:** As a ubiquitous cloud storage service, Google Drive is an essential integration. It would enable users to upload files directly to their Google Drive accounts, leveraging Google's infrastructure for file management and sharing. Google provides a well-documented API for Drive, which simplifies integration.
+*   **OneDrive:** Microsoft's cloud storage solution, OneDrive, is another major platform. Integrating OneDrive would cater to users within the Microsoft ecosystem, providing seamless file uploads to their personal or organizational OneDrive storage. Like Google Drive, OneDrive also offers APIs for programmatic access.
+*   **Box:** Box is a cloud storage and collaboration platform often used by businesses. Integrating Box would target professional users who rely on Box for secure file sharing and management within organizations. Box provides robust APIs suitable for integration.
+
+### 10.3. File Sharing and Transfer Services
+
+*   **WeTransfer:** A popular service for sending large files, WeTransfer focuses on ease of use and temporary file sharing. Integrating WeTransfer would allow users to quickly share files without requiring recipients to have an account, useful for one-off file transfers. WeTransfer has an API that can be used for integration.
+*   **Mega.nz:** Known for its security and encryption features, Mega.nz offers cloud storage and file sharing. Integration with Mega.nz would appeal to users who prioritize privacy and security when uploading and sharing files. Mega provides an API, although it might be more complex to integrate due to its encryption focus.
+
+### 10.4. Developer and Version Control Platforms
+
+*   **GitHub (Releases/Issues):** For developers, direct integration with GitHub to upload files to repository releases or issues would be highly valuable. This could streamline workflows for sharing binaries, assets, or attachments related to software projects directly within GitHub. GitHub's REST API supports file uploads to releases and issues.
+*   **GitLab (Releases/Issues):** Similar to GitHub, GitLab is a widely used platform for code hosting and collaboration. Integrating GitLab for file uploads to releases or issues would cater to GitLab users, offering similar benefits for developer workflows as GitHub integration. GitLab also has a comprehensive API for project and repository management.
+
+### 10.5. Considerations for Integration
+
+When considering these services for integration, it's important to evaluate:
+
+*   **API Availability and Documentation:**  Services with well-documented and accessible APIs are easier to integrate.
+*   **Authentication Methods:** Different services use various authentication methods (API keys, OAuth 2.0, etc.).  `twat-fs` needs to handle these securely and potentially provide user-friendly setup instructions.
+*   **Rate Limits and Usage Restrictions:** Understanding the service's rate limits and usage policies is crucial to ensure reliable integration and handle potential errors gracefully.
+*   **User Demand and Use Cases:** Prioritize services that align with the common use cases of `twat-fs` and are requested by users.
+
+By integrating a selection of these services, `twat-fs` can become an even more versatile and powerful tool for file uploading across a wide range of platforms and use cases.
+
+
+
+
+
+
+
+The following providers can be integrated into the `twat-fs` package to enhance its file upload capabilities:
+
+1. **Google Drive**:
+   - **Description**: Google Drive is a widely-used cloud storage service that offers robust file sharing and collaboration features.
+   - **Integration**: Implementing Google Drive as a provider would allow users to upload files directly to their Google Drive accounts. This can be particularly useful for users who already use Google Drive for personal or business purposes.
+   - **Dependencies**: The integration would require the `google-api-python-client` and `google-auth` libraries.
+   - **Authentication**: Users would need to authenticate using OAuth 2.0 and provide the necessary credentials.
+   - **Setup Instructions**:
+     ```python
+     from google.oauth2 import service_account
+     from googleapiclient.discovery import build
+     from googleapiclient.http import MediaFileUpload
+
+     SCOPES = ['https://www.googleapis.com/auth/drive.file']
+     SERVICE_ACCOUNT_FILE = 'path/to/service_account.json'
+
+     credentials = service_account.Credentials.from_service_account_file(
+         SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+     service = build('drive', 'v3', credentials=credentials)
+
+     file_metadata = {'name': 'testfile.txt'}
+     media = MediaFileUpload('path/to/testfile.txt', mimetype='text/plain')
+     file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+     print(f'File ID: {file.get("id")}')
+     ```
+
+2. **OneDrive**:
+   - **Description**: OneDrive is Microsoft's cloud storage service, integrated with Windows and Office 365.
+   - **Integration**: Adding OneDrive as a provider would enable users to upload files to their OneDrive accounts, making it convenient for users within the Microsoft ecosystem.
+   - **Dependencies**: The integration would require the `Office365-REST-Python-Client` library.
+   - **Authentication**: Users would need to authenticate using OAuth 2.0 and provide the necessary credentials.
+   - **Setup Instructions**:
+     ```python
+     from office365.sharepoint.client_context import ClientContext
+     from office365.runtime.auth.client_credential import ClientCredential
+
+     client_credentials = ClientCredential('client_id', 'client_secret')
+     ctx = ClientContext('https://tenant.sharepoint.com/sites/site', client_credentials)
+     with open('path/to/testfile.txt', 'rb') as file_content:
+         target_folder = ctx.web.lists.get_by_title('Documents').root_folder
+         target_file = target_folder.upload_file('testfile.txt', file_content)
+         ctx.execute_query()
+         print(f'File uploaded: {target_file.serverRelativeUrl}')
+     ```
+
+3. **Mega.nz**:
+   - **Description**: Mega.nz is a cloud storage service known for its strong encryption and privacy features.
+   - **Integration**: Integrating Mega.nz would provide users with a secure option for uploading files with end-to-end encryption.
+   - **Dependencies**: The integration would require the `mega.py` library.
+   - **Authentication**: Users would need to provide their Mega.nz email and password for authentication.
+   - **Setup Instructions**:
+     ```python
+     from mega import Mega
+
+     mega = Mega()
+     m = mega.login('email', 'password')
+     file = m.upload('path/to/testfile.txt')
+     print(f'File uploaded: {file.get("h")}')
+     ```
+
+4. **pCloud**:
+   - **Description**: pCloud is a cloud storage service that offers a lifetime storage plan, making it a cost-effective option for long-term storage.
+   - **Integration**: Adding pCloud as a provider would give users another reliable option for uploading files.
+   - **Dependencies**: The integration would require the `pcloud` library.
+   - **Authentication**: Users would need to provide their pCloud username and password for authentication.
+   - **Setup Instructions**:
+     ```python
+     import pcloud
+
+     pc = pcloud.PyCloud('username', 'password')
+     file_path = 'path/to/testfile.txt'
+     folderid = pc.createfolderifnotexists('uploads')
+     pc.uploadfile(files=[file_path], folderid=folderid)
+     print(f'File uploaded to folder ID: {folderid}')
+     ```
+
+5. **Backblaze B2**:
+   - **Description**: Backblaze B2 is a low-cost cloud storage service designed for large-scale data storage.
+   - **Integration**: Integrating Backblaze B2 would provide users with an economical option for storing large amounts of data.
+   - **Dependencies**: The integration would require the `b2` library.
+   - **Authentication**: Users would need to provide their B2 application key ID and application key for authentication.
+   - **Setup Instructions**:
+     ```python
+     import b2
+     from b2.api import B2Api
+
+     info = b2.account_info()
+     api = B2Api(info)
+     bucket = api.create_bucket('test-bucket', 'allPublic')
+     file_info = {
+         'data': open('path/to/testfile.txt', 'rb'),
+         'name': 'testfile.txt'
+     }
+     file_version = bucket.upload(file_info)
+     print(f'File uploaded: {file_version.id_}')
+     ```
+
+6. **DigitalOcean Spaces**:
+   - **Description**: DigitalOcean Spaces is an object storage service compatible with the S3 API, making it a flexible option for users familiar with S3.
+   - **Integration**: Adding DigitalOcean Spaces as a provider would give users another S3-compatible storage option.
+   - **Dependencies**: The integration would require the `boto3` library.
+   - **Authentication**: Users would need to provide their Spaces access key and secret key for authentication.
+   - **Setup Instructions**:
+     ```python
+     import boto3
+
+     session = boto3.session.Session()
+     client = session.client('s3',
+                             region_name='nyc3',
+                             endpoint_url='https://nyc3.digitaloceanspaces.com',
+                             aws_access_key_id='access_key',
+                             aws_secret_access_key='secret_key')
+     client.upload_file('path/to/testfile.txt', 'bucket-name', 'testfile.txt')
+     print('File uploaded successfully')
+     ```
+
+7. **Wasabi**:
+   - **Description**: Wasabi is a hot cloud storage service designed to be a cost-effective alternative to Amazon S3.
+   - **Integration**: Integrating Wasabi would provide users with another S3-compatible storage option.
+   - **Dependencies**: The integration would require the `boto3` library.
+   - **Authentication**: Users would need to provide their Wasabi access key and secret key for authentication.
+   - **Setup Instructions**:
+     ```python
+     import boto3
+
+     session = boto3.session.Session()
+     client = session.client('s3',
+                             region_name='us-east-1',
+                             endpoint_url='https://s3.wasabisys.com',
+                             aws_access_key_id='access_key',
+                             aws_secret_access_key='secret_key')
+     client.upload_file('path/to/testfile.txt', 'bucket-name', 'testfile.txt')
+     print('File uploaded successfully')
+     ```
+
+8. **Azure Blob Storage**:
+   - **Description**: Azure Blob Storage is Microsoft's object storage solution for the cloud, designed for storing large amounts of unstructured data.
+   - **Integration**: Adding Azure Blob Storage as a provider would give users a robust option for storing large amounts of data.
+   - **Dependencies**: The integration would require the `azure-storage-blob` library.
+   - **Authentication**: Users would need to provide their Azure storage account name and key for authentication.
+   - **Setup Instructions**:
+     ```python
+     from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+
+     connect_str = "DefaultEndpointsProtocol=https;AccountName=account_name;AccountKey=account_key;EndpointSuffix=core.windows.net"
+     blob_service_client = BlobServiceClient.from_connection_string(connect_str)
+     container_client = blob_service_client.get_container_client('test-container')
+     blob_client = container_client.get_blob_client('testfile.txt')
+     with open('path/to/testfile.txt', 'rb') as data:
+         blob_client.upload_blob(data)
+     print('File uploaded successfully')
+     ```
+
+9. **Box**:
+   - **Description**: Box is a cloud content management and file sharing service designed for businesses.
+   - **Integration**: Adding Box as a provider would give users a secure and collaborative option for storing files.
+   - **Dependencies**: The integration would require the `boxsdk` library.
+   - **Authentication**: Users would need to provide their Box API key for authentication.
+   - **Setup Instructions**:
+     ```python
+     from boxsdk import Client, OAuth2
+
+     oauth2 = OAuth2(
+         client_id='client_id',
+         client_secret='client_secret',
+         access_token='access_token'
+     )
+     client = Client(oauth2)
+     new_file = client.folder('0').upload('path/to/testfile.txt')
+     print(f'File uploaded: {new_file.id}')
+     ```
+
+10. **Cloudflare R2**:
+    - **Description**: Cloudflare R2 is a scalable object storage service designed to be a cost-effective alternative to Amazon S3.
+    - **Integration**: Integrating Cloudflare R2 would provide users with another S3-compatible storage option.
+    - **Dependencies**: The integration would require the `boto3` library.
+    - **Authentication**: Users would need to provide their Cloudflare R2 access key and secret key for authentication.
+    - **Setup Instructions**:
+      ```python
+      import boto3
+
+      session = boto3.session.Session()
+      client = session.client('s3',
+                               region_name='auto',
+                               endpoint_url='https://<account_id>.r2.cloudflarestorage.com',
+                               aws_access_key_id='access_key',
+                               aws_secret_access_key='secret_key')
+      client.upload_file('path/to/testfile.txt', 'bucket-name', 'testfile.txt')
+      print('File uploaded successfully')
+      ```
+
+By integrating these providers, the `twat-fs` package can offer a more comprehensive set of file upload options, catering to a wider range of user preferences and requirements.
+
+================
 File: LICENSE
 ================
 MIT License
@@ -2102,84 +3738,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-================
-File: LOG.md
-================
----
-this_file: LOG.md
----
-
-# Development Log
-
-## Changed
-
-- Updated `catbox.py` to properly implement both `Provider` and `ProviderClient` protocols
-  - Fixed method signatures to match protocol requirements
-  - Improved error handling and logging
-  - Added proper type hints for async/await patterns
-  - Simplified code by removing redundant type variables
-  - Made `get_credentials` and `get_provider` class methods
-  - Fixed `ProviderHelp` type usage
-
-- Updated `bashupload.py` to use shared utilities and follow protocol patterns
-  - Removed dependency on `simple.py` base class
-  - Properly implemented both `Provider` and `ProviderClient` protocols
-  - Added async support with proper type hints
-  - Simplified provider help dictionary
-  - Improved error handling and logging
-  - Added file validation
-  - Standardized HTTP response handling
-  - Fixed timeout handling in aiohttp client
-
-## In Progress
-
-- Refactoring upload providers to use shared utilities
-  - Created `utils.py` with common functionality
-  - Updated `catbox.py` and `bashupload.py` as example implementations
-  - Need to update remaining providers to follow the same pattern
-
-## Next Steps
-
-1. Update remaining providers to use the shared utilities from `utils.py`
-2. Ensure consistent async/await patterns across all providers
-3. Add helper functions in `utils.py` for common async patterns if needed
-4. Consider adding more utility functions for:
-   - Standardized error handling
-   - File validation and handling
-   - HTTP response processing
-   - Credential management
-   - Logging and metrics
-
-## Technical Debt
-
-- [ ] Update all provider implementations to match the new protocol type hints
-- [ ] Consider adding helper functions in `utils.py` for common async patterns
-- [ ] Review and possibly simplify the provider protocols
-- [ ] Add more comprehensive error handling in utility functions
-- [ ] Consider adding retry mechanisms in utility functions
-- [ ] Add tests for utility functions
-- [ ] Document best practices for implementing providers
-
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
-
-### Changed
-- Updated Provider protocols to better handle async/coroutine types
-  - Modified return type of async_upload_file to accept both Awaitable[UploadResult] and Coroutine[Any, Any, UploadResult]
-  - Added type variables for covariant return types (T_co, T_ret)
-  - This change allows for more flexible async implementations while maintaining type safety
-  - Providers can now use either async/await pattern or coroutines without type conflicts
-
-### Technical Debt
-- Need to update all provider implementations to match new protocol type hints
-- Consider adding helper functions in utils.py to handle common async patterns
 
 ================
 File: MANIFEST.in
@@ -2573,6 +4131,10 @@ storage = 'file'
 ================
 File: README.md
 ================
+---
+this_file: README.md
+---
+
 # twat-fs
 
 File system utilities for twat, focusing on robust and extensible file upload capabilities with multiple provider support.
@@ -2590,6 +4152,30 @@ File system utilities for twat, focusing on robust and extensible file upload ca
 * **Progressive Enhancement**: Start simple with zero configuration (simple providers), scale up to advanced providers (S3, Dropbox) as needed
 * **Developer Experience**: Clear interfaces, comprehensive type hints, and runtime checks
 * **Extensibility**: Well-defined provider protocol for adding new storage backends
+
+## Recent Improvements
+
+The codebase has undergone significant refactoring to improve maintainability and extensibility:
+
+* **Centralized Utilities**: Created a `utils.py` module with shared functionality for all providers
+* **Standardized Implementation**: All providers now follow consistent patterns and inherit from `BaseProvider`
+* **Improved Error Handling**: Enhanced error classification and handling across all providers
+* **Provider Templates**: Created templates for simple and authenticated providers to standardize implementation
+* **Better Type Safety**: Improved type annotations and protocol compatibility
+* **Consistent Logging**: Standardized logging patterns for better debugging and monitoring
+* **Factory Pattern**: Implemented a factory pattern for provider instantiation to simplify creation and standardize error handling
+* **Async/Sync Utilities**: Created standardized utilities for async/sync conversion to ensure consistent patterns across providers
+* **Comprehensive Testing**: Added thorough unit tests for utility functions covering edge cases and error conditions
+
+## Project Documentation
+
+The project maintains several key documentation files:
+
+* **README.md** (this file): Overview, installation, usage, and architecture
+* **CHANGELOG.md**: Detailed record of all changes and improvements
+* **TODO.md**: Prioritized list of upcoming tasks and features
+
+These files are regularly updated to reflect the current state of the project.
 
 ## Quick Start
 
@@ -2756,6 +4342,18 @@ The package uses a provider-based architecture with these key components:
    * Automatic retry with exponential backoff
    * Provider fallback for permanent failures
 
+5. **BaseProvider**: Abstract base class for all providers
+   * Implements common functionality
+   * Standardizes method signatures
+   * Provides default implementations
+   * Reduces code duplication
+
+6. **Utility Functions**: Shared functionality across providers
+   * File validation and handling
+   * HTTP response processing
+   * Credential management
+   * Logging standardization
+
 ### Type System
 
 Strong typing throughout with runtime checks:
@@ -2767,252 +4365,98 @@ Strong typing throughout with runtime checks:
 
 ## Implementing a New Provider
 
-To add a new storage provider, create a module in `twat_fs/upload_providers/` that implements the Provider protocol:
+To add a new storage provider, use one of the provided templates in the `templates` directory:
+
+* `simple_provider_template.py`: For providers without authentication
+* `authenticated_provider_template.py`: For providers requiring credentials
+
+These templates include:
+* Standard imports and class structure
+* Consistent error handling patterns
+* Proper use of utility functions
+* Documentation templates and type annotations
+* Module-level functions implementing the Provider protocol
+
+Example implementation (simplified):
 
 ```python
 from pathlib import Path
-from typing import Any, TypedDict
-from twat_fs.upload_providers import ProviderClient, Provider
+from typing import Any, BinaryIO, ClassVar
+from twat_fs.upload_providers.simple import BaseProvider
+from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
+from twat_fs.upload_providers.utils import (
+    create_provider_help,
+    log_upload_attempt,
+    standard_upload_wrapper,
+)
+from twat_fs.upload_providers.types import UploadResult
 
 # Provider-specific help messages
-PROVIDER_HELP = {
-    "setup": """Setup instructions for users...""",
-    "deps": """Additional dependencies needed..."""
-}
+PROVIDER_HELP: ProviderHelp = create_provider_help(
+    setup_instructions="Setup instructions for users...",
+    dependency_info="Additional dependencies needed..."
+)
 
+class YourProvider(BaseProvider):
+    """Provider for your service."""
+    
+    # Class variables
+    PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
+    provider_name = "your_provider"
+    
+    def _do_upload(self, file: BinaryIO) -> str:
+        """Implement the actual upload logic."""
+        # Your implementation here
+        ...
+        return "https://example.com/uploaded_file"
+        
+    def upload_file_impl(self, file: BinaryIO) -> UploadResult:
+        """Handle the file upload process."""
+        try:
+            url = self._do_upload(file)
+            log_upload_attempt(self.provider_name, file.name, success=True)
+            return convert_to_upload_result(url, metadata={"provider": self.provider_name})
+        except Exception as e:
+            log_upload_attempt(self.provider_name, file.name, success=False, error=e)
+            raise
+
+# Module-level functions
 def get_credentials() -> dict[str, Any] | None:
-    """
-    Get provider credentials from environment.
-    Return None if not configured.
-    """
-    # Implement credential checking
-    ...
+    """Get provider credentials."""
+    return None  # For simple providers
 
 def get_provider() -> ProviderClient | None:
-    """
-    Initialize and return the provider client.
-    Only import provider-specific dependencies here.
-    """
-    creds = get_credentials()
-    if not creds:
-        return None
-    
-    try:
-        # Initialize your provider client
-        client = YourProviderClient(creds)
-        return client
-    except Exception:
-        return None
+    """Initialize and return the provider."""
+    return YourProvider()
 
-def upload_file(local_path: str | Path, remote_path: str | Path | None = None) -> str:
-    """
-    Upload a file and return its public URL.
-    This is a convenience wrapper around get_provider().
-    """
-    client = get_provider()
-    if not client:
-        raise ValueError("Provider not configured")
-    return client.upload_file(local_path, remote_path)
-
-# Your provider client implementation
-class YourProviderClient:
-    def upload_file(
-        self, 
-        local_path: str | Path, 
-        remote_path: str | Path | None = None
-    ) -> str:
-        """Implement the actual upload logic."""
-        ...
+def upload_file(local_path: str | Path, remote_path: str | Path | None = None, **kwargs) -> UploadResult:
+    """Upload a file using this provider."""
+    return standard_upload_wrapper(
+        provider=get_provider(),
+        provider_name="your_provider",
+        local_path=local_path,
+        remote_path=remote_path,
+        **kwargs
+    )
 ```
-
-Then add your provider to `PROVIDERS_PREFERENCE` in `upload_providers/__init__.py`.
 
 ## Development
 
-### Setup Environment
+See the [CHANGELOG.md](CHANGELOG.md) for recent changes and the [TODO.md](TODO.md) for upcoming work.
 
-```bash
-# Install development tools
-uv pip install uv
+### Contributing
 
-# Create and activate environment
-uv venv
-source .venv/bin/activate
+Contributions are welcome! Please check the TODO list for areas that need attention.
 
-# Install in development mode with all extras
-uv pip install -e '.[dev,all,test]'
-```
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `python -m pytest`
+5. Submit a pull request
 
-### Code Quality
+### License
 
-```bash
-# Format code
-python -m ruff format src tests
-python -m ruff check --fix --unsafe-fixes src tests
-
-# Run type checks
-python -m mypy src tests
-
-# Run tests
-python -m pytest tests
-python -m pytest --cov=src/twat_fs tests  # with coverage
-
-# Quick development cycle
-./cleanup.py install  # Set up environment
-./cleanup.py status  # Run all checks
-```
-
-### Publish
-
-Make sure to have in your env:
-
-```bash
-export UV_PUBLISH_TOKEN="${PYPI_TOKEN}"
-```
-
-Build and publish:
-
-```bash
-VER="v1.7.9" && echo "$VER" > VERSION.txt && git commit -am "$VER" && git tag "$VER"
-uv build && uv publish
-```
-
-### Testing
-
-The test suite includes:
-
-* Unit tests for each provider
-* Integration tests with real services
-* Performance tests for large files
-* Error condition tests
-* Type checking tests
-
-When adding a new provider:
-
-1. Add unit tests in `tests/test_providers/`
-2. Add integration tests in `tests/test_integration.py`
-3. Add performance tests if relevant
-4. Update provider discovery tests
-
-## Error Handling & Troubleshooting
-
-### Error Types
-
-The package uses a structured error hierarchy for better error handling:
-
-```python
-from twat_fs.upload_providers.core import (
-    UploadError,              # Base class for all upload errors
-    RetryableError,           # Temporary failures that should be retried
-    NonRetryableError,        # Permanent failures that trigger fallback
-)
-```
-
-### Common Issues
-
-1. **Temporary Failures (RetryableError)**
-   * Rate limiting
-   * Network timeouts
-   * Server errors (503, 504)
-   * Connection resets
-   ```python
-   try:
-       url = upload_file("file.txt")
-   except RetryableError as e:
-       print(f"Temporary error with {e.provider}: {e}")
-       # Will be retried automatically with exponential backoff
-   ```
-
-2. **Permanent Failures (NonRetryableError)**
-   * Authentication failures
-   * Invalid files
-   * Missing permissions
-   * Provider not available
-   ```python
-   try:
-       url = upload_file("file.txt", provider=["s3", "dropbox"])
-   except NonRetryableError as e:
-       print(f"All providers failed. Last error from {e.provider}: {e}")
-   ```
-
-3. **URL Validation**
-   * All returned URLs are validated with HEAD request
-   * Follows redirects
-   * Verifies accessibility
-   * Retries on temporary failures
-   ```python
-   # URL is guaranteed to be accessible when returned
-   url = upload_file("file.txt")
-   ```
-
-### Provider Status Checking
-
-Use the setup commands to diagnose provider issues:
-
-```bash
-# Check specific provider
-python -m twat_fs setup provider s3
-
-# Check all providers
-python -m twat_fs setup all
-```
-
-### Logging
-
-The package uses `loguru` for structured logging:
-
-```python
-from loguru import logger
-
-# Set log level
-logger.level("DEBUG")
-
-# Add file handler
-logger.add("twat_fs.log", rotation="1 day")
-
-# Log format includes provider info
-logger.add(
-    sys.stderr,
-    format="{time} {level} [{extra[provider]}] {message}"
-)
-```
-
-### Debugging Provider Issues
-
-When implementing a new provider:
-
-1. Enable debug logging:
-
-```python
-import logging
-logging.getLogger("twat_fs").setLevel(logging.DEBUG)
-```
-
-2. Use the provider test helper:
-
-```python
-from twat_fs.testing import ProviderTestHelper
-
-helper = ProviderTestHelper("your_provider")
-helper.test_provider_implementation()  # Checks protocol compliance
-helper.test_provider_functionality()   # Tests basic operations
-```
-
-3. Check provider initialization:
-
-```python
-from twat_fs.upload_providers import get_provider_module
-
-provider = get_provider_module("your_provider")
-print(provider.get_credentials())  # Check credential loading
-print(provider.get_provider())     # Check client initialization
-```
-
-## License
-
-MIT License
-
-.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## extra
 
@@ -3040,6 +4484,143 @@ this_file: TODO.md
 
 # TODO
 
+Tip: Periodically run `./cleanup.py status` to see results of lints and tests.
+
+## High Priority
+
+- [ ] Fix type annotation issues identified by linter
+  - Address incompatible return types in async methods
+  - Fix type mismatches in factory.py and simple.py
+  - Ensure proper typing for async/await conversions
+  - Resolve "possibly unbound" variable warnings in upload.py
+
+## Medium Priority
+
+- [ ] Refine HTTP response handling across providers
+  - Ensure all providers use `handle_http_response()` consistently
+  - Standardize handling of various HTTP status codes
+  - Improve handling of rate limits (429) and other non-200 responses
+
+- [ ] Document best practices for creating new providers
+  - Create clear documentation for adding new providers
+  - Show how to leverage the shared utilities
+  - Provide examples of following established patterns
+
+- [ ] Add comprehensive type annotations for async operations
+  - Ensure consistent type handling in async/await conversions
+  - Improve type hints for async decorators
+  - Add proper typing for async context managers
+
+## New Providers
+
+### Simple File Hosting Providers
+
+- [ ] Implement Transfer.sh provider
+  - Simple HTTP POST API
+  - No authentication required
+  - Similar to existing simple providers
+  - Good for temporary file sharing
+
+- [ ] Implement AnonFiles provider
+  - Simple API for anonymous file uploads
+  - Returns direct download links
+  - No authentication required
+  - Similar implementation to existing simple providers
+
+### Cloud Storage Providers
+
+- [ ] Implement Google Drive provider
+  - Requires OAuth2 authentication
+  - Leverage existing async/sync patterns
+  - Add support for folder organization
+  - Dependencies: google-api-python-client, google-auth
+
+- [ ] Implement Microsoft OneDrive provider
+  - Requires OAuth2 authentication
+  - Similar to Dropbox implementation pattern
+  - Dependencies: Office365-REST-Python-Client or Microsoft Graph SDK
+
+- [ ] Implement pCloud provider
+  - API key based authentication
+  - Good for privacy-focused users
+  - Dependencies: pcloud-sdk-python
+
+### S3-Compatible Storage
+
+- [ ] Implement Backblaze B2 provider
+  - S3-compatible API
+  - Can leverage existing S3 provider with custom endpoint
+  - Cost-effective storage solution
+  - Dependencies: boto3 (already used for S3)
+
+- [ ] Implement DigitalOcean Spaces provider
+  - S3-compatible API
+  - Can leverage existing S3 provider with custom endpoint
+  - Dependencies: boto3 (already used for S3)
+
+### Media and Specialized Providers
+
+- [ ] Implement Imgur provider
+  - Specialized for image uploads
+  - API key based authentication
+  - Add image-specific metadata handling
+  - Dependencies: requests
+
+- [ ] Implement Cloudinary provider
+  - Media transformation capabilities
+  - API key based authentication
+  - Support for image/video optimization
+  - Dependencies: cloudinary or requests
+
+### Version Control Platforms
+
+- [ ] Implement GitHub Gist provider
+  - Good for text file sharing with syntax highlighting
+  - OAuth or token-based authentication
+  - Implement file size and type constraints
+  - Dependencies: PyGithub or requests
+
+- [ ] Implement GitLab Snippet provider
+  - Similar to GitHub Gist
+  - Support for self-hosted GitLab instances
+  - Token-based authentication
+  - Dependencies: python-gitlab or requests
+
+### Enterprise and Specialized Services
+
+- [ ] Implement Azure Blob Storage provider
+  - Microsoft's object storage solution
+  - Similar pattern to S3 provider
+  - Dependencies: azure-storage-blob
+
+- [ ] Implement Box provider
+  - Enterprise file sharing and collaboration
+  - OAuth authentication
+  - Dependencies: boxsdk
+
+- [ ] Implement WeTransfer provider
+  - Popular service for large file transfers
+  - API key based authentication
+  - Support for expiring links
+  - Dependencies: requests
+
+### Decentralized Storage Options
+
+- [ ] Implement IPFS provider via Pinata or Infura
+  - Distributed file system
+  - Pin files to IPFS network
+  - API key based authentication
+  - Dependencies: ipfshttpclient or requests
+
+## Implementation Strategy
+
+- [ ] Update provider preference list in `__init__.py` to include new providers
+- [ ] Add environment variable documentation for each new provider
+- [ ] Create integration tests for each new provider
+- [ ] Update documentation with new provider capabilities and requirements
+
+## Completed Tasks
+
 - [x] Create utils.py to centralize common functionality for upload providers
   
   A `utils.py` file has been created in the `upload_providers` folder with several helper functions:
@@ -3052,46 +4633,52 @@ this_file: TODO.md
   - `standard_upload_wrapper` for consistent upload handling
   - `log_upload_attempt` for consistent logging
 
-- [ ] Refactor provider modules to use utils.py consistently
+- [x] Refactor provider modules to use utils.py consistently
   
-  Most providers still use their own implementations for common operations. The priority is to:
-  1. Replace duplicated code with calls to utils.py functions
-  2. Ensure consistent error handling across providers
-  3. Standardize method signatures and patterns
+  All providers have been refactored:
+  - pixeldrain.py, bashupload.py, catbox.py, filebin.py
+  - uguu.py, www0x0.py, dropbox.py, s3.py
+  - fal.py, litterbox.py
 
-- [ ] Implement a factory pattern for provider instantiation
+- [x] Create provider templates for standardized implementation
   
-  Create a provider factory that simplifies the creation of providers and reduces code duplication in `get_provider()` methods.
+  Created two template files in the `templates` directory:
+  - `simple_provider_template.py` for providers without authentication
+  - `authenticated_provider_template.py` for providers requiring credentials
 
-- [ ] Standardize async/sync conversion patterns
+- [x] Implement a factory pattern for provider instantiation
   
-  Several providers implement both synchronous and asynchronous upload methods with nearly identical conversion logic. Standardize this pattern using the utilities in utils.py.
+  Created a factory.py module with a ProviderFactory class that:
+  - Centralizes provider instantiation logic
+  - Standardizes error handling during initialization
+  - Reduces code duplication in provider creation
+  - Provides a cleaner API for getting provider instances
 
-- [ ] Refine HTTP response handling across providers
+- [x] Standardize async/sync conversion patterns
   
-  While `handle_http_response()` exists in utils.py, ensure all providers use it consistently for handling various HTTP status codes, especially for error conditions like rate limits (429) and other non-200 responses.
+  Created an async_utils.py module with utilities for async/sync conversion:
+  - `run_async` for running coroutines in a synchronous context
+  - `to_sync` decorator for converting async functions to sync
+  - `to_async` decorator for converting sync functions to async
+  - `gather_with_concurrency` for limiting concurrent async operations
+  - `AsyncContextManager` base class for implementing async context managers
+  - `with_async_timeout` decorator for adding timeouts to async functions
 
-- [ ] Create provider base classes to reduce inheritance boilerplate
+- [x] Write unit tests for utils.py functions
   
-  Implement base classes that providers can inherit from to reduce duplicate code:
-  - A base class for simple providers with no credentials
-  - A base class for async-capable providers
-  - A base class for providers requiring credentials
+  Created comprehensive test files:
+  - test_utils.py for testing the utils.py module
+  - test_async_utils.py for testing the async_utils.py module
+  - Tests cover all utility functions thoroughly
+  - Tests include edge cases and error conditions
+  - Tests ensure backward compatibility
 
-- [ ] Add comprehensive type annotations for async operations
+- [x] Create provider base classes to reduce inheritance boilerplate
   
-  With the protocol updates to support both `Awaitable[UploadResult]` and `Coroutine[Any, Any, UploadResult]`, ensure consistent type handling in:
-  - Async/await conversions
-  - Async decorators with proper type hints
-  - Async context managers and resource cleanup
-
-- [ ] Write unit tests for utils.py functions
-  
-  Ensure the centralized utilities are thoroughly tested to prevent regressions when refactoring providers.
-
-- [ ] Document best practices for creating new providers
-  
-  Create clear documentation for adding new providers, showing how to leverage the shared utilities and follow the established patterns.
+  Created base classes in simple.py:
+  - BaseProvider: Common functionality for all providers
+  - AsyncBaseProvider: For providers with native async support
+  - SyncBaseProvider: For providers with sync-only implementations
 
 ================
 File: update_providers.py

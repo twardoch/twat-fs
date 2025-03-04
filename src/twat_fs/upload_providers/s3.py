@@ -7,7 +7,6 @@ This module provides functionality to upload files to Amazon S3 storage service.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any, BinaryIO, ClassVar, cast, TYPE_CHECKING
 
@@ -22,7 +21,6 @@ from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
 from twat_fs.upload_providers.utils import (
     create_provider_help,
     get_env_credentials,
-    validate_file,
     log_upload_attempt,
     standard_upload_wrapper,
 )
@@ -218,7 +216,7 @@ class S3Provider(BaseProvider):
                     "raw_url": url,
                 },
             )
-        except (RetryableError, NonRetryableError) as e:
+        except (RetryableError, NonRetryableError):
             # Re-raise these errors to allow for retries
             raise
         except Exception as e:

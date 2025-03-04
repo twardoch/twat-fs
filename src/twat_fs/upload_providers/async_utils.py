@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import functools
-from typing import Any, Callable, TypeVar, ParamSpec, cast, Awaitable, overload
+from typing import Any, TypeVar, ParamSpec, overload
+from collections.abc import Callable
 from collections.abc import Coroutine
 
 from loguru import logger
@@ -237,9 +238,8 @@ def with_async_timeout(
                 logger.warning(
                     f"Function {func.__name__} timed out after {timeout} seconds"
                 )
-                raise TimeoutError(
-                    f"Operation timed out after {timeout} seconds"
-                ) from None
+                msg = f"Operation timed out after {timeout} seconds"
+                raise TimeoutError(msg) from None
 
         return wrapper
 

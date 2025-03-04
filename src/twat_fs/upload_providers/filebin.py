@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import requests
 from pathlib import Path
-from typing import Any, BinaryIO, cast, ClassVar
+from typing import BinaryIO, cast, ClassVar
 import time
 import secrets
 import string
@@ -112,10 +112,12 @@ class FilebinProvider(BaseProvider):
                     time.sleep(retry_delay)
                     retry_delay *= 2
                     continue
-                raise NonRetryableError(f"Request failed: {e}", self.provider_name)
+                msg = f"Request failed: {e}"
+                raise NonRetryableError(msg, self.provider_name)
 
         # This should never be reached due to the exception handling above
-        raise NonRetryableError("Upload failed after retries", self.provider_name)
+        msg = "Upload failed after retries"
+        raise NonRetryableError(msg, self.provider_name)
 
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """

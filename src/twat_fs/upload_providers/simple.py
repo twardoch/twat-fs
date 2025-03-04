@@ -26,11 +26,11 @@ from twat_fs.upload_providers.core import (
     with_url_validation,
     with_timing,
 )
-from twat_fs.upload_providers.async_utils import to_sync, to_async
+from twat_fs.upload_providers.async_utils import to_sync
 
 if TYPE_CHECKING:
     from twat_fs.upload_providers.types import UploadResult
-    from collections.abc import Awaitable, Coroutine
+    from collections.abc import Coroutine
     from collections.abc import Generator
 
 
@@ -126,7 +126,7 @@ class BaseProvider(ABC, Provider):
         force: bool = False,
         upload_path: str | None = None,
         **kwargs: Any,
-    ) -> Awaitable[UploadResult] | Coroutine[Any, Any, UploadResult]:
+    ) -> Coroutine[Any, Any, UploadResult]:
         """
         Upload a file using this provider.
 
@@ -139,7 +139,7 @@ class BaseProvider(ABC, Provider):
             **kwargs: Additional provider-specific arguments
 
         Returns:
-            Awaitable[UploadResult]: Upload result with URL and timing metrics
+            Coroutine[Any, Any, UploadResult]: Upload result with URL and timing metrics
 
         Raises:
             FileNotFoundError: If the file doesn't exist

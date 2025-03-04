@@ -37,13 +37,13 @@ __all__ = [
     "NonRetryableError",
     "Provider",
     "ProviderClient",
+    "ProviderFactory",
     "ProviderHelp",
     "RetryableError",
     "UploadError",
     "UploadResult",
     "get_provider_help",
     "get_provider_module",
-    "ProviderFactory",
 ]
 
 
