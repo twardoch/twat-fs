@@ -79,7 +79,7 @@ class TestS3Integration:
     def test_s3_setup(self):
         """Test S3 provider setup."""
         provider_info = setup_provider("s3")
-        assert provider_info.available
+        assert provider_info.success
 
     def test_s3_upload_small_file(self):
         """Test uploading a small file to S3."""
@@ -150,7 +150,7 @@ class TestFalIntegration:
     def test_fal_setup(self):
         """Test FAL provider setup."""
         provider_info = setup_provider("fal")
-        assert provider_info.available
+        assert provider_info.success
 
     def test_fal_upload_small_file(self):
         """Test uploading a small file to FAL."""
@@ -231,7 +231,9 @@ class TestCatboxIntegration:
         assert provider is not None
 
         # Note: delete_files may not be available in all provider implementations
-        if hasattr(provider, "delete_files"):
+        if hasattr(provider, "delete_files") and callable(
+            getattr(provider, "delete_files", None)
+        ):
             success = provider.delete_files([filename])
             assert success is True
 
@@ -277,7 +279,7 @@ class TestLitterboxIntegration:
 
             # Test with 12 hour expiration
             provider = litterbox.LitterboxProvider(
-                default_expiration=ExpirationTime.HOUR_12
+                default_expiration=ExpirationTime.HOURS_12
             )
             url = provider.upload_file(small_file)
             assert isinstance(url, str)
@@ -285,7 +287,7 @@ class TestLitterboxIntegration:
 
             # Test with 24 hour expiration
             provider = litterbox.LitterboxProvider(
-                default_expiration=ExpirationTime.HOUR_24
+                default_expiration=ExpirationTime.HOURS_24
             )
             url = provider.upload_file(small_file)
             assert isinstance(url, str)
