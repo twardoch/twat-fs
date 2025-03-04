@@ -1,76 +1,50 @@
 ---
-this_file: LOG.md
+this_file: CHANGELOG.md
 ---
 
 # Development Log
 
 ## Changed
 
-- Refactored multiple upload providers to use shared utilities from `utils.py`:
+- Refactored all upload providers to use shared utilities from `utils.py`:
   - `pixeldrain.py`: Fixed recursion issues, improved error handling, standardized logging
-  - `bashupload.py`: Implemented consistent error handling, improved HTTP response handling
+  - `bashupload.py`: Implemented consistent error handling, standardized logging
   - `catbox.py`: Separated upload logic, standardized provider help format
   - `filebin.py`: Improved error handling, standardized logging
   - `uguu.py`: Separated upload logic, standardized provider help format
   - `www0x0.py`: Separated upload logic, standardized provider help format
-  - `dropbox.py`: Made it inherit from BaseProvider, improved credential handling
-  - `s3.py`: Created S3Provider class, improved error handling, standardized logging
+  - `dropbox.py`: Made DropboxClient inherit from BaseProvider, standardized provider help format
+  - `s3.py`: Created S3Provider class inheriting from BaseProvider, improved error handling
+  - `fal.py`: Made FalProvider inherit from BaseProvider, improved error handling and credential management
+  - `litterbox.py`: Made LitterboxProvider inherit from BaseProvider, improved error handling with special handling for expiration parameter
 
 - Created provider templates for standardized implementation:
-  - `simple_provider_template.py`: For providers without authentication
-  - `authenticated_provider_template.py`: For providers requiring credentials
+  - `simple_provider_template.py`: Template for providers without authentication
+  - `authenticated_provider_template.py`: Template for providers requiring credentials
 
-- Updated `catbox.py` to properly implement both `Provider` and `ProviderClient` protocols
-  - Fixed method signatures to match protocol requirements
-  - Improved error handling and logging
-  - Added proper type hints for async/await patterns
-  - Simplified code by removing redundant type variables
-  - Made `get_credentials` and `get_provider` class methods
-  - Fixed `ProviderHelp` type usage
-
-- Updated `bashupload.py` to use shared utilities and follow protocol patterns
-  - Removed dependency on `simple.py` base class
-  - Properly implemented both `Provider` and `ProviderClient` protocols
-  - Added async support with proper type hints
-  - Simplified provider help dictionary
-  - Improved error handling and logging
-  - Added file validation
-  - Standardized HTTP response handling
-  - Fixed timeout handling in aiohttp client
+- Updated `catbox.py` and `bashupload.py` to properly implement both `Provider` and `ProviderClient` protocols
+  - Improved error handling with `RetryableError` and `NonRetryableError`
+  - Added standardized logging with `log_upload_attempt`
+  - Enhanced type hints for better IDE support
 
 ## In Progress
 
-- Refactoring upload providers to use shared utilities
-  - Created `utils.py` with common functionality
-  - Refactored 8 providers to use the shared utilities
-  - Remaining providers to refactor: `fal.py`, `litterbox.py`
+- Implementing a factory pattern for provider instantiation to simplify provider creation and standardize error handling during initialization
 
-- Implementing a factory pattern for provider instantiation
-  - Will simplify creation of providers
-  - Reduce code duplication in `get_provider()` methods
-
-- Standardizing async/sync conversion patterns
-  - Several providers implement both synchronous and asynchronous upload methods
-  - Need to standardize this pattern using utilities in utils.py
+- Standardizing async/sync conversion patterns for providers that support both operations
 
 ## Next Steps
 
-1. Complete refactoring of remaining providers (`fal.py`, `litterbox.py`)
-2. Implement factory pattern for provider instantiation
-3. Standardize async/await patterns across all providers
-4. Add helper functions in `utils.py` for common async patterns
-5. Write unit tests for utils.py functions
-6. Document best practices for creating new providers
+- Write unit tests for utility functions
+- Implement additional upload providers from the TODO list
+- Update documentation with new provider capabilities
 
 ## Technical Debt
 
-- [ ] Update all provider implementations to match the new protocol type hints
-- [ ] Consider adding helper functions in `utils.py` for common async patterns
-- [ ] Review and possibly simplify the provider protocols
-- [ ] Add more comprehensive error handling in utility functions
-- [ ] Consider adding retry mechanisms in utility functions
-- [ ] Add tests for utility functions
-- [ ] Document best practices for implementing providers
+- Update provider implementations to match new protocol type hints
+- Add tests for utility functions
+- Standardize error handling across all providers
+- Improve documentation for adding new providers
 
 # Changelog
 
@@ -97,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `authenticated_provider_template.py`: For providers requiring credentials
 
 ### Changed
-- Refactored multiple upload providers to use shared utilities:
+- Refactored all upload providers to use shared utilities from `utils.py`:
   - `pixeldrain.py`, `bashupload.py`, `catbox.py`, `filebin.py`
   - `uguu.py`, `www0x0.py`, `dropbox.py`, `s3.py`
 
@@ -107,7 +81,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This change allows for more flexible async implementations while maintaining type safety
   - Providers can now use either async/await pattern or coroutines without type conflicts
 
-### Technical Debt
-- Need to update all provider implementations to match new protocol type hints
-- Consider adding helper functions in utils.py to handle common async patterns
+### Fixed
+- Fixed recursion issue in `pixeldrain.py` `get_provider` method
+- Improved error handling with proper exception chaining across all providers
+- Enhanced HTTP response handling with standardized status code processing
+- Fixed type annotation issues in multiple providers
+- Resolved inconsistencies in async/sync conversion patterns
+
+## Development Log
+
+### Completed
+- Refactored all upload providers to use shared utilities from `utils.py`
+- Created provider templates for standardized implementation
+- Standardized error handling and logging across all providers
+- Improved type annotations and protocol compatibility
+- Separated upload logic into reusable components
+
+### In Progress
+- Implementing a factory pattern for provider instantiation to simplify provider creation and standardize error handling during initialization
+- Standardizing async/sync conversion patterns for providers that support both operations
+
+### Next Steps
+- Write unit tests for utility functions
+- Implement additional upload providers from the TODO list
+- Update documentation with new provider capabilities
+
+## Technical Debt
+- Update provider implementations to match new protocol type hints
+- Add tests for utility functions
+- Standardize error handling across all providers
+- Improve documentation for adding new providers
 

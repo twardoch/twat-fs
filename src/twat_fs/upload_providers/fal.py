@@ -6,7 +6,7 @@ This module provides functionality to upload files to FAL's storage service.
 """
 
 from __future__ import annotations
-from typing import Any, BinaryIO, ClassVar
+from typing import Any, BinaryIO, ClassVar, cast
 import os
 from pathlib import Path
 
@@ -51,7 +51,7 @@ class FalProvider(BaseProvider):
 
     # Environment variables
     REQUIRED_ENV_VARS = ["FAL_KEY"]
-    OPTIONAL_ENV_VARS = []
+    OPTIONAL_ENV_VARS: list[str] = []
 
     def __init__(self, key: str) -> None:
         """Initialize the FAL provider with the given API key."""
@@ -89,7 +89,7 @@ class FalProvider(BaseProvider):
         Initialize and return the FAL provider if credentials are present.
 
         Returns:
-            Optional[Provider]: FAL provider instance if credentials are present, None otherwise
+            Optional[ProviderClient]: FAL provider instance if credentials are present, None otherwise
         """
         creds = cls.get_credentials()
         if not creds:
@@ -98,7 +98,8 @@ class FalProvider(BaseProvider):
 
         try:
             # Ensure the key is a clean string by stripping whitespace
-            return cls(key=str(creds["key"]).strip())
+            provider = cls(key=str(creds["key"]).strip())
+            return cast(ProviderClient, provider)
         except Exception as err:
             logger.warning(f"Failed to initialize FAL provider: {err}")
             return None

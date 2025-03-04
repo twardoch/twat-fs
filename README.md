@@ -1,3 +1,7 @@
+---
+this_file: README.md
+---
+
 # twat-fs
 
 File system utilities for twat, focusing on robust and extensible file upload capabilities with multiple provider support.
@@ -15,6 +19,27 @@ File system utilities for twat, focusing on robust and extensible file upload ca
 * **Progressive Enhancement**: Start simple with zero configuration (simple providers), scale up to advanced providers (S3, Dropbox) as needed
 * **Developer Experience**: Clear interfaces, comprehensive type hints, and runtime checks
 * **Extensibility**: Well-defined provider protocol for adding new storage backends
+
+## Recent Improvements
+
+The codebase has undergone significant refactoring to improve maintainability and extensibility:
+
+* **Centralized Utilities**: Created a `utils.py` module with shared functionality for all providers
+* **Standardized Implementation**: All providers now follow consistent patterns and inherit from `BaseProvider`
+* **Improved Error Handling**: Enhanced error classification and handling across all providers
+* **Provider Templates**: Created templates for simple and authenticated providers to standardize implementation
+* **Better Type Safety**: Improved type annotations and protocol compatibility
+* **Consistent Logging**: Standardized logging patterns for better debugging and monitoring
+
+## Project Documentation
+
+The project maintains several key documentation files:
+
+* **README.md** (this file): Overview, installation, usage, and architecture
+* **CHANGELOG.md**: Detailed record of all changes and improvements
+* **TODO.md**: Prioritized list of upcoming tasks and features
+
+These files are regularly updated to reflect the current state of the project.
 
 ## Quick Start
 
@@ -181,6 +206,18 @@ The package uses a provider-based architecture with these key components:
    * Automatic retry with exponential backoff
    * Provider fallback for permanent failures
 
+5. **BaseProvider**: Abstract base class for all providers
+   * Implements common functionality
+   * Standardizes method signatures
+   * Provides default implementations
+   * Reduces code duplication
+
+6. **Utility Functions**: Shared functionality across providers
+   * File validation and handling
+   * HTTP response processing
+   * Credential management
+   * Logging standardization
+
 ### Type System
 
 Strong typing throughout with runtime checks:
@@ -192,252 +229,98 @@ Strong typing throughout with runtime checks:
 
 ## Implementing a New Provider
 
-To add a new storage provider, create a module in `twat_fs/upload_providers/` that implements the Provider protocol:
+To add a new storage provider, use one of the provided templates in the `templates` directory:
+
+* `simple_provider_template.py`: For providers without authentication
+* `authenticated_provider_template.py`: For providers requiring credentials
+
+These templates include:
+* Standard imports and class structure
+* Consistent error handling patterns
+* Proper use of utility functions
+* Documentation templates and type annotations
+* Module-level functions implementing the Provider protocol
+
+Example implementation (simplified):
 
 ```python
 from pathlib import Path
-from typing import Any, TypedDict
-from twat_fs.upload_providers import ProviderClient, Provider
+from typing import Any, BinaryIO, ClassVar
+from twat_fs.upload_providers.simple import BaseProvider
+from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
+from twat_fs.upload_providers.utils import (
+    create_provider_help,
+    log_upload_attempt,
+    standard_upload_wrapper,
+)
+from twat_fs.upload_providers.types import UploadResult
 
 # Provider-specific help messages
-PROVIDER_HELP = {
-    "setup": """Setup instructions for users...""",
-    "deps": """Additional dependencies needed..."""
-}
+PROVIDER_HELP: ProviderHelp = create_provider_help(
+    setup_instructions="Setup instructions for users...",
+    dependency_info="Additional dependencies needed..."
+)
 
+class YourProvider(BaseProvider):
+    """Provider for your service."""
+    
+    # Class variables
+    PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
+    provider_name = "your_provider"
+    
+    def _do_upload(self, file: BinaryIO) -> str:
+        """Implement the actual upload logic."""
+        # Your implementation here
+        ...
+        return "https://example.com/uploaded_file"
+        
+    def upload_file_impl(self, file: BinaryIO) -> UploadResult:
+        """Handle the file upload process."""
+        try:
+            url = self._do_upload(file)
+            log_upload_attempt(self.provider_name, file.name, success=True)
+            return convert_to_upload_result(url, metadata={"provider": self.provider_name})
+        except Exception as e:
+            log_upload_attempt(self.provider_name, file.name, success=False, error=e)
+            raise
+
+# Module-level functions
 def get_credentials() -> dict[str, Any] | None:
-    """
-    Get provider credentials from environment.
-    Return None if not configured.
-    """
-    # Implement credential checking
-    ...
+    """Get provider credentials."""
+    return None  # For simple providers
 
 def get_provider() -> ProviderClient | None:
-    """
-    Initialize and return the provider client.
-    Only import provider-specific dependencies here.
-    """
-    creds = get_credentials()
-    if not creds:
-        return None
-    
-    try:
-        # Initialize your provider client
-        client = YourProviderClient(creds)
-        return client
-    except Exception:
-        return None
+    """Initialize and return the provider."""
+    return YourProvider()
 
-def upload_file(local_path: str | Path, remote_path: str | Path | None = None) -> str:
-    """
-    Upload a file and return its public URL.
-    This is a convenience wrapper around get_provider().
-    """
-    client = get_provider()
-    if not client:
-        raise ValueError("Provider not configured")
-    return client.upload_file(local_path, remote_path)
-
-# Your provider client implementation
-class YourProviderClient:
-    def upload_file(
-        self, 
-        local_path: str | Path, 
-        remote_path: str | Path | None = None
-    ) -> str:
-        """Implement the actual upload logic."""
-        ...
+def upload_file(local_path: str | Path, remote_path: str | Path | None = None, **kwargs) -> UploadResult:
+    """Upload a file using this provider."""
+    return standard_upload_wrapper(
+        provider=get_provider(),
+        provider_name="your_provider",
+        local_path=local_path,
+        remote_path=remote_path,
+        **kwargs
+    )
 ```
-
-Then add your provider to `PROVIDERS_PREFERENCE` in `upload_providers/__init__.py`.
 
 ## Development
 
-### Setup Environment
+See the [CHANGELOG.md](CHANGELOG.md) for recent changes and the [TODO.md](TODO.md) for upcoming work.
 
-```bash
-# Install development tools
-uv pip install uv
+### Contributing
 
-# Create and activate environment
-uv venv
-source .venv/bin/activate
+Contributions are welcome! Please check the TODO list for areas that need attention.
 
-# Install in development mode with all extras
-uv pip install -e '.[dev,all,test]'
-```
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `python -m pytest`
+5. Submit a pull request
 
-### Code Quality
+### License
 
-```bash
-# Format code
-python -m ruff format src tests
-python -m ruff check --fix --unsafe-fixes src tests
-
-# Run type checks
-python -m mypy src tests
-
-# Run tests
-python -m pytest tests
-python -m pytest --cov=src/twat_fs tests  # with coverage
-
-# Quick development cycle
-./cleanup.py install  # Set up environment
-./cleanup.py status  # Run all checks
-```
-
-### Publish
-
-Make sure to have in your env:
-
-```bash
-export UV_PUBLISH_TOKEN="${PYPI_TOKEN}"
-```
-
-Build and publish:
-
-```bash
-VER="v1.7.9" && echo "$VER" > VERSION.txt && git commit -am "$VER" && git tag "$VER"
-uv build && uv publish
-```
-
-### Testing
-
-The test suite includes:
-
-* Unit tests for each provider
-* Integration tests with real services
-* Performance tests for large files
-* Error condition tests
-* Type checking tests
-
-When adding a new provider:
-
-1. Add unit tests in `tests/test_providers/`
-2. Add integration tests in `tests/test_integration.py`
-3. Add performance tests if relevant
-4. Update provider discovery tests
-
-## Error Handling & Troubleshooting
-
-### Error Types
-
-The package uses a structured error hierarchy for better error handling:
-
-```python
-from twat_fs.upload_providers.core import (
-    UploadError,              # Base class for all upload errors
-    RetryableError,           # Temporary failures that should be retried
-    NonRetryableError,        # Permanent failures that trigger fallback
-)
-```
-
-### Common Issues
-
-1. **Temporary Failures (RetryableError)**
-   * Rate limiting
-   * Network timeouts
-   * Server errors (503, 504)
-   * Connection resets
-   ```python
-   try:
-       url = upload_file("file.txt")
-   except RetryableError as e:
-       print(f"Temporary error with {e.provider}: {e}")
-       # Will be retried automatically with exponential backoff
-   ```
-
-2. **Permanent Failures (NonRetryableError)**
-   * Authentication failures
-   * Invalid files
-   * Missing permissions
-   * Provider not available
-   ```python
-   try:
-       url = upload_file("file.txt", provider=["s3", "dropbox"])
-   except NonRetryableError as e:
-       print(f"All providers failed. Last error from {e.provider}: {e}")
-   ```
-
-3. **URL Validation**
-   * All returned URLs are validated with HEAD request
-   * Follows redirects
-   * Verifies accessibility
-   * Retries on temporary failures
-   ```python
-   # URL is guaranteed to be accessible when returned
-   url = upload_file("file.txt")
-   ```
-
-### Provider Status Checking
-
-Use the setup commands to diagnose provider issues:
-
-```bash
-# Check specific provider
-python -m twat_fs setup provider s3
-
-# Check all providers
-python -m twat_fs setup all
-```
-
-### Logging
-
-The package uses `loguru` for structured logging:
-
-```python
-from loguru import logger
-
-# Set log level
-logger.level("DEBUG")
-
-# Add file handler
-logger.add("twat_fs.log", rotation="1 day")
-
-# Log format includes provider info
-logger.add(
-    sys.stderr,
-    format="{time} {level} [{extra[provider]}] {message}"
-)
-```
-
-### Debugging Provider Issues
-
-When implementing a new provider:
-
-1. Enable debug logging:
-
-```python
-import logging
-logging.getLogger("twat_fs").setLevel(logging.DEBUG)
-```
-
-2. Use the provider test helper:
-
-```python
-from twat_fs.testing import ProviderTestHelper
-
-helper = ProviderTestHelper("your_provider")
-helper.test_provider_implementation()  # Checks protocol compliance
-helper.test_provider_functionality()   # Tests basic operations
-```
-
-3. Check provider initialization:
-
-```python
-from twat_fs.upload_providers import get_provider_module
-
-provider = get_provider_module("your_provider")
-print(provider.get_credentials())  # Check credential loading
-print(provider.get_provider())     # Check client initialization
-```
-
-## License
-
-MIT License
-
-.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## extra
 
