@@ -191,7 +191,7 @@ class TestProviderSetup:
         # Use a different approach that doesn't rely on patching specific provider modules
         # Instead, patch the factory module to return mock providers
         with patch(
-            "twat_fs.upload_providers.factory.get_provider"
+            "twat_fs.upload_providers.factory.ProviderFactory.get_provider_module"
         ) as mock_get_provider:
             # Make the factory return different results for different providers
             def side_effect(provider_name, *args, **kwargs):
@@ -221,9 +221,9 @@ class TestProviderSetup:
         """Test setup_provider with a valid provider."""
         # Use a provider that should always be available
         with patch(
-            "twat_fs.upload_providers.factory.get_provider"
-        ) as mock_get_provider:
-            mock_get_provider.return_value = MagicMock()
+            "twat_fs.upload_providers.factory.ProviderFactory.create_provider"
+        ) as mock_create_provider:
+            mock_create_provider.return_value = MagicMock()
             result = setup_provider("simple")
             assert result.success is True
 
@@ -478,10 +478,10 @@ class TestUploadFile:
         """Test error when all providers fail."""
         # Instead of patching specific provider modules, patch the factory.get_provider function
         with patch(
-            "twat_fs.upload_providers.factory.get_provider"
-        ) as mock_get_provider:
+            "twat_fs.upload_providers.factory.ProviderFactory.create_provider"
+        ) as mock_create_provider:
             # Make the factory return None for any provider
-            mock_get_provider.return_value = None
+            mock_create_provider.return_value = None
 
             # Test with default providers
             with pytest.raises(
@@ -632,13 +632,13 @@ class TestEdgeCases:
 
         # Use a mock provider that raises PermissionError
         with patch(
-            "twat_fs.upload_providers.factory.get_provider"
-        ) as mock_get_provider:
+            "twat_fs.upload_providers.factory.ProviderFactory.create_provider"
+        ) as mock_create_provider:
             mock_provider = MagicMock()
             mock_provider.upload_file.side_effect = PermissionError("Permission denied")
-            mock_get_provider.return_value = mock_provider
+            mock_create_provider.return_value = mock_provider
 
-            with pytest.raises(PermissionError):
+            with pytest.raises(PermissionError, match="Permission denied"):
                 upload_file(test_file)
 
     @pytest.mark.parametrize("size_mb", [1, 5, 10])
