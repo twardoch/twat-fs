@@ -54,11 +54,15 @@ def convert_to_upload_result(result: str) -> UploadResult: ...
 
 
 @overload
-def convert_to_upload_result(result: str, *, metadata: dict[str, Any]) -> UploadResult: ...
+def convert_to_upload_result(
+    result: str, *, metadata: dict[str, Any]
+) -> UploadResult: ...
 
 
 @overload
-def convert_to_upload_result(result: str, *, provider: str, metadata: dict[str, Any]) -> UploadResult: ...
+def convert_to_upload_result(
+    result: str, *, provider: str, metadata: dict[str, Any]
+) -> UploadResult: ...
 
 
 @overload
@@ -157,7 +161,9 @@ def with_retry(
                     else:  # CONSTANT
                         delay = initial_delay
 
-                    logger.warning(f"Attempt {attempt + 1}/{max_attempts} failed: {e}. Retrying in {delay:.1f}s...")
+                    logger.warning(
+                        f"Attempt {attempt + 1}/{max_attempts} failed: {e}. Retrying in {delay:.1f}s..."
+                    )
                     time.sleep(delay)
 
             assert last_exception is not None  # for type checker
@@ -200,7 +206,9 @@ def with_async_retry(
                     else:  # CONSTANT
                         delay = initial_delay
 
-                    logger.warning(f"Attempt {attempt + 1}/{max_attempts} failed: {e}. Retrying in {delay:.1f}s...")
+                    logger.warning(
+                        f"Attempt {attempt + 1}/{max_attempts} failed: {e}. Retrying in {delay:.1f}s..."
+                    )
                     await asyncio.sleep(delay)
 
             assert last_exception is not None  # for type checker
@@ -286,7 +294,9 @@ class NonRetryableError(UploadError):
 
 
 @ucache(ttl=86400)  # Cache for 24 hours
-async def validate_url(url: str, timeout: aiohttp.ClientTimeout = URL_CHECK_TIMEOUT) -> bool:
+async def validate_url(
+    url: str, timeout: aiohttp.ClientTimeout = URL_CHECK_TIMEOUT
+) -> bool:
     """
     Validate that a URL is accessible.
 

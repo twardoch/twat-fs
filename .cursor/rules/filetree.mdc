@@ -8,7 +8,7 @@ globs:
 │   └── [ 224]  rules
 │       ├── [ 821]  0project.mdc
 │       ├── [ 516]  cleanup.mdc
-│       ├── [3.5K]  filetree.mdc
+│       ├── [3.6K]  filetree.mdc
 │       └── [2.0K]  quality.mdc
 ├── [  96]  .github
 │   └── [ 128]  workflows
@@ -32,7 +32,7 @@ globs:
 ├── [1.0K]  LICENSE
 ├── [ 153]  MANIFEST.in
 ├── [ 12K]  README.md
-├── [187K]  REPO_CONTENT.txt
+├── [188K]  REPO_CONTENT.txt
 ├── [5.8K]  TODO.md
 ├── [   7]  VERSION.txt
 ├── [ 13K]  cleanup.py
@@ -57,9 +57,9 @@ globs:
 │           ├── [6.5K]  async_utils.py
 │           ├── [5.5K]  bashupload.py
 │           ├── [4.9K]  catbox.py
-│           ├── [ 13K]  core.py
+│           ├── [ 12K]  core.py
 │           ├── [ 24K]  dropbox.py
-│           ├── [6.0K]  factory.py
+│           ├── [5.7K]  factory.py
 │           ├── [7.7K]  fal.py
 │           ├── [6.7K]  filebin.py
 │           ├── [ 11K]  litterbox.py

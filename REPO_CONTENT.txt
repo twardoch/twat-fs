@@ -165,7 +165,7 @@ globs:
 │   └── [ 224]  rules
 │       ├── [ 821]  0project.mdc
 │       ├── [ 516]  cleanup.mdc
-│       ├── [3.5K]  filetree.mdc
+│       ├── [3.6K]  filetree.mdc
 │       └── [2.0K]  quality.mdc
 ├── [  96]  .github
 │   └── [ 128]  workflows
@@ -189,7 +189,7 @@ globs:
 ├── [1.0K]  LICENSE
 ├── [ 153]  MANIFEST.in
 ├── [ 12K]  README.md
-├── [187K]  REPO_CONTENT.txt
+├── [188K]  REPO_CONTENT.txt
 ├── [5.8K]  TODO.md
 ├── [   7]  VERSION.txt
 ├── [ 13K]  cleanup.py
@@ -214,9 +214,9 @@ globs:
 │           ├── [6.5K]  async_utils.py
 │           ├── [5.5K]  bashupload.py
 │           ├── [4.9K]  catbox.py
-│           ├── [ 13K]  core.py
+│           ├── [ 12K]  core.py
 │           ├── [ 24K]  dropbox.py
-│           ├── [6.0K]  factory.py
+│           ├── [5.7K]  factory.py
 │           ├── [7.7K]  fal.py
 │           ├── [6.7K]  filebin.py
 │           ├── [ 11K]  litterbox.py
@@ -611,13 +611,13 @@ class UploadError(Exception):
         super().__init__(message)
 class RetryableError(UploadError):
 class NonRetryableError(UploadError):
-    @ucache(ttl=86400)  # Cache for 24 hours
-    async def validate_url(
-                aiohttp.ClientSession(
-                session.head(
-                    raise NonRetryableError(msg)
-                raise RetryableError(msg)
-            raise RetryableError(msg) from e
+@ucache(ttl=86400)  # Cache for 24 hours
+async def validate_url(
+            aiohttp.ClientSession(
+            session.head(
+                raise NonRetryableError(msg)
+            raise RetryableError(msg)
+        raise RetryableError(msg) from e
 @with_async_retry(
 async def ensure_url_accessible(url: str) -> UploadResult:
     if await validate_url(url):
@@ -679,10 +679,10 @@ class DropboxClient(BaseProvider):
     def get_account_info(self) -> None:
             logger.error(f"Failed to get account info: {e}")
     def get_credentials(cls) -> dict[str, Any] | None:
-            return cls._get_credentials_cached()
-            return cls._get_credentials_uncached()
-        ucache(maxsize=10, ttl=300) if ucache else lambda f: f
+        return cls._get_credentials_cached()
+    @ucache(maxsize=10, ttl=300)  # Cache credentials for 5 minutes
     def _get_credentials_cached(cls) -> dict[str, Any] | None:
+        return cls._get_credentials_uncached()
     def _get_credentials_uncached(cls) -> dict[str, Any] | None:
         creds = get_env_credentials(required_vars, optional_vars)
             "refresh_token": creds.get("DROPBOX_REFRESH_TOKEN"),
@@ -796,9 +796,9 @@ T = TypeVar("T", bound=Provider)
 class ProviderFactory:
     def get_provider_module(provider_name: str) -> Provider | None:
         return ProviderFactory._get_provider_module_impl(provider_name)
-        @ucache(maxsize=50)  # Cache up to 50 provider modules
-        def _get_provider_module_impl(provider_name: str) -> Provider | None:
-            return ProviderFactory._get_provider_module_uncached(provider_name)
+    @ucache(maxsize=50)  # Cache up to 50 provider modules
+    def _get_provider_module_impl(provider_name: str) -> Provider | None:
+        return ProviderFactory._get_provider_module_uncached(provider_name)
     def _get_provider_module_uncached(provider_name: str) -> Provider | None:
             if provider_name.lower() == "simple":
                 module = importlib.import_module(
@@ -1617,6 +1617,8 @@ def large_test_file():
 def cleanup_test_files():
     if LARGE_FILE.exists():
         LARGE_FILE.unlink()
+def small_file():
+def large_file(large_test_file):
 @pytest.mark.skipif(not HAS_S3, reason="S3 dependencies not installed")
 class TestS3Integration:
     @pytest.fixture(autouse=True)
@@ -1684,8 +1686,8 @@ class TestLitterboxIntegration:
         result = setup_provider("litterbox")
     def test_litterbox_upload_small_file(self, small_file):
             url = upload_file(small_file, provider="litterbox")
-            assert url.startswith("https://litterbox.catbox.moe/")
-            assert len(url) > len("https://litterbox.catbox.moe/")
+            assert url.startswith("https://litter.catbox.moe/")
+            assert len(url) > len("https://litter.catbox.moe/")
             pytest.skip(f"Litterbox upload failed: {e}")
     def test_litterbox_upload_large_file(self, large_file):
             url = upload_file(large_file, provider="litterbox")
@@ -4697,7 +4699,7 @@ def main():
 ================
 File: VERSION.txt
 ================
-v2.6.1
+v2.6.2
 
 
 
