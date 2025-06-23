@@ -91,7 +91,7 @@ def convert_to_upload_result(
         return UploadResult(url=result, metadata=meta)
     if isinstance(result, dict):
         return UploadResult(**result)
-    msg = f"Cannot convert {type(result)} to UploadResult"
+    msg = f"Cannot convert {type(result)} to UploadResult" # type: ignore[unreachable]
     raise TypeError(msg)
 
 
@@ -166,7 +166,7 @@ def with_retry(
                     )
                     time.sleep(delay)
 
-            assert last_exception is not None  # for type checker
+            assert last_exception is not None  # for type checker # noqa: S101
             raise last_exception
 
         return wrapper
@@ -211,7 +211,7 @@ def with_async_retry(
                     )
                     await asyncio.sleep(delay)
 
-            assert last_exception is not None  # for type checker
+            assert last_exception is not None  # for type checker # noqa: S101
             raise last_exception
 
         return wrapper
@@ -293,7 +293,7 @@ class NonRetryableError(UploadError):
     """Error that should not be retried (e.g., invalid credentials)."""
 
 
-@ucache(ttl=86400)  # Cache for 24 hours
+@ucache(ttl=86400)  # type: ignore[misc] # Cache for 24 hours
 async def validate_url(
     url: str, timeout: aiohttp.ClientTimeout = URL_CHECK_TIMEOUT
 ) -> bool:

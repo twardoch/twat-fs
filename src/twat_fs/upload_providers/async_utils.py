@@ -194,10 +194,12 @@ async def gather_with_concurrency(
     wrapped_tasks = [asyncio.create_task(run_with_semaphore(task)) for task in tasks]
 
     # Use asyncio.gather to run all tasks
-    return await asyncio.gather(
+    # Explicitly cast, as asyncio.gather with return_exceptions=True can be typed as returning List[Any] by some stubs
+    results = await asyncio.gather(
         *wrapped_tasks,
         return_exceptions=return_exceptions,
     )
+    return cast(list[T_co | BaseException], results)
 
 
 class AsyncContextManager:

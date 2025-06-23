@@ -15,8 +15,8 @@ from datetime import datetime, timezone
 from typing import TypedDict, TYPE_CHECKING
 from urllib import parse
 
-import dropbox  # type: ignore
-from dropbox.exceptions import AuthError  # type: ignore
+import dropbox
+from dropbox.exceptions import AuthError
 from dotenv import load_dotenv
 from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -122,7 +122,7 @@ class DropboxClient(BaseProvider):
         force: bool = False,
         unique: bool = False,
         upload_path: str | None = DEFAULT_UPLOAD_PATH,
-        **kwargs: Any,
+        **_kwargs: Any,
     ) -> UploadResult:
         """
         Implement the actual file upload logic.
@@ -233,8 +233,8 @@ class DropboxClient(BaseProvider):
         local_path: str | Path,
         remote_path: str | Path | None = None,
         *,
-        force: bool = False,
-        unique: bool = False,
+        unique: bool = False, # Match BaseProvider order
+        force: bool = False,  # Match BaseProvider order
         upload_path: str | None = DEFAULT_UPLOAD_PATH,
         **kwargs: Any,
     ) -> UploadResult:
@@ -302,13 +302,13 @@ class DropboxClient(BaseProvider):
         return cls._get_credentials_cached()
 
     @classmethod
-    @ucache(maxsize=10, ttl=300)  # Cache credentials for 5 minutes
+    @ucache(maxsize=10, ttl=300)  # type: ignore[misc] # Cache credentials for 5 minutes
     def _get_credentials_cached(cls) -> dict[str, Any] | None:
         """Cached implementation of get_credentials."""
         return cls._get_credentials_uncached()
 
     @classmethod
-    def _get_credentials_uncached(cls) -> dict[str, Any] | None:
+    def _get_credentials_uncached(cls) -> dict[str, Any] | None: # type: ignore[no-any-return]
         """Uncached implementation of get_credentials."""
         required_vars = ["DROPBOX_ACCESS_TOKEN"]
         optional_vars = [
@@ -322,12 +322,12 @@ class DropboxClient(BaseProvider):
         if not creds:
             return None
 
-        return {
+        return cast(dict[str, Any] | None, {
             "access_token": creds["DROPBOX_ACCESS_TOKEN"],
             "refresh_token": creds.get("DROPBOX_REFRESH_TOKEN"),
             "app_key": creds.get("DROPBOX_APP_KEY"),
             "app_secret": creds.get("DROPBOX_APP_SECRET"),
-        }
+        })
 
     @classmethod
     def get_provider(cls) -> ProviderClient | None:
@@ -499,7 +499,7 @@ def _get_share_url(dbx: dropbox.Dropbox, db_path: str) -> str:
         DropboxUploadError: If URL creation fails
     """
 
-    @retry(
+    @retry(  # type: ignore[misc]
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=10),
     )
@@ -536,7 +536,7 @@ def _ensure_upload_directory(dbx: Any, upload_path: str) -> None:
     Raises:
         DropboxUploadError: If directory cannot be created
     """
-    import dropbox  # type: ignore
+    # import dropbox  # type: ignore # Already imported at top level
 
     logger.debug(f"Ensuring upload directory exists: {upload_path}")
 
@@ -573,7 +573,7 @@ def _get_file_metadata(dbx: Any, db_path: str) -> dict | None:
     Returns:
         dict | None: File metadata including size if file exists, None otherwise
     """
-    import dropbox  # type: ignore
+    # import dropbox  # type: ignore # Already imported at top level
 
     try:
         metadata = dbx.files_get_metadata(db_path)
@@ -689,7 +689,7 @@ def _handle_api_error(e: Any, operation: str) -> None:
     Raises:
         DropboxUploadError: With appropriate error message
     """
-    import dropbox  # type: ignore
+    # import dropbox  # type: ignore # Already imported at top level
 
     if isinstance(e, AuthError):
         logger.error(f"Authentication error during {operation}: {e}")

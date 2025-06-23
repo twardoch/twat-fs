@@ -8,10 +8,17 @@ Replace PROVIDER_NAME with the actual provider name.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, BinaryIO, ClassVar, cast
+from typing import (
+    Any,
+    BinaryIO,
+    cast,
+    ClassVar,
+)  # Ensure ClassVar is imported
 
 # Import the appropriate HTTP library and provider-specific libraries
 import requests  # or import aiohttp
+from loguru import logger  # Moved from ProviderNameProvider.get_provider
+import uuid  # Moved from ProviderNameProvider.upload_file
 
 from twat_fs.upload_providers.protocols import ProviderClient, ProviderHelp
 from twat_fs.upload_providers.types import UploadResult
@@ -39,13 +46,13 @@ class ProviderNameProvider(BaseProvider):
     provider_name: str = "provider_name"
 
     # Required environment variables
-    REQUIRED_ENV_VARS = [
+    REQUIRED_ENV_VARS: ClassVar[list[str]] = [
         "PROVIDER_API_KEY",  # Replace with actual env var names
         "PROVIDER_API_SECRET",
     ]
 
     # Optional environment variables
-    OPTIONAL_ENV_VARS = [
+    OPTIONAL_ENV_VARS: ClassVar[list[str]] = [
         "PROVIDER_REGION",  # Replace with actual env var names
         "PROVIDER_OPTIONS",
     ]
@@ -98,7 +105,7 @@ class ProviderNameProvider(BaseProvider):
         try:
             return cast(ProviderClient, cls(credentials))
         except Exception as e:
-            from loguru import logger
+            # from loguru import logger # Moved to top
 
             logger.error(f"Failed to initialize {cls.provider_name} provider: {e}")
             return None
@@ -211,9 +218,9 @@ class ProviderNameProvider(BaseProvider):
         remote_path: str | Path | None = None,
         *,
         unique: bool = False,
-        force: bool = False,
+        _force: bool = False,
         upload_path: str | None = None,
-        **kwargs: Any,
+        **_kwargs: Any,
     ) -> UploadResult:
         """
         Upload a file to the provider.
@@ -247,7 +254,7 @@ class ProviderNameProvider(BaseProvider):
 
         # Add unique suffix if requested
         if unique and remote:
-            import uuid
+            # import uuid # Moved to top
 
             suffix = uuid.uuid4().hex[:8]
             remote = remote.with_stem(f"{remote.stem}_{suffix}")

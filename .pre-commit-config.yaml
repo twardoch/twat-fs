@@ -1,9 +1,9 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.3.4
+    rev: v0.9.6 # Updated to match pyproject.toml
     hooks:
       - id: ruff
-        args: [--fix]
+        args: [--fix, --show-source] # Added --show-source for better output
       - id: ruff-format
         args: [--respect-gitignore]
   - repo: https://github.com/pre-commit/pre-commit-hooks

@@ -7,7 +7,7 @@ Catbox.moe upload provider implementation.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import BinaryIO, ClassVar, cast
+from typing import BinaryIO, ClassVar, cast # cast is already here
 
 import aiohttp
 import asyncio
@@ -69,7 +69,7 @@ class CatboxProvider(BaseProvider):
             async with aiohttp.ClientSession() as session:
                 async with session.post(self.upload_url, data=data) as response:
                     handle_http_response(response, self.provider_name)
-                    return await response.text()
+                    return cast(str, await response.text())
 
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """

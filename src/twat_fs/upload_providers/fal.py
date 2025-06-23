@@ -9,8 +9,8 @@ from __future__ import annotations
 from typing import Any, BinaryIO, ClassVar, cast
 from pathlib import Path
 
-import fal_client  # type: ignore
-from loguru import logger  # type: ignore
+import fal_client
+from loguru import logger
 
 from twat_fs.upload_providers.protocols import ProviderClient, ProviderHelp
 from twat_fs.upload_providers.simple import BaseProvider
@@ -48,8 +48,8 @@ class FalProvider(BaseProvider):
     provider_name = "fal"
 
     # Environment variables
-    REQUIRED_ENV_VARS = ["FAL_KEY"]
-    OPTIONAL_ENV_VARS: list[str] = []
+    REQUIRED_ENV_VARS: ClassVar[list[str]] = ["FAL_KEY"]
+    OPTIONAL_ENV_VARS: ClassVar[list[str]] = []
 
     def __init__(self, key: str) -> None:
         """Initialize the FAL provider with the given API key."""
@@ -64,7 +64,7 @@ class FalProvider(BaseProvider):
         except Exception as e:
             logger.error(f"Failed to create FAL client: {e}")
             msg = f"Failed to create FAL client: {e}"
-            raise NonRetryableError(msg, self.provider_name)
+            raise NonRetryableError(msg, self.provider_name) from e
 
     @classmethod
     def get_credentials(cls) -> dict[str, str] | None:

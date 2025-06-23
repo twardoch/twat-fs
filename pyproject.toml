@@ -122,7 +122,12 @@ requires = ['hatchling>=1.27.0', 'hatch-vcs>=0.4.0']
 version-file = 'src/twat_fs/__version__.py'
 
 [tool.hatch.build.targets.wheel]
-include = ['src/twat_fs/**/*.py', 'src/twat/**/*.py', 'src/twat_fs/py.typed']
+include = [
+    'src/twat_fs/**/*.py',
+    'src/twat/**/*.py',
+    'src/twat_fs/py.typed',
+    'src/twat_fs/data/*.jpg', # Ensure data files are included
+]
 packages = ['src/twat_fs', 'src/twat']
 
 [tool.hatch.envs.default]
@@ -200,6 +205,17 @@ warn_return_any = true
 warn_unreachable = true
 warn_unused_configs = true
 warn_unused_ignores = true
+ignore_missing_imports = true # Added from mypy.ini
+
+# Per-module overrides (from mypy.ini)
+overrides = [
+  { module = "dropbox.*", ignore_missing_imports = true },
+  { module = "fire.*", ignore_missing_imports = true },
+  { module = "boto3.*", ignore_missing_imports = true },
+  { module = "responses.*", ignore_missing_imports = true },
+  { module = "twat_fs.upload_providers.*", disallow_untyped_defs = false },
+  { module = "tests.*", disallow_untyped_defs = false },
+]
 
 [tool.ruff]
 line-length = 88

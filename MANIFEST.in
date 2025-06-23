@@ -1,2 +1,0 @@
-# This MANIFEST.in file ensures that JPEG files in the data directory are included in the package distribution.
-recursive-include src/twat_fs/data *.jpg 
