@@ -159,11 +159,7 @@ class LitterboxProvider(BaseProvider):
                         if not url_text.startswith("http"): # Check before cast if needed, or cast then check
                             msg = f"Invalid response from server: {url_text}"
                             raise NonRetryableError(msg, self.provider_name)
-                        url = cast(str, url_text) # Ensure it's str for return type
-                        # Removed redundant check for url.startswith("http")
-
-                        return url
-
+                        return cast(str, url_text)
                 except aiohttp.ClientError as e:
                     msg = f"Upload failed: {e}"
                     raise RetryableError(msg, self.provider_name) from e
