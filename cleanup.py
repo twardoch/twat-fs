@@ -108,10 +108,10 @@ def log_message(message: str) -> None:
         f.write(log_line)
 
 
-def run_command(cmd: list[str], check: bool = True) -> subprocess.CompletedProcess:
+def run_command(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess:
     """Run a shell command and return the result."""
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603 - commands are internally defined
             cmd,
             check=check,
             capture_output=True,

@@ -248,6 +248,7 @@ def standard_upload_wrapper(
 def log_upload_attempt(
     provider_name: str,
     file_path: str | Path,
+    *,
     success: bool,
     error: Exception | None = None,
 ) -> None:

@@ -12,17 +12,20 @@ from typing import NamedTuple
 
 import pytest
 
-# Conditionally import botocore
-try:
-    from botocore.exceptions import ClientError
+from typing import Any # Ensure Any is imported
 
+# Conditionally import botocore
+ClientError: Any # Declare type for ClientError at module scope
+HAS_BOTOCORE = False
+try:
+    from botocore.exceptions import ClientError as BotocoreClientError
+    ClientError = BotocoreClientError
     HAS_BOTOCORE = True
 except ImportError:
-    HAS_BOTOCORE = False
-
-    # Define a placeholder for ClientError to avoid NameError
-    class ClientError(Exception):
+    class ClientErrorPlaceholder(Exception): # Use a different name for placeholder
         pass
+    ClientError = ClientErrorPlaceholder # Assign placeholder to ClientError
+    HAS_BOTOCORE = False
 
 
 from twat_fs.upload import (
@@ -30,6 +33,7 @@ from twat_fs.upload import (
     setup_provider,
     setup_providers,
     upload_file,
+    UploadOptions, # Added import
 )
 
 # Conditionally import providers
@@ -412,7 +416,7 @@ class TestUploadFile:
         self,
         test_file: Path,
         mock_s3_provider: MagicMock,
-        mock_dropbox_provider: MagicMock,
+        _mock_dropbox_provider: MagicMock,
     ) -> None:
         """Test fallback to next provider on auth failure."""
         with (
@@ -510,7 +514,7 @@ class TestUploadFile:
             upload_file(test_file, provider="invalid")
 
     def test_upload_with_s3_provider(
-        self, test_file: Path, mock_s3_provider: MagicMock
+        self, test_file: Path, _mock_s3_provider: MagicMock
     ) -> None:
         """Test upload with S3 provider."""
         # Mock the _try_upload_with_provider function to return a successful result
@@ -536,7 +540,7 @@ class TestUploadFile:
             )
 
     def test_s3_upload_failure(
-        self, test_file: Path, mock_s3_provider: MagicMock
+        self, test_file: Path, _mock_s3_provider: MagicMock
     ) -> None:
         """Test S3 upload failure."""
         # Mock the _try_upload_with_provider function to raise an exception
@@ -551,7 +555,8 @@ class TestUploadFile:
             with pytest.raises(
                 NonRetryableError, match=f"An error occurred: {error_message}"
             ):
-                upload_file(test_file, provider="s3", fragile=True)
+                # from twat_fs.upload import UploadOptions # Moved to top
+                upload_file(test_file, provider="s3", options=UploadOptions(fragile=True))
 
 
 class TestEdgeCases:
@@ -704,14 +709,14 @@ class TestCatboxProvider:
     def test_catbox_auth_with_userhash(self):
         """Test Catbox provider with userhash."""
         provider = catbox.CatboxProvider()
-        provider.userhash = "test_hash"
-        assert provider.userhash == "test_hash"
+        provider.userhash = "test_hash"  # type: ignore[attr-defined]
+        assert provider.userhash == "test_hash"  # type: ignore[attr-defined]
 
     def test_catbox_auth_without_userhash(self):
         """Test Catbox provider without userhash."""
         provider = catbox.CatboxProvider()
-        provider.userhash = None
-        assert provider.userhash is None
+        provider.userhash = None  # type: ignore[attr-defined]
+        assert provider.userhash is None  # type: ignore[attr-defined]
 
     @pytest.mark.asyncio
     async def test_catbox_upload_file(self, tmp_path):
@@ -732,7 +737,7 @@ class TestCatboxProvider:
         with patch("aiohttp.ClientSession", return_value=mock_session):
             provider = catbox.CatboxProvider()
             # Completely override the async_upload_file method
-            provider.async_upload_file = AsyncMock(
+            provider.async_upload_file = AsyncMock(  # type: ignore[method-assign]
                 return_value=UploadResult(
                     url="https://files.catbox.moe/abc123.txt",
                     metadata={"provider": "catbox", "success": True},
@@ -765,9 +770,9 @@ class TestCatboxProvider:
 
         with patch("aiohttp.ClientSession", return_value=mock_session):
             provider = catbox.CatboxProvider()
-            provider.userhash = "test_hash"
+            provider.userhash = "test_hash"  # type: ignore[attr-defined]
             # Completely override the async_upload_file method
-            provider.async_upload_file = AsyncMock(
+            provider.async_upload_file = AsyncMock(  # type: ignore[method-assign]
                 return_value=UploadResult(
                     url="https://files.catbox.moe/xyz789.jpg",
                     metadata={"provider": "catbox", "success": True},
@@ -821,7 +826,7 @@ class TestLitterboxProvider:
         with patch("aiohttp.ClientSession", return_value=mock_session):
             provider = litterbox.LitterboxProvider()
             # Completely override the async_upload_file method
-            provider.async_upload_file = AsyncMock(
+            provider.async_upload_file = AsyncMock(  # type: ignore[method-assign]
                 return_value=UploadResult(
                     url="https://litterbox.catbox.moe/abc123.txt",
                     metadata={"provider": "litterbox", "success": True},
@@ -881,7 +886,7 @@ def test_fragile_mode(
 
     # Should raise immediately in fragile mode
     with pytest.raises(NonRetryableError) as exc_info:
-        upload_file(test_file, provider="s3", fragile=True)
+        upload_file(test_file, provider="s3", options=UploadOptions(fragile=True))
 
     assert "S3 failed" in str(exc_info.value)
     assert mock_s3_provider.upload_file.call_count == 1

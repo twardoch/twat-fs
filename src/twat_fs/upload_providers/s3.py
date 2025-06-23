@@ -59,7 +59,7 @@ class S3Provider(BaseProvider):
     """Provider for AWS S3 uploads"""
 
     PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
-    provider_name: ClassVar[str] = "s3"
+    # provider_name will be set as an instance variable in __init__
 
     # Required environment variables
     REQUIRED_ENV_VARS: ClassVar[list[str]] = [
@@ -179,7 +179,7 @@ class S3Provider(BaseProvider):
         self,
         file: BinaryIO,
         remote_path: str | Path | None = None,
-        **kwargs: Any,
+        **_kwargs: Any,
     ) -> UploadResult:
         """
         Implement the actual file upload logic.

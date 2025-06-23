@@ -52,7 +52,7 @@ class ProviderClient(Protocol):
         force: bool = False,
         upload_path: str | None = None,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, UploadResult]:
+    ) -> UploadResult: # Changed from Coroutine[..., UploadResult]
         """Asynchronously upload a file and return its result with timing metrics."""
         ...
 
@@ -122,7 +122,7 @@ class Provider(Protocol):
         force: bool = False,
         upload_path: str | None = None,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, UploadResult]:
+    ) -> UploadResult: # Changed from Coroutine[..., UploadResult]
         """
         Asynchronously upload a file using this provider.
 
