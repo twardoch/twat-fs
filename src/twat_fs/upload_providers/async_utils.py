@@ -248,7 +248,7 @@ def with_async_timeout(
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             try:
                 return await asyncio.wait_for(func(*args, **kwargs), timeout=timeout)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(
                     f"Function {func.__name__} timed out after {timeout} seconds"
                 )

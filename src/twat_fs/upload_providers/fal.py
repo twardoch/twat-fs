@@ -8,6 +8,8 @@ This module provides functionality to upload files to FAL's storage service.
 from __future__ import annotations
 from typing import Any, BinaryIO, ClassVar, cast
 from pathlib import Path
+import tempfile
+import os
 
 import fal_client  # type: ignore
 from loguru import logger  # type: ignore
@@ -132,27 +134,41 @@ class FalProvider(BaseProvider):
             msg = f"FAL API check failed: {e}"
             raise RetryableError(msg, self.provider_name) from e
 
-        try:
-            # Try uploading the file directly
-            result = self.client.upload_file(file)
+        # FAL upload_file() requires a file path, not a BinaryIO object
+        # Create a temporary file with the content
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            try:
+                # Write the file content to temporary file
+                file.seek(0)  # Ensure we're at the beginning
+                tmp_file.write(file.read())
+                tmp_file.flush()
+                
+                # Upload using the temporary file path
+                result = self.client.upload_file(tmp_file.name)
 
-            if not result:
-                msg = "FAL upload failed - no URL in response"
-                raise RetryableError(msg, self.provider_name) from None
+                if not result:
+                    msg = "FAL upload failed - no URL in response"
+                    raise RetryableError(msg, self.provider_name) from None
 
-            result_str = str(result).strip()
-            if not result_str:
-                msg = "FAL upload failed - empty URL in response"
-                raise RetryableError(msg, self.provider_name) from None
+                result_str = str(result).strip()
+                if not result_str:
+                    msg = "FAL upload failed - empty URL in response"
+                    raise RetryableError(msg, self.provider_name) from None
 
-            return result_str
+                return result_str
 
-        except Exception as e:
-            if "401" in str(e) or "unauthorized" in str(e).lower():
-                msg = f"FAL upload failed - unauthorized: {e}"
-                raise NonRetryableError(msg, self.provider_name) from e
-            msg = f"FAL upload failed: {e}"
-            raise RetryableError(msg, self.provider_name) from e
+            except Exception as e:
+                if "401" in str(e) or "unauthorized" in str(e).lower():
+                    msg = f"FAL upload failed - unauthorized: {e}"
+                    raise NonRetryableError(msg, self.provider_name) from e
+                msg = f"FAL upload failed: {e}"
+                raise RetryableError(msg, self.provider_name) from e
+            finally:
+                # Clean up the temporary file
+                try:
+                    os.unlink(tmp_file.name)
+                except OSError:
+                    logger.warning(f"Failed to clean up temporary file: {tmp_file.name}")
 
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """
