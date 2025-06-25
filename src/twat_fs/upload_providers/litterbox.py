@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, BinaryIO, ClassVar, cast
+from typing import Any, BinaryIO, ClassVar, cast # cast is already here
 
 import aiohttp
 from loguru import logger
@@ -45,7 +45,7 @@ class LitterboxProvider(BaseProvider):
 
     # Class variables
     PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
-    provider_name: ClassVar[str] = "litterbox"
+    # provider_name will be set as an instance variable in __init__
 
     # Environment variables
     OPTIONAL_ENV_VARS: ClassVar[list[str]] = ["LITTERBOX_DEFAULT_EXPIRATION"]
@@ -63,6 +63,7 @@ class LitterboxProvider(BaseProvider):
             ValueError: If the expiration time is invalid
         """
         super().__init__()
+        self.provider_name = "litterbox" # Set as instance variable
         # If a string is provided, convert it to ExpirationTime
         if not isinstance(default_expiration, ExpirationTime):
             try:
@@ -154,13 +155,11 @@ class LitterboxProvider(BaseProvider):
                         # Handle HTTP response status codes
                         handle_http_response(response, self.provider_name)
 
-                        url = await response.text()
-                        if not url.startswith("http"):
-                            msg = f"Invalid response from server: {url}"
+                        url_text = await response.text()
+                        if not url_text.startswith("http"): # Check before cast if needed, or cast then check
+                            msg = f"Invalid response from server: {url_text}"
                             raise NonRetryableError(msg, self.provider_name)
-
-                        return url
-
+                        return cast(str, url_text)
                 except aiohttp.ClientError as e:
                     msg = f"Upload failed: {e}"
                     raise RetryableError(msg, self.provider_name) from e
@@ -220,7 +219,7 @@ class LitterboxProvider(BaseProvider):
             log_upload_attempt(self.provider_name, file.name, success=False, error=e)
             raise
 
-    def upload_file(
+    def upload_file(  # noqa: PLR0913 - Handles specific 'expiration' argument # type: ignore[override]
         self,
         local_path: str | Path,
         remote_path: str | Path | None = None,
@@ -297,7 +296,7 @@ def get_provider() -> ProviderClient | None:
     return LitterboxProvider.get_provider()
 
 
-def upload_file(
+def upload_file(  # noqa: PLR0913 - Handles specific 'expiration' argument
     local_path: str | Path,
     remote_path: str | Path | None = None,
     *,

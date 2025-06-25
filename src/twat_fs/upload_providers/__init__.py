@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from loguru import logger
+# from loguru import logger # F401 Unused import
 
 from twat_fs.upload_providers.core import RetryableError, NonRetryableError, UploadError
 from twat_fs.upload_providers.protocols import ProviderClient, Provider, ProviderHelp
@@ -16,7 +16,8 @@ from twat_fs.upload_providers.types import ExpirationTime, UploadResult
 from twat_fs.upload_providers.factory import ProviderFactory
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    pass
+    # from pathlib import Path # F401 Unused import (Path is not used in this file in a TYPE_CHECKING block context)
 
 # List of available providers in order of preference
 PROVIDERS_PREFERENCE = [

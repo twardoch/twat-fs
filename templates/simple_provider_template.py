@@ -11,7 +11,8 @@ from pathlib import Path
 from typing import BinaryIO, ClassVar, cast
 
 # Import the appropriate HTTP library (aiohttp or requests)
-import requests  # or import aiohttp
+import requests
+import aiohttp  # Ensure aiohttp is imported at the top if used by async methods
 
 from twat_fs.upload_providers.protocols import ProviderClient, ProviderHelp
 from twat_fs.upload_providers.types import UploadResult
@@ -94,7 +95,7 @@ class ProviderNameProvider(BaseProvider):
             RetryableError: If the upload fails due to rate limiting
             NonRetryableError: If the upload fails for any other reason
         """
-        import aiohttp
+        # import aiohttp # Moved to top
 
         data = aiohttp.FormData()
         # Add appropriate fields based on provider requirements

@@ -67,8 +67,7 @@ class UguuProvider(BaseProvider):
             msg = f"Invalid response from uguu.se: {result}"
             raise NonRetryableError(msg, self.provider_name)
 
-        url = result["files"][0]["url"]
-        return url
+        return cast(str, result["files"][0]["url"])
 
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """

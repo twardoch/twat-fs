@@ -101,7 +101,7 @@ class TestValidateFile:
                 validate_file(Path(temp_dir))
 
     @mock.patch("os.access", return_value=False)
-    def test_validate_file_with_unreadable_file(self, mock_access):
+    def test_validate_file_with_unreadable_file(self, _mock_access):
         """Test that validate_file raises PermissionError for unreadable files."""
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             temp_path = temp_file.name
@@ -337,7 +337,7 @@ class TestLogUploadAttempt:
     @mock.patch("loguru.logger.info")
     def test_log_upload_attempt_success(self, mock_logger_info):
         """Test that log_upload_attempt logs success correctly."""
-        log_upload_attempt("test_provider", "test_file.txt", True)
+        log_upload_attempt("test_provider", "test_file.txt", success=True)
 
         mock_logger_info.assert_called_once()
         assert "Successfully uploaded" in mock_logger_info.call_args[0][0]
@@ -346,7 +346,7 @@ class TestLogUploadAttempt:
     def test_log_upload_attempt_failure(self, mock_logger_error):
         """Test that log_upload_attempt logs failure correctly."""
         error = Exception("Test error")
-        log_upload_attempt("test_provider", "test_file.txt", False, error)
+        log_upload_attempt("test_provider", "test_file.txt", success=False, error=error)
 
         mock_logger_error.assert_called_once()
         assert "Failed to upload" in mock_logger_error.call_args[0][0]

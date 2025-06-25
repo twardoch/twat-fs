@@ -12,7 +12,7 @@ try:
 
     # Configure twat_cache to use the paths from twat_os
     # Use the correct API to set the cache directory
-    twat_cache.utils.get_cache_path = lambda *args, **kwargs: get_cache_dir()
+    twat_cache.utils.get_cache_path = lambda *_, **__: get_cache_dir()
 except ImportError:
     pass  # twat_cache is not installed, no configuration needed
 

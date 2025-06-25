@@ -12,7 +12,8 @@ and any data storage using twat-os.
 """
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
+import platformdirs  # Moved from functions
 
 try:
     from twat_os.paths import PathManager
@@ -42,10 +43,10 @@ def get_cache_dir() -> Path:
     """
     path_manager = get_path_manager()
     if path_manager:
-        return path_manager.cache.base_dir
+        return cast(Path, path_manager.cache.base_dir)
 
     # Fallback to a default path if twat-os is not installed
-    import platformdirs
+    # import platformdirs # Moved to top
 
     return Path(platformdirs.user_cache_dir()) / "twat" / "fs"
 
@@ -59,10 +60,10 @@ def get_config_dir() -> Path:
     """
     path_manager = get_path_manager()
     if path_manager:
-        return path_manager.config.base_dir
+        return cast(Path, path_manager.config.base_dir)
 
     # Fallback to a default path if twat-os is not installed
-    import platformdirs
+    # import platformdirs # Moved to top
 
     return Path(platformdirs.user_config_dir()) / "twat" / "fs"
 
@@ -76,9 +77,9 @@ def get_data_dir() -> Path:
     """
     path_manager = get_path_manager()
     if path_manager:
-        return path_manager.data.base_dir
+        return cast(Path, path_manager.data.base_dir)
 
     # Fallback to a default path if twat-os is not installed
-    import platformdirs
+    # import platformdirs # Moved to top
 
     return Path(platformdirs.user_data_dir()) / "twat" / "fs"

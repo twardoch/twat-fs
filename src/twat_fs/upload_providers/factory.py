@@ -42,12 +42,12 @@ class ProviderFactory:
         return ProviderFactory._get_provider_module_impl(provider_name)
 
     @staticmethod
-    @ucache(maxsize=50)  # Cache up to 50 provider modules
-    def _get_provider_module_impl(provider_name: str) -> Provider | None:
+    @ucache(maxsize=50)  # type: ignore[misc] # Re-ensure misc ignore for ucache
+    def _get_provider_module_impl(provider_name: str) -> Provider | None: # type: ignore[no-any-return] # For ucache's effect
         return ProviderFactory._get_provider_module_uncached(provider_name)
 
     @staticmethod
-    def _get_provider_module_uncached(provider_name: str) -> Provider | None:
+    def _get_provider_module_uncached(provider_name: str) -> Provider | None: # Removed hypothetical unused ignore
         """
         Uncached implementation of get_provider_module.
         """
@@ -146,10 +146,10 @@ class ProviderFactory:
                 return None
 
             # Get credentials and create provider
-            provider_module.get_credentials()
+            provider_module.get_credentials() # type: ignore[attr-defined]
 
             # Use the module's get_provider method
-            provider = provider_module.get_provider()
+            provider = provider_module.get_provider() # type: ignore[attr-defined]
 
             if provider is None:
                 logger.warning(f"Failed to initialize provider {provider_name}")
