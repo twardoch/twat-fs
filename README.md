@@ -49,7 +49,28 @@ Dealing with file uploads can be complex. Different providers have different API
 
 ## Installation
 
-You can install `twat-fs` using `uv` (or `pip`).
+You can install `twat-fs` using several methods:
+
+### Binary Installation (Recommended)
+
+Download pre-built binaries from the [releases page](https://github.com/twardoch/twat-fs/releases) or use the installation scripts:
+
+**Linux/macOS:**
+```bash
+curl -sSfL https://raw.githubusercontent.com/twardoch/twat-fs/main/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/twardoch/twat-fs/main/install.ps1 -OutFile install.ps1; .\install.ps1
+```
+
+**Manual download:**
+1. Go to the [releases page](https://github.com/twardoch/twat-fs/releases)
+2. Download the binary for your platform (linux, macos, or windows)
+3. Make it executable and add to your PATH
+
+### Python Package Installation
 
 **Basic Installation (includes simple providers):**
 
@@ -335,14 +356,52 @@ These utilities help maintain a consistent synchronous public API for `upload_fi
     uv pip install -e '.[all,dev]'
     ```
 
+### Development Scripts
+
+The project includes convenient development scripts:
+
+```bash
+# Build the package
+python scripts/build.py
+
+# Run tests with coverage
+python scripts/test.py
+
+# Run linting checks
+python scripts/lint.py
+
+# Fix linting issues
+python scripts/dev.py fix
+
+# Build binary executable
+python scripts/build_binary.py
+
+# Prepare for release
+python scripts/release.py
+
+# Run all checks (lint, test, build)
+python scripts/dev.py all
+```
+
+You can also use the Makefile:
+
+```bash
+make build    # Build the package
+make test     # Run tests
+make lint     # Run linting
+make fix      # Fix linting issues
+make all      # Run all checks
+make clean    # Clean build artifacts
+```
+
 ### Running Tests
 
 The project uses `pytest`.
 
 ```bash
+python scripts/test.py
+# Or directly:
 python -m pytest
-# Or, using hatch if configured:
-# hatch run test
 ```
 
 ### Running Linters and Formatters

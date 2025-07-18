@@ -193,6 +193,20 @@ class TwatFS:
     def __init__(self) -> None:
         self.upload_provider = UploadProviderCommands()
 
+    def version(self) -> None:
+        """Show version information."""
+        try:
+            from twat_fs.__version__ import __version__
+            print(f"twat-fs {__version__}")
+        except ImportError:
+            # Fallback to importlib.metadata if __version__.py is not available
+            from importlib import metadata
+            try:
+                version = metadata.version("twat-fs")
+                print(f"twat-fs {version}")
+            except Exception:
+                print("twat-fs (version unknown)")
+
     def upload( # noqa: PLR0913 - CLI command gathers multiple options
         self,
         file_path: str | Path,

@@ -2,11 +2,80 @@
 this_file: TODO.md
 ---
 
-# TODO
+# TODO List
 
-Tip: Periodically run `python ./cleanup.py status` to see results of lints and tests. Use `uv pip ...` not `pip ...`
+## Phase 1: Semversioning System Setup
+- [x] Examine current codebase structure and dependencies
+- [x] Read existing documentation (README, WORK.md, etc.)
+- [x] Create comprehensive plan for semversioning and CI/CD
+- [ ] Verify hatch-vcs configuration in pyproject.toml
+- [ ] Test version detection from git tags
+- [ ] Create __version__.py file for runtime version access
+- [ ] Add version display in CLI interface
+- [ ] Implement --version flag for CLI tool
 
-## High Priority
+## Phase 2: Enhanced Test Suite
+- [ ] Analyze current test coverage
+- [ ] Identify gaps in test coverage
+- [ ] Add unit tests for core functionality
+- [ ] Add integration tests for provider functionality
+- [ ] Add CLI interface tests
+- [ ] Add mock tests for external dependencies
+- [ ] Configure pytest with proper settings
+- [ ] Set up test fixtures for common scenarios
+- [ ] Add test data management
+
+## Phase 3: Local Development Scripts
+- [ ] Create scripts/build.py for building the package
+- [ ] Create scripts/test.py for running tests with coverage
+- [ ] Create scripts/release.py for preparing releases
+- [ ] Create scripts/lint.py for code quality checks
+- [ ] Create Makefile or scripts/dev.py for common development tasks
+- [ ] Add pre-commit hooks configuration
+- [ ] Create development environment setup script
+
+## Phase 4: GitHub Actions CI/CD Pipeline
+- [ ] Create .github/workflows/ci.yml for testing on multiple Python versions
+- [ ] Set up testing on multiple operating systems (Linux, macOS, Windows)
+- [ ] Configure test coverage reporting
+- [ ] Add code quality checks (ruff, mypy)
+- [ ] Create .github/workflows/release.yml triggered by git tags
+- [ ] Configure automatic PyPI publishing
+- [ ] Set up GitHub Releases with assets
+- [ ] Add release notes generation
+
+## Phase 5: Multiplatform Binary Distribution
+- [ ] Configure PyInstaller or similar for binary creation
+- [ ] Set up cross-platform binary builds
+- [ ] Create standalone executables for Windows, macOS, Linux
+- [ ] Optimize binary size and dependencies
+- [ ] Upload binaries to GitHub Releases
+- [ ] Create installation scripts for different platforms
+- [ ] Add homebrew formula (macOS)
+- [ ] Add chocolatey package (Windows)
+- [ ] Add snap/flatpak packages (Linux)
+
+## Phase 6: User Installation Experience
+- [ ] Create install scripts (curl/wget based)
+- [ ] Add binary download and installation automation
+- [ ] Create package manager entries
+- [ ] Add Docker image creation
+- [ ] Update README with installation instructions
+- [ ] Add binary usage documentation
+- [ ] Create troubleshooting guide
+- [ ] Add upgrade/uninstall instructions
+
+## Phase 7: Testing and Validation
+- [ ] Test version detection system
+- [ ] Test all local scripts
+- [ ] Test CI/CD pipeline
+- [ ] Test binary builds on all platforms
+- [ ] Test installation methods
+- [ ] Validate complete workflow
+- [ ] Performance testing
+- [ ] Security testing
+
+## Existing High Priority Issues
 
 - [ ] Fix missing dependencies for tests
   - [ ] Install missing dependencies for tests or implement proper test skipping

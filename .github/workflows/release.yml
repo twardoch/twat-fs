@@ -56,4 +56,72 @@ jobs:
           files: dist/*
           generate_release_notes: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-binaries:
+    name: Build binaries
+    needs: release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            binary_name: twat-fs
+          - os: windows-latest
+            platform: windows
+            binary_name: twat-fs.exe
+          - os: macos-latest
+            platform: macos
+            binary_name: twat-fs
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    
+    - name: Install UV
+      uses: astral-sh/setup-uv@v5
+      with:
+        version: "latest"
+        python-version: "3.12"
+        enable-cache: true
+    
+    - name: Install dependencies
+      run: uv pip install -e '.[all]' pyinstaller
+    
+    - name: Build binary
+      run: |
+        uv run pyinstaller --onefile --name ${{ matrix.binary_name }} \
+          --add-data "src/twat_fs/data:twat_fs/data" \
+          --hidden-import twat_fs.upload_providers.catbox \
+          --hidden-import twat_fs.upload_providers.litterbox \
+          --hidden-import twat_fs.upload_providers.www0x0 \
+          --hidden-import twat_fs.upload_providers.uguu \
+          --hidden-import twat_fs.upload_providers.bashupload \
+          --hidden-import twat_fs.upload_providers.filebin \
+          --hidden-import twat_fs.upload_providers.pixeldrain \
+          --hidden-import twat_fs.upload_providers.dropbox \
+          --hidden-import twat_fs.upload_providers.s3 \
+          --hidden-import twat_fs.upload_providers.fal \
+          src/twat_fs/__main__.py
+    
+    - name: Test binary
+      run: |
+        ./dist/${{ matrix.binary_name }} version
+      shell: bash
+    
+    - name: Upload binary to release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/${{ matrix.binary_name }}
+        tag_name: ${{ github.ref_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
