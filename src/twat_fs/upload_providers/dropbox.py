@@ -22,7 +22,7 @@ from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 from twat_cache.decorators import ucache
 
-from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.provider_types import UploadResult
 from twat_fs.upload_providers.simple import BaseProvider
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
 from twat_fs.upload_providers.utils import (
@@ -33,7 +33,7 @@ from twat_fs.upload_providers.utils import (
 )
 
 if TYPE_CHECKING:
-    from twat_fs.upload_providers.types import UploadResult
+    from twat_fs.upload_providers.provider_types import UploadResult
 
 # Use standardized provider help format
 PROVIDER_HELP: ProviderHelp = create_provider_help(

@@ -17,7 +17,7 @@ from twat_fs.upload_providers.core import (
     RetryableError,
 )
 from twat_fs.upload_providers.protocols import ProviderClient
-from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.provider_types import UploadResult
 from twat_fs.upload_providers.utils import (
     handle_http_response,
     log_upload_attempt,

@@ -10,7 +10,7 @@ from typing import Any, ClassVar, Protocol, TypedDict, runtime_checkable, TypeVa
 from collections.abc import Coroutine
 from pathlib import Path
 
-from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.provider_types import UploadResult
 
 # Type variable for covariant return types
 T_co = TypeVar("T_co", covariant=True)

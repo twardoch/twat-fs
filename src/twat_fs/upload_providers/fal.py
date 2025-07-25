@@ -27,7 +27,7 @@ from twat_fs.upload_providers.utils import (
     log_upload_attempt,
     standard_upload_wrapper,
 )
-from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.provider_types import UploadResult
 
 # Provider-specific help messages
 PROVIDER_HELP: ProviderHelp = create_provider_help(

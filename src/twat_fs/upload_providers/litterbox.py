@@ -17,7 +17,7 @@ from loguru import logger
 
 from twat_fs.upload_providers.protocols import ProviderClient, ProviderHelp
 from twat_fs.upload_providers.simple import BaseProvider
-from twat_fs.upload_providers.types import ExpirationTime, UploadResult
+from twat_fs.upload_providers.provider_types import ExpirationTime, UploadResult
 from twat_fs.upload_providers.core import (
     convert_to_upload_result,
     RetryableError,

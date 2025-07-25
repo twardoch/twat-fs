@@ -13,7 +13,7 @@ import aiohttp
 import asyncio
 
 from twat_fs.upload_providers.protocols import ProviderClient, ProviderHelp
-from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.provider_types import UploadResult
 from twat_fs.upload_providers.simple import BaseProvider
 from twat_fs.upload_providers.utils import (
     create_provider_help,

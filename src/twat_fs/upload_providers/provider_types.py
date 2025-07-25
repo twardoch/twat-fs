@@ -1,4 +1,4 @@
-# this_file: src/twat_fs/upload_providers/types.py
+# this_file: src/twat_fs/upload_providers/provider_types.py
 
 """
 Common types used across upload providers.
