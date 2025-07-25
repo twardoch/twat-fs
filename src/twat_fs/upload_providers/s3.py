@@ -14,7 +14,7 @@ import boto3
 from botocore.config import Config
 from loguru import logger
 
-from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.provider_types import UploadResult
 from twat_fs.upload_providers.core import RetryableError, NonRetryableError
 from twat_fs.upload_providers.simple import BaseProvider
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
@@ -26,7 +26,7 @@ from twat_fs.upload_providers.utils import (
 )
 
 if TYPE_CHECKING:
-    from twat_fs.upload_providers.types import UploadResult
+    from twat_fs.upload_providers.provider_types import UploadResult
 
 # Use standardized provider help format
 PROVIDER_HELP: ProviderHelp = create_provider_help(

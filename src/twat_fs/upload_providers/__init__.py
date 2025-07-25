@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from twat_fs.upload_providers.core import RetryableError, NonRetryableError, UploadError
 from twat_fs.upload_providers.protocols import ProviderClient, Provider, ProviderHelp
-from twat_fs.upload_providers.types import ExpirationTime, UploadResult
+from twat_fs.upload_providers.provider_types import ExpirationTime, UploadResult
 from twat_fs.upload_providers.factory import ProviderFactory
 
 if TYPE_CHECKING:

@@ -15,7 +15,7 @@ import time
 import secrets
 import string
 
-from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.provider_types import UploadResult
 from twat_fs.upload_providers.core import RetryableError, NonRetryableError
 from twat_fs.upload_providers.simple import BaseProvider
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient

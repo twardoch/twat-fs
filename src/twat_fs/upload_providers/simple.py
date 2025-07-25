@@ -30,7 +30,7 @@ from twat_fs.upload_providers.core import (
 from twat_fs.upload_providers.async_utils import to_sync
 
 if TYPE_CHECKING:
-    from twat_fs.upload_providers.types import UploadResult
+    from twat_fs.upload_providers.provider_types import UploadResult
     from collections.abc import Coroutine
     from collections.abc import Generator
 

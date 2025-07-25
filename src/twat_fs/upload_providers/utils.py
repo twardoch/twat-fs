@@ -27,7 +27,7 @@ from twat_fs.upload_providers.core import (
     NonRetryableError,
 )
 from twat_fs.upload_providers.protocols import ProviderClient, ProviderHelp
-from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.provider_types import UploadResult
 
 if TYPE_CHECKING:
     from twat_fs.upload_providers.protocols import Provider

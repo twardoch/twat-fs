@@ -183,12 +183,7 @@ async def gather_with_concurrency(
     async def run_with_semaphore(coro):
         """Run a coroutine with the semaphore."""
         async with semaphore:
-            try:
-                return await coro
-            except Exception as e:
-                if return_exceptions:
-                    return cast(BaseException, e)
-                raise
+            return await coro
 
     # Wrap each task with the semaphore
     wrapped_tasks = [asyncio.create_task(run_with_semaphore(task)) for task in tasks]

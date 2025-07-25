@@ -334,7 +334,7 @@ class TestStandardUploadWrapper:
 class TestLogUploadAttempt:
     """Tests for the log_upload_attempt function."""
 
-    @mock.patch("loguru.logger.info")
+    @mock.patch("twat_fs.upload_providers.utils.logger.info")
     def test_log_upload_attempt_success(self, mock_logger_info):
         """Test that log_upload_attempt logs success correctly."""
         log_upload_attempt("test_provider", "test_file.txt", success=True)
@@ -342,7 +342,7 @@ class TestLogUploadAttempt:
         mock_logger_info.assert_called_once()
         assert "Successfully uploaded" in mock_logger_info.call_args[0][0]
 
-    @mock.patch("loguru.logger.error")
+    @mock.patch("twat_fs.upload_providers.utils.logger.error")
     def test_log_upload_attempt_failure(self, mock_logger_error):
         """Test that log_upload_attempt logs failure correctly."""
         error = Exception("Test error")
