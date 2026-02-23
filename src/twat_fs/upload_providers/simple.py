@@ -23,6 +23,7 @@ from collections.abc import Callable  # For explicit type hint
 
 from twat_fs.upload_providers.protocols import ProviderHelp, Provider, ProviderClient
 from twat_fs.upload_providers.core import (
+    UploadError,
     convert_to_upload_result,
     with_url_validation,
     with_timing,
@@ -101,7 +102,7 @@ class BaseProvider(ABC, Provider):
             FileNotFoundError: If the file doesn't exist
             ValueError: If the path is not a file
             PermissionError: If the file can't be read
-            RuntimeError: If the upload fails
+            UploadError: If the upload fails
         """
         path = Path(local_path)
         self._validate_file(path)
@@ -110,7 +111,7 @@ class BaseProvider(ABC, Provider):
             result = self.upload_file_impl(file)
             if not result.metadata.get("success", True):
                 msg = f"Upload failed: {result.metadata.get('error', 'Unknown error')}"
-                raise RuntimeError(msg)
+                raise UploadError(msg, provider=self.provider_name)
             return convert_to_upload_result(result.url, provider=self.provider_name, metadata=result.metadata)
 
     @with_url_validation

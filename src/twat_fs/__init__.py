@@ -22,11 +22,25 @@ except ImportError:
     pass  # twat_cache is not installed, no configuration needed
 
 from twat_fs.cli import main, setup_provider, setup_providers, upload_file
+from twat_fs.exceptions import (
+    FileValidationError,
+    ProviderAuthError,
+    ProviderConfigError,
+    ProviderError,
+    ProviderUnavailableError,
+    TwatFsError,
+)
 from twat_fs.upload import PROVIDERS_PREFERENCE, ProviderType
 
 __all__ = [
     "PROVIDERS_PREFERENCE",
+    "FileValidationError",
+    "ProviderAuthError",
+    "ProviderConfigError",
+    "ProviderError",
     "ProviderType",
+    "ProviderUnavailableError",
+    "TwatFsError",
     "__version__",
     "main",
     "setup_provider",
