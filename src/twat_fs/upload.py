@@ -283,7 +283,7 @@ def _test_provider_online(
         }
         # Update read_duration if it was measured before exception
         if "read_duration" in locals() and "final_timing_metrics" in locals():
-            final_timing_metrics["read_duration"] = read_duration  # type: ignore
+            final_timing_metrics["read_duration"] = read_duration
 
         return False, f"Unexpected error during test setup: {e}", final_timing_metrics
 
@@ -312,7 +312,7 @@ def _check_provider_client_readiness(  # Changed help_info type
         if help_info is None:
             actual_help_info = {}
         else:
-            actual_help_info = help_info  # ProviderHelp is compatible with dict[str, str]
+            actual_help_info = help_info  # type: ignore[assignment]  # ProviderHelp is a TypedDict subtype of dict[str, str]
         return ProviderInfo(
             success=True,
             explanation=explanation_base,

@@ -39,11 +39,11 @@ class ProviderFactory:
         Returns:
             Optional[Provider]: Provider module if found and properly configured
         """
-        return ProviderFactory._get_provider_module_impl(provider_name)
+        return ProviderFactory._get_provider_module_impl(provider_name)  # type: ignore[arg-type]
 
     @staticmethod
-    @ucache(maxsize=50)  # type: ignore[misc] # Re-ensure misc ignore for ucache
-    def _get_provider_module_impl(provider_name: str) -> Provider | None:  # type: ignore[no-any-return] # For ucache's effect
+    @ucache(maxsize=50)  # type: ignore[arg-type]
+    def _get_provider_module_impl(provider_name: str) -> Provider | None:
         return ProviderFactory._get_provider_module_uncached(provider_name)
 
     @staticmethod
@@ -99,17 +99,17 @@ class ProviderFactory:
         try:
             # Skip the 'simple' provider
             if provider_name.lower() == "simple":
-                return {
-                    "setup": "This is a base provider and should not be used directly.",
-                    "deps": "None",
-                }
+                return ProviderHelp(
+                    setup="This is a base provider and should not be used directly.",
+                    deps="None",
+                )
 
             # Try to get the module
             module = ProviderFactory.get_provider_module(provider_name)
             if module is None:
                 # Try to import just for help info
                 try:
-                    module = importlib.import_module(f".{provider_name}", "twat_fs.upload_providers")
+                    module = importlib.import_module(f".{provider_name}", "twat_fs.upload_providers")  # type: ignore[assignment]
                     return getattr(module, "PROVIDER_HELP", None)
                 except ImportError:
                     return None
@@ -138,10 +138,10 @@ class ProviderFactory:
                 return None
 
             # Get credentials and create provider
-            provider_module.get_credentials()  # type: ignore[attr-defined]
+            provider_module.get_credentials()
 
             # Use the module's get_provider method
-            provider = provider_module.get_provider()  # type: ignore[attr-defined]
+            provider = provider_module.get_provider()
 
             if provider is None:
                 logger.warning(f"Failed to initialize provider {provider_name}")

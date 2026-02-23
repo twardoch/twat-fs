@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import (
     Any,
     Protocol,
+    cast,
     runtime_checkable,
     BinaryIO,
     ClassVar,
@@ -71,7 +72,7 @@ class BaseProvider(ABC, Provider):
     @classmethod
     def get_provider(cls) -> ProviderClient | None:
         """Initialize and return the provider client."""
-        return cls()
+        return cast(ProviderClient, cls())
 
     def upload_file(
         self,

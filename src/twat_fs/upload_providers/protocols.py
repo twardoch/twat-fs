@@ -6,7 +6,13 @@ Protocol definitions for upload providers.
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, NotRequired, Protocol, TypedDict, runtime_checkable, TypeVar
+import sys
+
+if sys.version_info >= (3, 11):
+    from typing import Any, ClassVar, NotRequired, Protocol, TypedDict, runtime_checkable, TypeVar
+else:
+    from typing import Any, ClassVar, Protocol, TypedDict, runtime_checkable, TypeVar
+    from typing_extensions import NotRequired
 from pathlib import Path
 
 from twat_fs.upload_providers.provider_types import UploadResult

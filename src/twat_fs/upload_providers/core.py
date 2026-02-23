@@ -286,7 +286,7 @@ class NonRetryableError(UploadError):
     """Error that should not be retried (e.g., invalid credentials)."""
 
 
-@ucache(ttl=86400)  # type: ignore[misc] # Cache for 24 hours
+@ucache(ttl=86400)  # type: ignore[arg-type] # Cache for 24 hours
 async def validate_url(url: str, timeout: aiohttp.ClientTimeout = URL_CHECK_TIMEOUT) -> bool:
     """
     Validate that a URL is accessible.
@@ -347,7 +347,7 @@ async def ensure_url_accessible(url: str) -> UploadResult:
         RetryableError: If validation fails after retries
         NonRetryableError: If validation fails permanently
     """
-    if await validate_url(url):
+    if await validate_url(url):  # type: ignore[arg-type]
         return convert_to_upload_result(url)
     msg = "URL validation failed"
     raise RetryableError(msg)

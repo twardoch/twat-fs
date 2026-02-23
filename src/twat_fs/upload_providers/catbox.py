@@ -72,7 +72,7 @@ class CatboxProvider(BaseProvider):
             async with aiohttp.ClientSession() as session:
                 async with session.post(self.upload_url, data=data) as response:
                     handle_http_response(response, self.provider_name)
-                    return cast(str, await response.text())
+                    return await response.text()
 
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """

@@ -299,16 +299,16 @@ class DropboxClient(BaseProvider):
     @classmethod
     def get_credentials(cls) -> dict[str, Any] | None:
         """Get Dropbox credentials from environment variables."""
-        return cls._get_credentials_cached()
+        return cls._get_credentials_cached()  # type: ignore[misc]
 
     @classmethod
-    @ucache(maxsize=10, ttl=300)  # type: ignore[misc] # Cache credentials for 5 minutes
+    @ucache(maxsize=10, ttl=300)  # type: ignore[arg-type] # Cache credentials for 5 minutes
     def _get_credentials_cached(cls) -> dict[str, Any] | None:
         """Cached implementation of get_credentials."""
         return cls._get_credentials_uncached()
 
     @classmethod
-    def _get_credentials_uncached(cls) -> dict[str, Any] | None:  # type: ignore[no-any-return]
+    def _get_credentials_uncached(cls) -> dict[str, Any] | None:
         """Uncached implementation of get_credentials."""
         required_vars = ["DROPBOX_ACCESS_TOKEN"]
         optional_vars = [
@@ -498,7 +498,7 @@ def _get_share_url(dbx: dropbox.Dropbox, db_path: str) -> str:
         DropboxUploadError: If URL creation fails
     """
 
-    @retry(  # type: ignore[misc]
+    @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=10),
     )
@@ -515,9 +515,6 @@ def _get_share_url(dbx: dropbox.Dropbox, db_path: str) -> str:
 
     try:
         url = get_url()
-        if not isinstance(url, str):
-            msg = f"Expected string URL but got {type(url)}"
-            raise DropboxUploadError(msg)
         return url
     except Exception as e:
         msg = f"Failed to create share URL: {e}"
