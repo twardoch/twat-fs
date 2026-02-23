@@ -25,6 +25,7 @@ from loguru import logger
 from twat_cache import ucache
 
 from twat_fs.upload_providers.provider_types import UploadResult
+from twat_fs.exceptions import TwatFsError
 
 # Type variables for generic decorators
 T_co = TypeVar("T_co", covariant=True)
