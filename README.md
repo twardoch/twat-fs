@@ -30,7 +30,7 @@ Dealing with file uploads can be complex. Different providers have different API
 
 ## Features
 
-*   **Multiple Provider Support:** Upload to various services like Catbox, Litterbox, 0x0.st, Uguu.se, Bashupload, Filebin, Pixeldrain, Dropbox, and AWS S3.
+*   **Multiple Provider Support:** Upload to various services like Catbox, Litterbox, 0x0.st, x0.at, Uguu.se, Filebin, Pixeldrain, Dropbox, AWS S3, and Fal.ai.
 *   **Unified Interface:** Consistent API and CLI commands regardless of the chosen provider.
 *   **Smart Fallback System:**
     *   Automatically retries uploads on temporary errors with exponential backoff.
@@ -221,8 +221,11 @@ These providers generally work out-of-the-box for anonymous uploads:
 *   **`catbox`**: catbox.moe (Default first choice)
 *   **`litterbox`**: litter.catbox.moe (Temporary file uploads with expiration)
 *   **`www0x0`**: 0x0.st
+*   **`x0at`**: x0.at
 *   **`uguu`**: uguu.se (Temporary file uploads)
-*   **`bashupload`**: bashupload.com
+*   **`tmpfilelink`**: tmpfile.link
+*   **`tmpfilesorg`**: tmpfiles.org
+*   **`senditsh`**: sendit.sh
 *   **`filebin`**: filebin.net (Temporary, typically 6-day expiration)
 *   **`pixeldrain`**: pixeldrain.com
 

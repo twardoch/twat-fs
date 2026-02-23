@@ -1,10 +1,15 @@
 # this_file: src/twat_fs/__init__.py
 
-"""
-twat-fs package - File system utilities for twat.
-"""
+"""twat-fs: File system utilities for twat."""
 
-from importlib import metadata
+from __future__ import annotations
+
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("twat-fs")
+except PackageNotFoundError:
+    __version__ = "0.0.0-dev"
 
 try:
     import twat_cache
@@ -19,11 +24,10 @@ except ImportError:
 from twat_fs.cli import main, setup_provider, setup_providers, upload_file
 from twat_fs.upload import PROVIDERS_PREFERENCE, ProviderType
 
-__version__ = metadata.version(__name__)
-
 __all__ = [
     "PROVIDERS_PREFERENCE",
     "ProviderType",
+    "__version__",
     "main",
     "setup_provider",
     "setup_providers",

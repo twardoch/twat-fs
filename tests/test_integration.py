@@ -182,10 +182,7 @@ class TestSetupIntegration:
                 continue
             result = setup_provider(provider)
             # At least one provider should be available or have setup instructions
-            assert result.success or (
-                "not configured" in result.explanation
-                or "setup" in result.explanation.lower()
-            )
+            assert result.success or ("not configured" in result.explanation or "setup" in result.explanation.lower())
 
 
 class TestCatboxIntegration:
@@ -194,9 +191,7 @@ class TestCatboxIntegration:
     def test_catbox_setup(self):
         """Test Catbox provider setup."""
         result = setup_provider("catbox")
-        assert (
-            result.success is True
-        )  # Should always work since anonymous uploads are supported
+        assert result.success is True  # Should always work since anonymous uploads are supported
 
     def test_catbox_upload_small_file(self, small_file):
         """Test uploading a small file to Catbox."""
@@ -234,9 +229,7 @@ class TestCatboxIntegration:
 
         # Try to delete the file if the provider supports it
         try:
-            if hasattr(provider, "delete_files") and callable(
-                getattr(provider, "delete_files", None)
-            ):
+            if hasattr(provider, "delete_files") and callable(getattr(provider, "delete_files", None)):
                 success = provider.delete_files([filename])
                 assert success is True
         except (AttributeError, NotImplementedError):
@@ -276,25 +269,19 @@ class TestLitterboxIntegration:
         """Test Litterbox with different expiration times."""
         try:
             # Test with 1 hour expiration
-            provider = litterbox.LitterboxProvider(
-                default_expiration=ExpirationTime.HOUR_1
-            )
+            provider = litterbox.LitterboxProvider(default_expiration=ExpirationTime.HOUR_1)
             url = provider.upload_file(small_file)
             assert isinstance(url, str)
             assert url.startswith("https://litter.catbox.moe/")
 
             # Test with 12 hours expiration
-            provider = litterbox.LitterboxProvider(
-                default_expiration=ExpirationTime.HOURS_12
-            )
+            provider = litterbox.LitterboxProvider(default_expiration=ExpirationTime.HOURS_12)
             url = provider.upload_file(small_file)
             assert isinstance(url, str)
             assert url.startswith("https://litter.catbox.moe/")
 
             # Test with 24 hours expiration
-            provider = litterbox.LitterboxProvider(
-                default_expiration=ExpirationTime.HOURS_24
-            )
+            provider = litterbox.LitterboxProvider(default_expiration=ExpirationTime.HOURS_24)
             url = provider.upload_file(small_file)
             assert isinstance(url, str)
             assert url.startswith("https://litter.catbox.moe/")

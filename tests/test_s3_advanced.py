@@ -10,16 +10,17 @@ import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 import pytest
-from typing import Any # Removed Union, ModuleType not needed if s3 is Any
+from typing import Any  # Removed Union, ModuleType not needed if s3 is Any
 
 # Check for S3 and botocore availability
-s3: Any # Simplified type for the s3 variable used in tests
+s3: Any  # Simplified type for the s3 variable used in tests
 HAS_BOTOCORE = False
 HAS_S3 = False
-ClientError: Any = Exception # Default placeholder
+ClientError: Any = Exception  # Default placeholder
 
 try:
     import botocore.exceptions
+
     ClientError = botocore.exceptions.ClientError
     HAS_BOTOCORE = True
 except ImportError:
@@ -28,10 +29,12 @@ except ImportError:
 
 try:
     from twat_fs.upload_providers import s3 as s3_real_module
-    s3 = s3_real_module # s3 is now the real module
+
+    s3 = s3_real_module  # s3 is now the real module
     HAS_S3 = True
 except ImportError:
     HAS_S3 = False
+
     # Create a mock s3 module
     class MockS3Provider:
         """Mock S3 provider for tests when S3 is not available."""
@@ -43,7 +46,8 @@ except ImportError:
         def get_credentials(cls) -> dict[str, Any]:
             """Mock get_credentials method."""
             return {}
-        def __init__(self, *args: Any, **kwargs: Any): # Basic init for S3Provider() calls
+
+        def __init__(self, *args: Any, **kwargs: Any):  # Basic init for S3Provider() calls
             pass
 
     # Define a mock s3 module
@@ -81,9 +85,7 @@ TEST_DIR = Path(__file__).parent / "data"
 TEST_FILE = TEST_DIR / "test.txt"
 
 
-@pytest.mark.skipif(
-    not HAS_BOTOCORE or not HAS_S3, reason="Botocore or S3 dependencies not installed"
-)
+@pytest.mark.skipif(not HAS_BOTOCORE or not HAS_S3, reason="Botocore or S3 dependencies not installed")
 class TestAwsCredentialProviders:
     """Test different AWS credential providers."""
 
@@ -106,11 +108,7 @@ class TestAwsCredentialProviders:
         """Test using shared credentials file."""
         creds_file = tmp_path / ".aws" / "credentials"
         creds_file.parent.mkdir(exist_ok=True)
-        creds_file.write_text(
-            "[default]\n"
-            "aws_access_key_id = test_key\n"
-            "aws_secret_access_key = test_secret\n"
-        )
+        creds_file.write_text("[default]\naws_access_key_id = test_key\naws_secret_access_key = test_secret\n")
         monkeypatch.setenv("AWS_SHARED_CREDENTIALS_FILE", str(creds_file))
         monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
         monkeypatch.setenv("AWS_S3_BUCKET", "test-bucket")
@@ -155,9 +153,7 @@ class TestAwsCredentialProviders:
             assert provider is not None
 
 
-@pytest.mark.skipif(
-    not HAS_S3 or not HAS_BOTOCORE, reason="S3 dependencies not installed"
-)
+@pytest.mark.skipif(not HAS_S3 or not HAS_BOTOCORE, reason="S3 dependencies not installed")
 class TestS3Configurations:
     """Test different S3 configurations."""
 
@@ -223,9 +219,7 @@ class TestS3Configurations:
             mock_client.assert_called_with("s3", region_name="eu-central-1")
 
 
-@pytest.mark.skipif(
-    not HAS_S3 or not HAS_BOTOCORE, reason="S3 dependencies not installed"
-)
+@pytest.mark.skipif(not HAS_S3 or not HAS_BOTOCORE, reason="S3 dependencies not installed")
 class TestS3MultipartUploads:
     """Test multipart uploads to S3."""
 
@@ -252,7 +246,7 @@ class TestS3MultipartUploads:
 
         # Mock both boto3 module and client
         with patch("twat_fs.upload_providers.s3.boto3.client", return_value=mock_s3):
-            result = s3.upload_file(large_file) # Returns UploadResult
+            result = s3.upload_file(large_file)  # Returns UploadResult
 
             # Verify the URL format
             assert result.url.startswith("https://s3.amazonaws.com/test-bucket/")

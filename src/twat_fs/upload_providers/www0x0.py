@@ -26,6 +26,9 @@ from twat_fs.upload_providers.utils import (
 PROVIDER_HELP: ProviderHelp = create_provider_help(
     setup_instructions="No setup required. Note: Files are stored permanently.",
     dependency_info="Python package: requests",
+    max_size="512 MiB",
+    retention="30 days to 1 year (varies by file size)",
+    auth_required="None",
 )
 
 
@@ -55,7 +58,7 @@ class Www0x0Provider(BaseProvider):
             NonRetryableError: If the upload fails for any other reason
         """
         files = {"file": file}
-        response = requests.post(self.upload_url, files=files, timeout=30)
+        response = requests.post(self.upload_url, files=files, timeout=30, headers={"User-Agent": "twat-fs/1.0"})
 
         # Use standardized HTTP response handling
         handle_http_response(response, self.provider_name)

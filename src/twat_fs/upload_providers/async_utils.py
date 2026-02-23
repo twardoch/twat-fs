@@ -62,9 +62,7 @@ def to_sync(func: Callable[P, Coroutine[Any, Any, T]]) -> Callable[P, T]: ...
 
 
 @overload
-def to_sync(
-    *, name: str | None = None
-) -> Callable[[Callable[P, Coroutine[Any, Any, T]]], Callable[P, T]]: ...
+def to_sync(*, name: str | None = None) -> Callable[[Callable[P, Coroutine[Any, Any, T]]], Callable[P, T]]: ...
 
 
 def to_sync(
@@ -113,19 +111,14 @@ def to_async(func: Callable[P, T]) -> Callable[P, Coroutine[Any, Any, T]]: ...
 
 
 @overload
-def to_async(
-    *, name: str | None = None
-) -> Callable[[Callable[P, T]], Callable[P, Coroutine[Any, Any, T]]]: ...
+def to_async(*, name: str | None = None) -> Callable[[Callable[P, T]], Callable[P, Coroutine[Any, Any, T]]]: ...
 
 
 def to_async(
     func: Callable[P, T] | None = None,
     *,
     name: str | None = None,
-) -> (
-    Callable[P, Coroutine[Any, Any, T]]
-    | Callable[[Callable[P, T]], Callable[P, Coroutine[Any, Any, T]]]
-):
+) -> Callable[P, Coroutine[Any, Any, T]] | Callable[[Callable[P, T]], Callable[P, Coroutine[Any, Any, T]]]:
     """
     Decorator to convert a sync function to an async function.
 
@@ -225,9 +218,7 @@ class AsyncContextManager:
 
 def with_async_timeout(
     timeout: float,
-) -> Callable[
-    [Callable[P, Coroutine[Any, Any, T]]], Callable[P, Coroutine[Any, Any, T]]
-]:
+) -> Callable[[Callable[P, Coroutine[Any, Any, T]]], Callable[P, Coroutine[Any, Any, T]]]:
     """
     Decorator to add a timeout to an async function.
 
@@ -246,9 +237,7 @@ def with_async_timeout(
             try:
                 return await asyncio.wait_for(func(*args, **kwargs), timeout=timeout)
             except TimeoutError:
-                logger.warning(
-                    f"Function {func.__name__} timed out after {timeout} seconds"
-                )
+                logger.warning(f"Function {func.__name__} timed out after {timeout} seconds")
                 msg = f"Operation timed out after {timeout} seconds"
                 raise TimeoutError(msg) from None
 

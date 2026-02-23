@@ -6,8 +6,7 @@ Protocol definitions for upload providers.
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Protocol, TypedDict, runtime_checkable, TypeVar
-from collections.abc import Coroutine
+from typing import Any, ClassVar, NotRequired, Protocol, TypedDict, runtime_checkable, TypeVar
 from pathlib import Path
 
 from twat_fs.upload_providers.provider_types import UploadResult
@@ -22,6 +21,9 @@ class ProviderHelp(TypedDict):
 
     setup: str
     deps: str
+    max_size: NotRequired[str]
+    retention: NotRequired[str]
+    auth_required: NotRequired[str]
 
 
 @runtime_checkable
@@ -52,7 +54,7 @@ class ProviderClient(Protocol):
         force: bool = False,
         upload_path: str | None = None,
         **kwargs: Any,
-    ) -> UploadResult: # Changed from Coroutine[..., UploadResult]
+    ) -> UploadResult:  # Changed from Coroutine[..., UploadResult]
         """Asynchronously upload a file and return its result with timing metrics."""
         ...
 
@@ -122,7 +124,7 @@ class Provider(Protocol):
         force: bool = False,
         upload_path: str | None = None,
         **kwargs: Any,
-    ) -> UploadResult: # Changed from Coroutine[..., UploadResult]
+    ) -> UploadResult:  # Changed from Coroutine[..., UploadResult]
         """
         Asynchronously upload a file using this provider.
 

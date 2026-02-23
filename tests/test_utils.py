@@ -179,9 +179,7 @@ class TestGetEnvCredentials:
 
     def test_get_env_credentials_with_all_required_vars(self):
         """Test that get_env_credentials returns a dictionary with all required variables."""
-        with mock.patch.dict(
-            os.environ, {"TEST_VAR1": "value1", "TEST_VAR2": "value2"}
-        ):
+        with mock.patch.dict(os.environ, {"TEST_VAR1": "value1", "TEST_VAR2": "value2"}):
             result = get_env_credentials(["TEST_VAR1", "TEST_VAR2"])
 
             assert result == {"TEST_VAR1": "value1", "TEST_VAR2": "value2"}
@@ -216,9 +214,7 @@ class TestGetEnvCredentials:
 
     def test_get_env_credentials_with_missing_optional_vars(self):
         """Test that get_env_credentials does not include missing optional variables."""
-        with mock.patch.dict(
-            os.environ, {"TEST_VAR1": "value1", "TEST_VAR2": "value2"}
-        ):
+        with mock.patch.dict(os.environ, {"TEST_VAR1": "value1", "TEST_VAR2": "value2"}):
             result = get_env_credentials(
                 ["TEST_VAR1", "TEST_VAR2"],
                 ["TEST_VAR3", "TEST_VAR4"],

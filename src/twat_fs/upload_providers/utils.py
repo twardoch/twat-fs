@@ -40,21 +40,19 @@ P = ParamSpec("P")
 def create_provider_help(
     setup_instructions: str,
     dependency_info: str,
+    *,
+    max_size: str = "Unknown",
+    retention: str = "Unknown",
+    auth_required: str = "None",
 ) -> ProviderHelp:
-    """
-    Create a standardized provider help dictionary.
-
-    Args:
-        setup_instructions: Instructions for setting up the provider
-        dependency_info: Information about provider dependencies
-
-    Returns:
-        ProviderHelp: Standardized help dictionary
-    """
-    return {
+    result: ProviderHelp = {
         "setup": setup_instructions,
         "deps": dependency_info,
     }
+    result["max_size"] = max_size
+    result["retention"] = retention
+    result["auth_required"] = auth_required
+    return result
 
 
 @contextmanager
@@ -123,11 +121,7 @@ def handle_http_response(
         RetryableError: For temporary failures (e.g., rate limits)
         NonRetryableError: For permanent failures
     """
-    status_code = (
-        response.status
-        if isinstance(response, aiohttp.ClientResponse)
-        else response.status_code
-    )
+    status_code = response.status if isinstance(response, aiohttp.ClientResponse) else response.status_code
 
     if status_code == 429:
         msg = f"Rate limited: {response.text if isinstance(response, requests.Response) else 'Too many requests'}"

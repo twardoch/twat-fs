@@ -54,15 +54,11 @@ def convert_to_upload_result(result: str) -> UploadResult: ...
 
 
 @overload
-def convert_to_upload_result(
-    result: str, *, metadata: dict[str, Any]
-) -> UploadResult: ...
+def convert_to_upload_result(result: str, *, metadata: dict[str, Any]) -> UploadResult: ...
 
 
 @overload
-def convert_to_upload_result(
-    result: str, *, provider: str, metadata: dict[str, Any]
-) -> UploadResult: ...
+def convert_to_upload_result(result: str, *, provider: str, metadata: dict[str, Any]) -> UploadResult: ...
 
 
 @overload
@@ -91,7 +87,7 @@ def convert_to_upload_result(
         return UploadResult(url=result, metadata=meta)
     if isinstance(result, dict):
         return UploadResult(**result)
-    msg = f"Cannot convert {type(result)} to UploadResult" # type: ignore[unreachable]
+    msg = f"Cannot convert {type(result)} to UploadResult"  # type: ignore[unreachable]
     raise TypeError(msg)
 
 
@@ -161,9 +157,7 @@ def with_retry(
                     else:  # CONSTANT
                         delay = initial_delay
 
-                    logger.warning(
-                        f"Attempt {attempt + 1}/{max_attempts} failed: {e}. Retrying in {delay:.1f}s..."
-                    )
+                    logger.warning(f"Attempt {attempt + 1}/{max_attempts} failed: {e}. Retrying in {delay:.1f}s...")
                     time.sleep(delay)
 
             assert last_exception is not None  # for type checker # noqa: S101
@@ -206,9 +200,7 @@ def with_async_retry(
                     else:  # CONSTANT
                         delay = initial_delay
 
-                    logger.warning(
-                        f"Attempt {attempt + 1}/{max_attempts} failed: {e}. Retrying in {delay:.1f}s..."
-                    )
+                    logger.warning(f"Attempt {attempt + 1}/{max_attempts} failed: {e}. Retrying in {delay:.1f}s...")
                     await asyncio.sleep(delay)
 
             assert last_exception is not None  # for type checker # noqa: S101
@@ -276,7 +268,10 @@ def async_to_sync(func: AsyncUploadCallable[P, T_co]) -> UploadCallable[P, T_co]
     return wrapper
 
 
-class UploadError(Exception):
+from twat_fs.exceptions import TwatFsError
+
+
+class UploadError(TwatFsError):
     """Base class for upload errors."""
 
     def __init__(self, message: str, provider: str | None = None) -> None:
@@ -294,9 +289,7 @@ class NonRetryableError(UploadError):
 
 
 @ucache(ttl=86400)  # type: ignore[misc] # Cache for 24 hours
-async def validate_url(
-    url: str, timeout: aiohttp.ClientTimeout = URL_CHECK_TIMEOUT
-) -> bool:
+async def validate_url(url: str, timeout: aiohttp.ClientTimeout = URL_CHECK_TIMEOUT) -> bool:
     """
     Validate that a URL is accessible.
 

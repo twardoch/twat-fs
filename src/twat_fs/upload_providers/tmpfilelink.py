@@ -1,19 +1,19 @@
-# this_file: src/twat_fs/upload_providers/uguu.py
+# this_file: src/twat_fs/upload_providers/tmpfilelink.py
 
 """
-Uguu.se upload provider.
-A simple provider that uploads files to uguu.se.
-Files are automatically deleted after 48 hours.
+tmpfile.link file upload provider.
+A simple provider that uploads files to tmpfile.link.
+Max size: 100 MB. Retention: 7 days. No auth required.
 """
 
 from __future__ import annotations
 
 import requests
 from pathlib import Path
-from typing import BinaryIO, cast, ClassVar
+from typing import BinaryIO, ClassVar, cast
 
-from twat_fs.upload_providers.provider_types import UploadResult
-from twat_fs.upload_providers.core import RetryableError, NonRetryableError
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.core import NonRetryableError
 from twat_fs.upload_providers.simple import BaseProvider
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
 from twat_fs.upload_providers.utils import (
@@ -25,52 +25,66 @@ from twat_fs.upload_providers.utils import (
 
 # Use standardized provider help format
 PROVIDER_HELP: ProviderHelp = create_provider_help(
-    setup_instructions="No setup required. Note: Files are deleted after 48 hours.",
+    setup_instructions="No setup required. Max 100 MB. Retention: 7 days.",
     dependency_info="Python package: requests",
-    max_size="128 MiB",
-    retention="48 hours",
+    max_size="100 MB",
+    retention="7 days",
     auth_required="None",
 )
 
 
-class UguuProvider(BaseProvider):
-    """Provider for uguu.se uploads"""
+class TmpfilelinkProvider(BaseProvider):
+    """Provider for tmpfile.link uploads."""
 
     PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
-    provider_name: str = "uguu"
-    upload_url: str = "https://uguu.se/upload.php"
+    provider_name: str = "tmpfilelink"
+    upload_url: str = "https://tmpfile.link/api/upload"
 
     def __init__(self) -> None:
-        """Initialize the Uguu provider."""
-        self.provider_name = "uguu"
+        """Initialize the tmpfile.link provider."""
+        self.provider_name = "tmpfilelink"
 
     def _do_upload(self, file: BinaryIO) -> str:
         """
-        Internal implementation of the file upload to uguu.se.
+        Internal implementation of the file upload to tmpfile.link.
 
         Args:
             file: Open file handle to upload
 
         Returns:
-            str: URL of the uploaded file
+            str: Download URL of the uploaded file
 
         Raises:
-            RetryableError: If the upload fails due to rate limiting or temporary issues
-            NonRetryableError: If the upload fails for any other reason
+            NonRetryableError: If the upload fails or response is invalid
         """
-        files = {"files[]": file}
-        response = requests.post(self.upload_url, files=files, timeout=30)
+        files = {"file": (Path(file.name).name, file, "application/octet-stream")}
+        response = requests.post(
+            self.upload_url,
+            files=files,
+            timeout=30,
+            headers={"User-Agent": "twat-fs/1.0"},
+        )
 
         # Use standardized HTTP response handling
         handle_http_response(response, self.provider_name)
 
-        # Parse the response
-        result = response.json()
-        if not result or "files" not in result:
-            msg = f"Invalid response from uguu.se: {result}"
+        # Parse JSON response containing downloadLink
+        try:
+            data = response.json()
+        except ValueError as e:
+            msg = f"Invalid JSON response: {e}"
+            raise NonRetryableError(msg, self.provider_name) from e
+
+        download_link = data.get("downloadLink")
+        if not download_link or not isinstance(download_link, str):
+            msg = f"Missing or invalid downloadLink in response: {data}"
             raise NonRetryableError(msg, self.provider_name)
 
-        return cast(str, result["files"][0]["url"])
+        if not download_link.startswith("http"):
+            msg = f"Invalid download URL: {download_link}"
+            raise NonRetryableError(msg, self.provider_name)
+
+        return str(download_link)
 
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """
@@ -83,10 +97,8 @@ class UguuProvider(BaseProvider):
             UploadResult containing the URL and status
         """
         try:
-            # Upload the file
             url = self._do_upload(file)
 
-            # Log successful upload
             log_upload_attempt(
                 provider_name=self.provider_name,
                 file_path=file.name,
@@ -99,13 +111,12 @@ class UguuProvider(BaseProvider):
                     "provider": self.provider_name,
                     "success": True,
                     "raw_url": url,
+                    "expires_days": 7,
                 },
             )
-        except (RetryableError, NonRetryableError):
-            # Re-raise these errors to allow for retries
+        except NonRetryableError:
             raise
         except Exception as e:
-            # Log failed upload
             log_upload_attempt(
                 provider_name=self.provider_name,
                 file_path=file.name,
@@ -124,7 +135,7 @@ class UguuProvider(BaseProvider):
 
     @classmethod
     def get_credentials(cls) -> None:
-        """Simple providers don't need credentials"""
+        """Simple providers don't need credentials."""
         return None
 
     @classmethod
@@ -135,13 +146,13 @@ class UguuProvider(BaseProvider):
 
 # Module-level functions to implement the Provider protocol
 def get_credentials() -> None:
-    """Simple providers don't need credentials"""
-    return UguuProvider.get_credentials()
+    """Simple providers don't need credentials."""
+    return TmpfilelinkProvider.get_credentials()
 
 
 def get_provider() -> ProviderClient | None:
-    """Return an instance of the provider"""
-    return UguuProvider.get_provider()
+    """Return an instance of the provider."""
+    return TmpfilelinkProvider.get_provider()
 
 
 def upload_file(
@@ -164,16 +175,10 @@ def upload_file(
 
     Returns:
         UploadResult: URL of the uploaded file
-
-    Raises:
-        FileNotFoundError: If the file doesn't exist
-        ValueError: If the path is not a file
-        PermissionError: If the file can't be read
-        RuntimeError: If the upload fails
     """
     return standard_upload_wrapper(
         get_provider(),
-        "uguu",
+        "tmpfilelink",
         local_path,
         remote_path,
         unique=unique,

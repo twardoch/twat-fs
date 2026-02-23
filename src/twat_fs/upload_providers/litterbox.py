@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, BinaryIO, ClassVar, cast # cast is already here
+from typing import Any, BinaryIO, ClassVar, cast  # cast is already here
 
 import aiohttp
 from loguru import logger
@@ -37,6 +37,9 @@ PROVIDER_HELP: ProviderHelp = create_provider_help(
     setup_instructions="""No setup required. Note: Files are deleted after 24 hours by default.
 Optional: Set LITTERBOX_DEFAULT_EXPIRATION environment variable to change expiration time (1h, 12h, 24h, 72h).""",
     dependency_info="""No additional dependencies required.""",
+    max_size="1 GB",
+    retention="1h, 12h, 24h, or 72h (selectable)",
+    auth_required="None",
 )
 
 
@@ -50,9 +53,7 @@ class LitterboxProvider(BaseProvider):
     # Environment variables
     OPTIONAL_ENV_VARS: ClassVar[list[str]] = ["LITTERBOX_DEFAULT_EXPIRATION"]
 
-    def __init__(
-        self, default_expiration: ExpirationTime | str = ExpirationTime.HOURS_12
-    ) -> None:
+    def __init__(self, default_expiration: ExpirationTime | str = ExpirationTime.HOURS_12) -> None:
         """
         Initialize the Litterbox provider.
 
@@ -63,7 +64,7 @@ class LitterboxProvider(BaseProvider):
             ValueError: If the expiration time is invalid
         """
         super().__init__()
-        self.provider_name = "litterbox" # Set as instance variable
+        self.provider_name = "litterbox"  # Set as instance variable
         # If a string is provided, convert it to ExpirationTime
         if not isinstance(default_expiration, ExpirationTime):
             try:
@@ -92,23 +93,17 @@ class LitterboxProvider(BaseProvider):
         Returns:
             ProviderClient: Configured litterbox provider
         """
-        default_expiration = str(
-            os.getenv("LITTERBOX_DEFAULT_EXPIRATION", "24h")
-        ).strip()
+        default_expiration = str(os.getenv("LITTERBOX_DEFAULT_EXPIRATION", "24h")).strip()
         try:
             expiration = ExpirationTime(str(default_expiration))
         except ValueError:
-            logger.warning(
-                f"Invalid expiration time {default_expiration}, using 24h default"
-            )
+            logger.warning(f"Invalid expiration time {default_expiration}, using 24h default")
             expiration = ExpirationTime.HOURS_24
 
         provider = cls(default_expiration=expiration)
         return cast(ProviderClient, provider)
 
-    async def _do_upload_async(
-        self, file: BinaryIO, expiration: ExpirationTime | str | None = None
-    ) -> str:
+    async def _do_upload_async(self, file: BinaryIO, expiration: ExpirationTime | str | None = None) -> str:
         """
         Internal method to handle the actual upload to litterbox.catbox.moe.
 
@@ -129,11 +124,7 @@ class LitterboxProvider(BaseProvider):
         data.add_field("reqtype", "fileupload")
         data.add_field(
             "time",
-            str(
-                expiration_value.value
-                if isinstance(expiration_value, ExpirationTime)
-                else expiration_value
-            ),
+            str(expiration_value.value if isinstance(expiration_value, ExpirationTime) else expiration_value),
         )
 
         try:
@@ -156,7 +147,7 @@ class LitterboxProvider(BaseProvider):
                         handle_http_response(response, self.provider_name)
 
                         url_text = await response.text()
-                        if not url_text.startswith("http"): # Check before cast if needed, or cast then check
+                        if not url_text.startswith("http"):  # Check before cast if needed, or cast then check
                             msg = f"Invalid response from server: {url_text}"
                             raise NonRetryableError(msg, self.provider_name)
                         return cast(str, url_text)
@@ -170,9 +161,7 @@ class LitterboxProvider(BaseProvider):
             msg = f"Upload failed: {e}"
             raise RetryableError(msg, self.provider_name) from e
 
-    def _do_upload(
-        self, file: BinaryIO, expiration: ExpirationTime | str | None = None
-    ) -> str:
+    def _do_upload(self, file: BinaryIO, expiration: ExpirationTime | str | None = None) -> str:
         """
         Synchronous version of _do_upload_async.
 
@@ -219,7 +208,7 @@ class LitterboxProvider(BaseProvider):
             log_upload_attempt(self.provider_name, file.name, success=False, error=e)
             raise
 
-    def upload_file(  # noqa: PLR0913 - Handles specific 'expiration' argument # type: ignore[override]
+    def upload_file(
         self,
         local_path: str | Path,
         remote_path: str | Path | None = None,
@@ -269,9 +258,7 @@ class LitterboxProvider(BaseProvider):
                         },
                     )
                 except Exception as e:
-                    log_upload_attempt(
-                        self.provider_name, file.name, success=False, error=e
-                    )
+                    log_upload_attempt(self.provider_name, file.name, success=False, error=e)
                     raise
             else:
                 # Otherwise use the standard implementation
@@ -296,7 +283,7 @@ def get_provider() -> ProviderClient | None:
     return LitterboxProvider.get_provider()
 
 
-def upload_file(  # noqa: PLR0913 - Handles specific 'expiration' argument
+def upload_file(
     local_path: str | Path,
     remote_path: str | Path | None = None,
     *,

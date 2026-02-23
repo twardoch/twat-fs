@@ -34,6 +34,9 @@ from twat_fs.upload_providers.utils import (
 PROVIDER_HELP: ProviderHelp = create_provider_help(
     setup_instructions="No setup required.",
     dependency_info="Python package: requests",
+    max_size="20 GB",
+    retention="~90 days after last download",
+    auth_required="None",
 )
 
 
@@ -46,92 +49,51 @@ class PixeldrainProvider(BaseProvider):
     def __init__(self) -> None:
         """Initialize the Pixeldrain provider."""
         self.provider_name = "pixeldrain"
-        self.url = "https://pixeldrain.com/api/file"
+        self.upload_url = "https://pixeldrain.com/api/file/"
 
     def _process_response(self, response: requests.Response) -> str:
-        """
-        Process the HTTP response from Pixeldrain.
-
-        Args:
-            response: The HTTP response from the API
-
-        Returns:
-            str: The URL to the uploaded file
-
-        Raises:
-            ValueError: If the response is invalid
-        """
-        # Use the standardized HTTP response handler
+        """Process the HTTP response from Pixeldrain."""
         handle_http_response(response, self.provider_name)
-
-        # Parse response JSON to get file ID
         try:
             data = response.json()
         except ValueError as e:
             msg = f"Invalid JSON response: {e}"
             raise ValueError(msg) from e
-
         if not data or "id" not in data:
             msg = f"Invalid response from pixeldrain: {data}"
             raise ValueError(msg)
-
-        # Construct public URL
-        return f"https://pixeldrain.com/u/{data['id']}"
+        return f"https://pixeldrain.com/api/file/{data['id']}"
 
     def _upload_with_retry(self, file: BinaryIO) -> str:
-        """
-        Upload a file with retry mechanism.
-
-        Args:
-            file: Open file handle to upload
-
-        Returns:
-            str: URL to the uploaded file
-
-        Raises:
-            ValueError: If the upload fails
-            RetryableError: For temporary failures
-            requests.RequestException: For network errors
-        """
-        # Implement retry logic manually
+        """Upload a file with retry mechanism using PUT method."""
         max_retries = 3
         retry_delay = 2.0
         last_error = None
-
         for attempt in range(max_retries):
             try:
-                # Reset file pointer before each attempt
                 file.seek(0)
-
-                # Prepare the upload request
-                files = {"file": (file.name, file)}
-                headers = {"User-Agent": "twat-fs/1.0"}
-
-                # Send the request
-                response = requests.post(
-                    self.url,
-                    files=files,
-                    headers=headers,
-                    timeout=30,
+                filename = Path(file.name).name
+                file_content = file.read()
+                response = requests.put(
+                    f"{self.upload_url}{filename}",
+                    data=file_content,
+                    headers={
+                        "Content-Type": "application/octet-stream",
+                        "User-Agent": "twat-fs/1.0",
+                    },
+                    timeout=60,
                 )
-
-                # Process the response
                 return self._process_response(response)
-
             except (RetryableError, ValueError, requests.RequestException) as e:
                 last_error = e
                 if attempt < max_retries - 1:
-                    # Calculate next delay (exponential backoff)
                     delay = min(retry_delay * (2**attempt), 30.0)
                     time.sleep(delay)
                 else:
-                    # Last attempt failed, re-raise the exception
                     if isinstance(e, RetryableError | requests.RequestException):
                         msg = f"Upload failed after {max_retries} attempts: {e}"
                         raise ValueError(msg) from e
                     raise
-
-        # This should never be reached, but just in case
         if last_error is None:
             msg = f"Upload failed after {max_retries} attempts"
             raise ValueError(msg)
@@ -216,23 +178,18 @@ def get_provider() -> ProviderClient | None:
 def upload_file(
     local_path: str | Path,
     remote_path: str | Path | None = None,
+    *,
+    unique: bool = False,
+    force: bool = False,
+    upload_path: str | None = None,
 ) -> UploadResult:
-    """
-    Upload a file and return its URL.
-
-    Args:
-        local_path: Path to the file to upload
-        remote_path: Optional remote path (ignored for simple providers)
-
-    Returns:
-        UploadResult: Result containing URL and metadata
-
-    Raises:
-        ValueError: If upload fails
-    """
+    """Upload a file and return its URL."""
     return standard_upload_wrapper(
         get_provider(),
         "pixeldrain",
         local_path,
         remote_path,
+        unique=unique,
+        force=force,
+        upload_path=upload_path,
     )

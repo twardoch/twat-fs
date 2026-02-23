@@ -19,7 +19,7 @@ from typing import (
     TypeVar,
     TYPE_CHECKING,
 )
-from collections.abc import Callable # For explicit type hint
+from collections.abc import Callable  # For explicit type hint
 
 from twat_fs.upload_providers.protocols import ProviderHelp, Provider, ProviderClient
 from twat_fs.upload_providers.core import (
@@ -31,7 +31,6 @@ from twat_fs.upload_providers.async_utils import to_sync
 
 if TYPE_CHECKING:
     from twat_fs.upload_providers.provider_types import UploadResult
-    from collections.abc import Coroutine
     from collections.abc import Generator
 
 
@@ -76,12 +75,12 @@ class BaseProvider(ABC, Provider):
     def upload_file(
         self,
         local_path: str | Path,
-        remote_path: str | Path | None = None, # Reverted: _remote_path to remote_path
+        remote_path: str | Path | None = None,  # Reverted: _remote_path to remote_path
         *,
-        unique: bool = False, # Reverted: _unique to unique
+        unique: bool = False,  # Reverted: _unique to unique
         force: bool = False,  # Reverted: _force to force
-        upload_path: str | None = None, # Reverted: _upload_path to upload_path
-        **kwargs: Any, # Reverted: **_kwargs to **kwargs
+        upload_path: str | None = None,  # Reverted: _upload_path to upload_path
+        **kwargs: Any,  # Reverted: **_kwargs to **kwargs
     ) -> UploadResult:
         """
         Upload a file and return its URL.
@@ -112,22 +111,20 @@ class BaseProvider(ABC, Provider):
             if not result.metadata.get("success", True):
                 msg = f"Upload failed: {result.metadata.get('error', 'Unknown error')}"
                 raise RuntimeError(msg)
-            return convert_to_upload_result(
-                result.url, provider=self.provider_name, metadata=result.metadata
-            )
+            return convert_to_upload_result(result.url, provider=self.provider_name, metadata=result.metadata)
 
     @with_url_validation
     @with_timing
     async def async_upload_file(  # type: ignore[override]
         self,
         file_path: str | Path,
-        remote_path: str | Path | None = None, # Reverted
+        remote_path: str | Path | None = None,  # Reverted
         *,
-        unique: bool = False, # Reverted
+        unique: bool = False,  # Reverted
         force: bool = False,  # Reverted
-        upload_path: str | None = None, # Reverted
-        **kwargs: Any, # Reverted
-    ) -> UploadResult: # This is the actual type returned by the 'return' statement in async def
+        upload_path: str | None = None,  # Reverted
+        **kwargs: Any,  # Reverted
+    ) -> UploadResult:  # This is the actual type returned by the 'return' statement in async def
         """
         Upload a file using this provider.
 
@@ -211,12 +208,12 @@ class AsyncBaseProvider(BaseProvider):
     def upload_file(
         self,
         local_path: str | Path,
-        remote_path: str | Path | None = None, # Matches Provider protocol
+        remote_path: str | Path | None = None,  # Matches Provider protocol
         *,
-        unique: bool = False, # Matches Provider protocol
+        unique: bool = False,  # Matches Provider protocol
         force: bool = False,  # Matches Provider protocol
-        upload_path: str | None = None, # Matches Provider protocol
-        **kwargs: Any, # Matches Provider protocol
+        upload_path: str | None = None,  # Matches Provider protocol
+        **kwargs: Any,  # Matches Provider protocol
     ) -> UploadResult:
         """
         Upload a file using the async implementation.
@@ -236,7 +233,7 @@ class AsyncBaseProvider(BaseProvider):
         """
         # Use the to_sync utility to convert the async method to sync
         # self.async_upload_file is BaseProvider.async_upload_file which now expects non-underscored args
-        sync_upload: Callable[..., UploadResult] = to_sync(self.async_upload_file) # type: ignore[arg-type]
+        sync_upload: Callable[..., UploadResult] = to_sync(self.async_upload_file)  # type: ignore[arg-type]
         return sync_upload(
             local_path,
             remote_path,
@@ -260,7 +257,7 @@ class AsyncBaseProvider(BaseProvider):
         path = Path(file.name)
 
         # Use the to_sync utility to convert the async method to sync
-        sync_upload: Callable[..., UploadResult] = to_sync(self.async_upload_file) # type: ignore[arg-type]
+        sync_upload: Callable[..., UploadResult] = to_sync(self.async_upload_file)  # type: ignore[arg-type]
         # Pass relevant arguments. BaseProvider.async_upload_file takes (self, file_path, remote_path=None, ...)
         # Here we only have 'path' (file_path). Other options default in async_upload_file.
         return sync_upload(path)

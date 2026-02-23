@@ -74,12 +74,15 @@ def main():
         "catbox.py",
         "dropbox.py",
         "filebin.py",
-        "bashupload.py",
         "s3.py",
         "fal.py",
         "pixeldrain.py",
         "litterbox.py",
         "uguu.py",
+        "x0at.py",
+        "tmpfilelink.py",
+        "tmpfilesorg.py",
+        "senditsh.py",
     ]
 
     base_path = Path("src/twat_fs/upload_providers")

@@ -1,0 +1,114 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1771807577016,
+  "projectRoot": "/Users/adam/Developer/vcs3/github.twardoch/pub/twat/plugins/repos/twat_fs",
+  "techStack": {
+    "languages": [
+      {
+        "name": "Python",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "pyproject.toml"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "pytest",
+        "version": null,
+        "category": "testing"
+      }
+    ],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": "pytest",
+    "lintCommand": "ruff check",
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "examples",
+      "src",
+      "tests"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "__pycache__": {
+      "path": "__pycache__",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1771807577011,
+      "keyFiles": [
+        "update_providers.cpython-313.pyc"
+      ]
+    },
+    "examples": {
+      "path": "examples",
+      "purpose": "Example code",
+      "fileCount": 1,
+      "lastAccessed": 1771807577012,
+      "keyFiles": [
+        "upload_example.py"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 1,
+      "lastAccessed": 1771807577012,
+      "keyFiles": []
+    },
+    "templates": {
+      "path": "templates",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1771807577012,
+      "keyFiles": [
+        "authenticated_provider_template.py",
+        "simple_provider_template.py"
+      ]
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 10,
+      "lastAccessed": 1771807577013,
+      "keyFiles": [
+        "__init__.py",
+        "test_async_utils.py",
+        "test_filebin_pixeldrain.py",
+        "test_integration.py",
+        "test_providers_online.py"
+      ]
+    },
+    "tests/data": {
+      "path": "tests/data",
+      "purpose": "Data files",
+      "fileCount": 1,
+      "lastAccessed": 1771807577013,
+      "keyFiles": [
+        "test.txt"
+      ]
+    }
+  },
+  "hotPaths": [],
+  "userDirectives": []
+}

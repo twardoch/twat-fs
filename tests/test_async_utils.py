@@ -50,9 +50,7 @@ class TestRunAsync:
 
         # Simulate RuntimeError for existing event loop
         with mock.patch("asyncio.run") as mock_run:
-            mock_run.side_effect = RuntimeError(
-                "There is no current event loop in thread"
-            )
+            mock_run.side_effect = RuntimeError("There is no current event loop in thread")
 
             # Mock the new event loop
             mock_loop = mock.MagicMock()

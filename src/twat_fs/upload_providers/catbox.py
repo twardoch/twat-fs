@@ -7,7 +7,7 @@ Catbox.moe upload provider implementation.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import BinaryIO, ClassVar, cast # cast is already here
+from typing import BinaryIO, ClassVar, cast  # cast is already here
 
 import aiohttp
 import asyncio
@@ -26,6 +26,9 @@ from twat_fs.upload_providers.utils import (
 PROVIDER_HELP: ProviderHelp = create_provider_help(
     setup_instructions="No setup required. Files are kept indefinitely unless reported or unused for 1 month.",
     dependency_info="aiohttp",
+    max_size="200 MB",
+    retention="Permanent (removed if unused 1 month)",
+    auth_required="None",
 )
 
 

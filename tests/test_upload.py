@@ -12,19 +12,22 @@ from typing import NamedTuple
 
 import pytest
 
-from typing import Any # Ensure Any is imported
+from typing import Any  # Ensure Any is imported
 
 # Conditionally import botocore
-ClientError: Any # Declare type for ClientError at module scope
+ClientError: Any  # Declare type for ClientError at module scope
 HAS_BOTOCORE = False
 try:
     from botocore.exceptions import ClientError as BotocoreClientError
+
     ClientError = BotocoreClientError
     HAS_BOTOCORE = True
 except ImportError:
-    class ClientErrorPlaceholder(Exception): # Use a different name for placeholder
+
+    class ClientErrorPlaceholder(Exception):  # Use a different name for placeholder
         pass
-    ClientError = ClientErrorPlaceholder # Assign placeholder to ClientError
+
+    ClientError = ClientErrorPlaceholder  # Assign placeholder to ClientError
     HAS_BOTOCORE = False
 
 
@@ -33,7 +36,7 @@ from twat_fs.upload import (
     setup_provider,
     setup_providers,
     upload_file,
-    UploadOptions, # Added import
+    UploadOptions,  # Added import
 )
 
 # Conditionally import providers
@@ -115,9 +118,7 @@ def mock_s3_provider() -> Generator[MagicMock, None, None]:
             yield mock
     except (ImportError, AttributeError):
         # If S3 is not available, patch the factory to return a mock provider
-        with patch(
-            "twat_fs.upload_providers.factory.ProviderFactory.create_provider"
-        ) as mock_create_provider:
+        with patch("twat_fs.upload_providers.factory.ProviderFactory.create_provider") as mock_create_provider:
             mock_provider = MagicMock()
             mock_provider.upload_file.return_value = TEST_URL
             mock_create_provider.return_value = mock_provider
@@ -179,10 +180,7 @@ class TestProviderSetup:
         mock_fal_provider: MagicMock,
     ) -> None:
         """Test checking setup status for all providers."""
-        assert all(
-            provider is not None
-            for provider in [mock_s3_provider, mock_dropbox_provider, mock_fal_provider]
-        )
+        assert all(provider is not None for provider in [mock_s3_provider, mock_dropbox_provider, mock_fal_provider])
         results = setup_providers()
         assert len(results) == len(PROVIDERS_PREFERENCE)
 
@@ -209,9 +207,7 @@ class TestProviderSetup:
         """Test checking setup status when some providers fail."""
         # Use a different approach that doesn't rely on patching specific provider modules
         # Instead, patch the factory module to return mock providers
-        with patch(
-            "twat_fs.upload_providers.factory.ProviderFactory.get_provider_module"
-        ) as mock_get_provider:
+        with patch("twat_fs.upload_providers.factory.ProviderFactory.get_provider_module") as mock_get_provider:
             # Make the factory return different results for different providers
             def side_effect(provider_name, *args, **kwargs):
                 if provider_name == "s3":
@@ -230,8 +226,7 @@ class TestProviderSetup:
 
             # Check that at least one provider has setup instructions
             assert any(
-                "not configured" in result.explanation
-                or "setup" in result.explanation.lower()
+                "not configured" in result.explanation or "setup" in result.explanation.lower()
                 for result in results.values()
                 if not result.success
             )
@@ -239,9 +234,7 @@ class TestProviderSetup:
     def test_setup_provider_success(self) -> None:
         """Test setup_provider with a valid provider."""
         # Use a provider that should always be available
-        with patch(
-            "twat_fs.upload_providers.factory.ProviderFactory.create_provider"
-        ) as mock_create_provider:
+        with patch("twat_fs.upload_providers.factory.ProviderFactory.create_provider") as mock_create_provider:
             mock_create_provider.return_value = MagicMock()
             result = setup_provider("simple")
             assert result.success is True
@@ -261,10 +254,7 @@ class TestProviderSetup:
         # 2. Provider needs setup (success is False and explanation contains setup instructions)
         assert result.success is True or (
             result.success is False
-            and (
-                "DROPBOX_ACCESS_TOKEN" in result.explanation
-                or "not available" in result.explanation.lower()
-            )
+            and ("DROPBOX_ACCESS_TOKEN" in result.explanation or "not available" in result.explanation.lower())
         )
 
     def test_setup_all_providers_check(self) -> None:
@@ -273,10 +263,7 @@ class TestProviderSetup:
         results = setup_providers()
 
         # Check that at least one provider is available or has setup instructions
-        assert any(
-            result.success or "not available" in result.explanation.lower()
-            for result in results.values()
-        )
+        assert any(result.success or "not available" in result.explanation.lower() for result in results.values())
 
 
 class TestProviderAuth:
@@ -345,9 +332,7 @@ class TestProviderAuth:
         assert s3.get_provider() is None
 
     @pytest.mark.skipif(not HAS_S3, reason="S3 dependencies not installed")
-    def test_s3_auth_with_invalid_credentials(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_s3_auth_with_invalid_credentials(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test S3 auth when credentials are invalid."""
         monkeypatch.setenv("AWS_ACCESS_KEY_ID", "invalid_key")
         monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "invalid_secret")
@@ -370,9 +355,7 @@ class TestProviderAuth:
 class TestUploadFile:
     """Test file upload functionality."""
 
-    def test_upload_with_default_provider(
-        self, test_file: Path, mock_s3_provider: MagicMock
-    ) -> None:
+    def test_upload_with_default_provider(self, test_file: Path, mock_s3_provider: MagicMock) -> None:
         """Test upload with default provider."""
         url = upload_file(test_file)
         assert url == TEST_URL
@@ -384,9 +367,7 @@ class TestUploadFile:
             upload_path=None,
         )
 
-    def test_upload_with_specific_provider(
-        self, test_file: Path, mock_s3_provider: MagicMock
-    ) -> None:
+    def test_upload_with_specific_provider(self, test_file: Path, mock_s3_provider: MagicMock) -> None:
         """Test upload with specific provider."""
         url = upload_file(test_file, provider="s3")
         assert url == TEST_URL
@@ -398,9 +379,7 @@ class TestUploadFile:
             upload_path=None,
         )
 
-    def test_upload_with_provider_list(
-        self, test_file: Path, mock_s3_provider: MagicMock
-    ) -> None:
+    def test_upload_with_provider_list(self, test_file: Path, mock_s3_provider: MagicMock) -> None:
         """Test upload with provider list."""
         url = upload_file(test_file, provider=["s3", "dropbox"])
         assert url == TEST_URL
@@ -421,9 +400,7 @@ class TestUploadFile:
         """Test fallback to next provider on auth failure."""
         with (
             patch("twat_fs.upload_providers.s3.get_provider") as mock_s3_get_provider,
-            patch(
-                "twat_fs.upload_providers.dropbox.get_provider"
-            ) as mock_dropbox_get_provider,
+            patch("twat_fs.upload_providers.dropbox.get_provider") as mock_dropbox_get_provider,
         ):
             # S3 provider fails to initialize
             mock_s3_get_provider.return_value = None
@@ -460,9 +437,7 @@ class TestUploadFile:
 
         with (
             patch("twat_fs.upload_providers.s3.get_provider") as mock_s3_get_provider,
-            patch(
-                "twat_fs.upload_providers.dropbox.get_provider"
-            ) as mock_dropbox_get_provider,
+            patch("twat_fs.upload_providers.dropbox.get_provider") as mock_dropbox_get_provider,
         ):
             mock_s3_client = MagicMock()
             mock_s3_client.upload_file.side_effect = Exception("Upload failed")
@@ -496,16 +471,12 @@ class TestUploadFile:
     def test_all_providers_fail(self, test_file: Path) -> None:
         """Test error when all providers fail."""
         # Instead of patching specific provider modules, patch the factory.get_provider function
-        with patch(
-            "twat_fs.upload_providers.factory.ProviderFactory.create_provider"
-        ) as mock_create_provider:
+        with patch("twat_fs.upload_providers.factory.ProviderFactory.create_provider") as mock_create_provider:
             # Make the factory return None for any provider
             mock_create_provider.return_value = None
 
             # Test with default providers
-            with pytest.raises(
-                ValueError, match="No provider available or all providers failed"
-            ):
+            with pytest.raises(ValueError, match="No provider available or all providers failed"):
                 upload_file(test_file)
 
     def test_invalid_provider(self, test_file: Path) -> None:
@@ -513,9 +484,7 @@ class TestUploadFile:
         with pytest.raises(ValueError, match="Invalid provider"):
             upload_file(test_file, provider="invalid")
 
-    def test_upload_with_s3_provider(
-        self, test_file: Path, _mock_s3_provider: MagicMock
-    ) -> None:
+    def test_upload_with_s3_provider(self, test_file: Path, _mock_s3_provider: MagicMock) -> None:
         """Test upload with S3 provider."""
         # Mock the _try_upload_with_provider function to return a successful result
         with patch("twat_fs.upload._try_upload_with_provider") as mock_try_upload:
@@ -539,22 +508,16 @@ class TestUploadFile:
                 upload_path=None,
             )
 
-    def test_s3_upload_failure(
-        self, test_file: Path, _mock_s3_provider: MagicMock
-    ) -> None:
+    def test_s3_upload_failure(self, test_file: Path, _mock_s3_provider: MagicMock) -> None:
         """Test S3 upload failure."""
         # Mock the _try_upload_with_provider function to raise an exception
         with patch("twat_fs.upload._try_upload_with_provider") as mock_try_upload:
             # Create a mock error
             error_message = "Bucket does not exist"
-            mock_try_upload.side_effect = NonRetryableError(
-                f"An error occurred: {error_message}", "s3"
-            )
+            mock_try_upload.side_effect = NonRetryableError(f"An error occurred: {error_message}", "s3")
 
             # Test that the upload_file function raises the expected exception
-            with pytest.raises(
-                NonRetryableError, match=f"An error occurred: {error_message}"
-            ):
+            with pytest.raises(NonRetryableError, match=f"An error occurred: {error_message}"):
                 # from twat_fs.upload import UploadOptions # Moved to top
                 upload_file(test_file, provider="s3", options=UploadOptions(fragile=True))
 
@@ -668,9 +631,7 @@ class TestEdgeCases:
         test_file.write_text("test content")
 
         # Use a mock provider that raises PermissionError
-        with patch(
-            "twat_fs.upload_providers.factory.ProviderFactory.create_provider"
-        ) as mock_create_provider:
+        with patch("twat_fs.upload_providers.factory.ProviderFactory.create_provider") as mock_create_provider:
             mock_provider = MagicMock()
             mock_provider.upload_file.side_effect = PermissionError("Permission denied")
             mock_create_provider.return_value = mock_provider
@@ -726,9 +687,7 @@ class TestCatboxProvider:
 
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.text = AsyncMock(
-            return_value="https://files.catbox.moe/abc123.txt"
-        )
+        mock_response.text = AsyncMock(return_value="https://files.catbox.moe/abc123.txt")
 
         mock_session = AsyncMock()
         mock_session.post = AsyncMock()
@@ -760,9 +719,7 @@ class TestCatboxProvider:
 
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.text = AsyncMock(
-            return_value="https://files.catbox.moe/xyz789.jpg"
-        )
+        mock_response.text = AsyncMock(return_value="https://files.catbox.moe/xyz789.jpg")
 
         mock_session = AsyncMock()
         mock_session.post = AsyncMock()
@@ -797,9 +754,7 @@ class TestLitterboxProvider:
 
     def test_litterbox_custom_expiration(self):
         """Test custom expiration time."""
-        provider = litterbox.LitterboxProvider(
-            default_expiration=litterbox.ExpirationTime.HOURS_24
-        )
+        provider = litterbox.LitterboxProvider(default_expiration=litterbox.ExpirationTime.HOURS_24)
         assert provider.default_expiration == litterbox.ExpirationTime.HOURS_24
 
     def test_litterbox_invalid_expiration(self):
@@ -815,9 +770,7 @@ class TestLitterboxProvider:
 
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.text = AsyncMock(
-            return_value="https://litterbox.catbox.moe/abc123.txt"
-        )
+        mock_response.text = AsyncMock(return_value="https://litterbox.catbox.moe/abc123.txt")
 
         mock_session = AsyncMock()
         mock_session.post = AsyncMock()
@@ -857,9 +810,7 @@ def test_circular_fallback(
     """Test circular fallback between providers."""
     # Make all providers fail once
     mock_s3_provider.upload_file.side_effect = RetryableError("S3 failed", "s3")
-    mock_dropbox_provider.upload_file.side_effect = RetryableError(
-        "Dropbox failed", "dropbox"
-    )
+    mock_dropbox_provider.upload_file.side_effect = RetryableError("Dropbox failed", "dropbox")
     mock_catbox_provider.upload_file.side_effect = [
         RetryableError("Catbox failed first", "catbox"),  # First try fails
         "https://catbox.moe/success.txt",  # Second try succeeds
@@ -904,9 +855,7 @@ def test_custom_provider_list_circular_fallback(
 ) -> None:
     """Test circular fallback with custom provider list."""
     # Make providers fail in sequence
-    mock_catbox_provider.upload_file.side_effect = RetryableError(
-        "Catbox failed", "catbox"
-    )
+    mock_catbox_provider.upload_file.side_effect = RetryableError("Catbox failed", "catbox")
     mock_s3_provider.upload_file.side_effect = RetryableError("S3 failed", "s3")
     mock_dropbox_provider.upload_file.side_effect = [
         RetryableError("Dropbox failed first", "dropbox"),  # First try fails

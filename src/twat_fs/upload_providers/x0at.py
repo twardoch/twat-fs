@@ -1,19 +1,19 @@
-# this_file: src/twat_fs/upload_providers/uguu.py
+# this_file: src/twat_fs/upload_providers/x0at.py
 
 """
-Uguu.se upload provider.
-A simple provider that uploads files to uguu.se.
-Files are automatically deleted after 48 hours.
+x0.at file upload provider.
+A simple provider that uploads files to x0.at.
+Max size: 512 MiB. Retention: 3-100 days (smaller files last longer).
 """
 
 from __future__ import annotations
 
 import requests
 from pathlib import Path
-from typing import BinaryIO, cast, ClassVar
+from typing import BinaryIO, ClassVar, cast
 
-from twat_fs.upload_providers.provider_types import UploadResult
-from twat_fs.upload_providers.core import RetryableError, NonRetryableError
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.core import NonRetryableError
 from twat_fs.upload_providers.simple import BaseProvider
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
 from twat_fs.upload_providers.utils import (
@@ -25,28 +25,28 @@ from twat_fs.upload_providers.utils import (
 
 # Use standardized provider help format
 PROVIDER_HELP: ProviderHelp = create_provider_help(
-    setup_instructions="No setup required. Note: Files are deleted after 48 hours.",
+    setup_instructions="No setup required. Max 512 MiB. Retention: 3-100 days (smaller files last longer).",
     dependency_info="Python package: requests",
-    max_size="128 MiB",
-    retention="48 hours",
+    max_size="512 MiB",
+    retention="3-100 days (smaller files last longer)",
     auth_required="None",
 )
 
 
-class UguuProvider(BaseProvider):
-    """Provider for uguu.se uploads"""
+class X0atProvider(BaseProvider):
+    """Provider for x0.at uploads."""
 
     PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
-    provider_name: str = "uguu"
-    upload_url: str = "https://uguu.se/upload.php"
+    provider_name: str = "x0at"
+    upload_url: str = "https://x0.at/"
 
     def __init__(self) -> None:
-        """Initialize the Uguu provider."""
-        self.provider_name = "uguu"
+        """Initialize the x0.at provider."""
+        self.provider_name = "x0at"
 
     def _do_upload(self, file: BinaryIO) -> str:
         """
-        Internal implementation of the file upload to uguu.se.
+        Internal implementation of the file upload to x0.at.
 
         Args:
             file: Open file handle to upload
@@ -55,22 +55,26 @@ class UguuProvider(BaseProvider):
             str: URL of the uploaded file
 
         Raises:
-            RetryableError: If the upload fails due to rate limiting or temporary issues
-            NonRetryableError: If the upload fails for any other reason
+            NonRetryableError: If the upload fails or response is invalid
         """
-        files = {"files[]": file}
-        response = requests.post(self.upload_url, files=files, timeout=30)
+        files = {"file": (Path(file.name).name, file, "application/octet-stream")}
+        response = requests.post(
+            self.upload_url,
+            files=files,
+            timeout=30,
+            headers={"User-Agent": "twat-fs/1.0"},
+        )
 
         # Use standardized HTTP response handling
         handle_http_response(response, self.provider_name)
 
-        # Parse the response
-        result = response.json()
-        if not result or "files" not in result:
-            msg = f"Invalid response from uguu.se: {result}"
+        # Parse the response — plain text URL
+        url = response.text.strip()
+        if not url.startswith("http"):
+            msg = f"Invalid response from server: {url}"
             raise NonRetryableError(msg, self.provider_name)
 
-        return cast(str, result["files"][0]["url"])
+        return url
 
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """
@@ -83,10 +87,8 @@ class UguuProvider(BaseProvider):
             UploadResult containing the URL and status
         """
         try:
-            # Upload the file
             url = self._do_upload(file)
 
-            # Log successful upload
             log_upload_attempt(
                 provider_name=self.provider_name,
                 file_path=file.name,
@@ -101,11 +103,9 @@ class UguuProvider(BaseProvider):
                     "raw_url": url,
                 },
             )
-        except (RetryableError, NonRetryableError):
-            # Re-raise these errors to allow for retries
+        except NonRetryableError:
             raise
         except Exception as e:
-            # Log failed upload
             log_upload_attempt(
                 provider_name=self.provider_name,
                 file_path=file.name,
@@ -124,7 +124,7 @@ class UguuProvider(BaseProvider):
 
     @classmethod
     def get_credentials(cls) -> None:
-        """Simple providers don't need credentials"""
+        """Simple providers don't need credentials."""
         return None
 
     @classmethod
@@ -135,13 +135,13 @@ class UguuProvider(BaseProvider):
 
 # Module-level functions to implement the Provider protocol
 def get_credentials() -> None:
-    """Simple providers don't need credentials"""
-    return UguuProvider.get_credentials()
+    """Simple providers don't need credentials."""
+    return X0atProvider.get_credentials()
 
 
 def get_provider() -> ProviderClient | None:
-    """Return an instance of the provider"""
-    return UguuProvider.get_provider()
+    """Return an instance of the provider."""
+    return X0atProvider.get_provider()
 
 
 def upload_file(
@@ -164,16 +164,10 @@ def upload_file(
 
     Returns:
         UploadResult: URL of the uploaded file
-
-    Raises:
-        FileNotFoundError: If the file doesn't exist
-        ValueError: If the path is not a file
-        PermissionError: If the file can't be read
-        RuntimeError: If the upload fails
     """
     return standard_upload_wrapper(
         get_provider(),
-        "uguu",
+        "x0at",
         local_path,
         remote_path,
         unique=unique,

@@ -8,7 +8,7 @@ using different providers.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, TYPE_CHECKING, cast # Added cast
+from typing import Any, TYPE_CHECKING, cast  # Added cast
 from dataclasses import dataclass
 from enum import Enum, auto
 import hashlib
@@ -26,7 +26,7 @@ from twat_fs.upload_providers import (
     NonRetryableError,
     UploadResult,
     ProviderFactory,
-    ProviderHelp, # Added import
+    ProviderHelp,  # Added import
 )
 from twat_fs.upload_providers.core import with_retry, RetryStrategy
 
@@ -68,10 +68,11 @@ class ProviderInfo:
 
 # Removed stub for _test_provider_online, full definition is later.
 
-def _perform_test_upload_and_validation(  # noqa: C901, PLR0911, PLR0912, PLR0915 - Test helper complexity
+
+def _perform_test_upload_and_validation(
     client: Any,
     test_file: Path,
-    _provider_name: str, # Prefixed as unused in this specific helper after refactor
+    _provider_name: str,  # Prefixed as unused in this specific helper after refactor
     original_hash: str,
     timing_metrics: dict[str, float],  # Base timing with start_time and read_duration
 ) -> tuple[bool, str, dict[str, float]]:
@@ -89,9 +90,7 @@ def _perform_test_upload_and_validation(  # noqa: C901, PLR0911, PLR0912, PLR091
 
         if not result:
             timing_metrics["end_time"] = time.time()
-            timing_metrics["total_duration"] = (
-                timing_metrics["end_time"] - timing_metrics["start_time"]
-            )
+            timing_metrics["total_duration"] = timing_metrics["end_time"] - timing_metrics["start_time"]
             return False, "Upload failed", timing_metrics
 
         if isinstance(result, UploadResult):
@@ -116,9 +115,7 @@ def _perform_test_upload_and_validation(  # noqa: C901, PLR0911, PLR0912, PLR091
 
         if response.status_code not in (200, 201, 202, 203, 204):
             timing_metrics["end_time"] = time.time()
-            timing_metrics["total_duration"] = (
-                timing_metrics["end_time"] - timing_metrics["start_time"]
-            )
+            timing_metrics["total_duration"] = timing_metrics["end_time"] - timing_metrics["start_time"]
             return (
                 False,
                 f"URL validation failed: status {response.status_code}",
@@ -126,35 +123,23 @@ def _perform_test_upload_and_validation(  # noqa: C901, PLR0911, PLR0912, PLR091
             )
 
     except ValueError as e:
-        timing_metrics["upload_duration"] = (
-            time.time() - upload_start_time if upload_start_time else 0.0
-        )
+        timing_metrics["upload_duration"] = time.time() - upload_start_time if upload_start_time else 0.0
         timing_metrics["end_time"] = time.time()
-        timing_metrics["total_duration"] = (
-            timing_metrics["end_time"] - timing_metrics["start_time"]
-        )
+        timing_metrics["total_duration"] = timing_metrics["end_time"] - timing_metrics["start_time"]
         if "401" in str(e) or "authentication" in str(e).lower():
             return False, f"Authentication required: {e}", timing_metrics
         return False, f"Upload failed: {e}", timing_metrics
     except requests.RequestException as e:
         timing_metrics["validation_duration"] = (
-            time.time() - validation_start_time
-            if "validation_start_time" in locals()
-            else 0.0
+            time.time() - validation_start_time if "validation_start_time" in locals() else 0.0
         )
         timing_metrics["end_time"] = time.time()
-        timing_metrics["total_duration"] = (
-            timing_metrics["end_time"] - timing_metrics["start_time"]
-        )
+        timing_metrics["total_duration"] = timing_metrics["end_time"] - timing_metrics["start_time"]
         return False, f"URL validation failed: {e}", timing_metrics
     except Exception as e:  # Catch any other upload related error
-        timing_metrics["upload_duration"] = (
-            time.time() - upload_start_time if upload_start_time else 0.0
-        )
+        timing_metrics["upload_duration"] = time.time() - upload_start_time if upload_start_time else 0.0
         timing_metrics["end_time"] = time.time()
-        timing_metrics["total_duration"] = (
-            timing_metrics["end_time"] - timing_metrics["start_time"]
-        )
+        timing_metrics["total_duration"] = timing_metrics["end_time"] - timing_metrics["start_time"]
         return False, f"Unexpected upload error: {e}", timing_metrics
 
     # Download and verify
@@ -169,16 +154,14 @@ def _perform_test_upload_and_validation(  # noqa: C901, PLR0911, PLR0912, PLR091
                 downloaded_hash = hashlib.sha256(dl_response.content).hexdigest()
                 if original_hash == downloaded_hash:
                     timing_metrics["end_time"] = time.time()
-                    timing_metrics["total_duration"] = (
-                        timing_metrics["end_time"] - timing_metrics["start_time"]
-                    )
+                    timing_metrics["total_duration"] = timing_metrics["end_time"] - timing_metrics["start_time"]
                     return True, "Online test passed successfully", timing_metrics
                 else:
-                    last_error_message = f"Content verification failed: original {original_hash}, downloaded {downloaded_hash}"
+                    last_error_message = (
+                        f"Content verification failed: original {original_hash}, downloaded {downloaded_hash}"
+                    )
             else:
-                last_error_message = (
-                    f"Download failed with status {dl_response.status_code}"
-                )
+                last_error_message = f"Download failed with status {dl_response.status_code}"
 
             if attempt < max_retries - 1:
                 time.sleep(retry_delay)
@@ -190,9 +173,7 @@ def _perform_test_upload_and_validation(  # noqa: C901, PLR0911, PLR0912, PLR091
                 retry_delay *= 2
 
     timing_metrics["end_time"] = time.time()
-    timing_metrics["total_duration"] = (
-        timing_metrics["end_time"] - timing_metrics["start_time"]
-    )
+    timing_metrics["total_duration"] = timing_metrics["end_time"] - timing_metrics["start_time"]
     return False, last_error_message, timing_metrics
 
 
@@ -210,11 +191,13 @@ def _verify_downloaded_file_hash(
             if dl_response.status_code == 200:
                 downloaded_hash = hashlib.sha256(dl_response.content).hexdigest()
                 if original_hash == downloaded_hash:
-                    timing_metrics["end_time"] = time.time() # Final end time
+                    timing_metrics["end_time"] = time.time()  # Final end time
                     timing_metrics["total_duration"] = timing_metrics["end_time"] - timing_metrics["start_time"]
                     return True, "Online test passed successfully (download verified)", timing_metrics
                 else:
-                    last_error_message = f"Content verification failed: original {original_hash}, downloaded {downloaded_hash}"
+                    last_error_message = (
+                        f"Content verification failed: original {original_hash}, downloaded {downloaded_hash}"
+                    )
             else:
                 last_error_message = f"Download failed with status {dl_response.status_code}"
 
@@ -227,7 +210,7 @@ def _verify_downloaded_file_hash(
                 time.sleep(retry_delay)
                 retry_delay *= 2
 
-    timing_metrics["end_time"] = time.time() # Final end time if all retries fail
+    timing_metrics["end_time"] = time.time()  # Final end time if all retries fail
     timing_metrics["total_duration"] = timing_metrics["end_time"] - timing_metrics["start_time"]
     return False, last_error_message, timing_metrics
 
@@ -279,16 +262,12 @@ def _test_provider_online(
             "read_duration": read_duration,
             "upload_duration": 0.0,
             "validation_duration": 0.0,
-            "provider": float(
-                hash(provider_name)
-            ),  # Keep provider hash for consistency if needed
+            "provider": float(hash(provider_name)),  # Keep provider hash for consistency if needed
             "end_time": 0.0,  # Will be set by helper or outer catch
             "total_duration": 0.0,  # Will be set by helper or outer catch
         }
 
-        return _perform_test_upload_and_validation(
-            client, test_file, provider_name, original_hash, base_timing_metrics
-        )
+        return _perform_test_upload_and_validation(client, test_file, provider_name, original_hash, base_timing_metrics)
 
     except Exception as e:
         # This catches errors during provider instantiation or initial file hashing
@@ -309,7 +288,7 @@ def _test_provider_online(
         return False, f"Unexpected error during test setup: {e}", final_timing_metrics
 
 
-def _check_provider_client_readiness( # Changed help_info type
+def _check_provider_client_readiness(  # Changed help_info type
     client: Any, provider_name: str, help_info: ProviderHelp | None
 ) -> ProviderInfo:
     """Checks if a provider client has the necessary upload methods."""
@@ -317,9 +296,7 @@ def _check_provider_client_readiness( # Changed help_info type
     has_async = hasattr(client, "async_upload_file") and not getattr(
         provider_class.async_upload_file, "__isabstractmethod__", False
     )
-    has_sync = hasattr(client, "upload_file") and not getattr(
-        provider_class.upload_file, "__isabstractmethod__", False
-    )
+    has_sync = hasattr(client, "upload_file") and not getattr(provider_class.upload_file, "__isabstractmethod__", False)
 
     retention_note = ""
     if help_info:
@@ -328,16 +305,14 @@ def _check_provider_client_readiness( # Changed help_info type
         if "note:" in setup_info_lower:
             retention_note = setup_info_lower[setup_info_lower.find("note:") :].strip()
 
-    explanation_base = f"{provider_name} ({type(client).__name__})" + (
-        f" - {retention_note}" if retention_note else ""
-    )
+    explanation_base = f"{provider_name} ({type(client).__name__})" + (f" - {retention_note}" if retention_note else "")
 
     if (has_async and has_sync) or has_sync:
         actual_help_info: dict[str, str]
         if help_info is None:
             actual_help_info = {}
         else:
-            actual_help_info = help_info # ProviderHelp is compatible with dict[str, str]
+            actual_help_info = help_info  # ProviderHelp is compatible with dict[str, str]
         return ProviderInfo(
             success=True,
             explanation=explanation_base,
@@ -346,18 +321,19 @@ def _check_provider_client_readiness( # Changed help_info type
         )
     else:
         setup_info_text = (
-            help_info.get("setup", "") if help_info
+            help_info.get("setup", "")
+            if help_info
             else "Provider methods (upload_file/async_upload_file) not correctly implemented."
         )
         return ProviderInfo(
             success=False,
             explanation=f"Provider '{provider_name}' needs configuration (method check failed).",
-            help_info={"setup": setup_info_text}, # This is dict[str,str]
+            help_info={"setup": setup_info_text},  # This is dict[str,str]
             timing=None,
         )
 
 
-def _execute_online_test_for_setup( # Removed hypothetical unused ignore
+def _execute_online_test_for_setup(  # Removed hypothetical unused ignore
     provider_name: str, provider_info_initial: ProviderInfo
 ) -> ProviderInfo:
     """Executes online test and updates ProviderInfo."""
@@ -371,9 +347,7 @@ def _execute_online_test_for_setup( # Removed hypothetical unused ignore
         )
     else:
         # Successfully tested online
-        updated_explanation = (
-            f"{provider_info_initial.explanation}\nOnline test passed successfully"
-        )
+        updated_explanation = f"{provider_info_initial.explanation}\nOnline test passed successfully"
         # Ensure timing is a dict, not None, before updating/assigning
         final_timing = timing if timing is not None else provider_info_initial.timing
         return ProviderInfo(
@@ -384,9 +358,7 @@ def _execute_online_test_for_setup( # Removed hypothetical unused ignore
         )
 
 
-def setup_provider(
-    provider: str, *, verbose: bool = False, online: bool = False
-) -> ProviderInfo:
+def setup_provider(provider: str, *, verbose: bool = False, online: bool = False) -> ProviderInfo:
     """
     Check a provider's setup status and return its information.
 
@@ -411,9 +383,7 @@ def setup_provider(
     help_info = get_provider_help(provider)  # Get help_info once
 
     if not provider_module:
-        setup_text = (
-            help_info.get("setup", "") if help_info else "Provider module not found."
-        )
+        setup_text = help_info.get("setup", "") if help_info else "Provider module not found."
         return ProviderInfo(
             success=False,
             explanation=f"Provider '{provider}' is not available.",
@@ -423,11 +393,7 @@ def setup_provider(
     try:
         client = provider_module.get_provider()
         if not client:
-            setup_text = (
-                help_info.get("setup", "")
-                if help_info
-                else "Provider needs configuration."
-            )
+            setup_text = help_info.get("setup", "") if help_info else "Provider needs configuration."
             return ProviderInfo(
                 success=False,
                 explanation=f"Provider '{provider}' needs configuration.",
@@ -443,9 +409,7 @@ def setup_provider(
 
     except Exception as e:
         logger.error(f"Error during setup of provider {provider}: {e}")
-        setup_text = (
-            help_info.get("setup", "") if help_info else "Setup failed due to an error."
-        )
+        setup_text = help_info.get("setup", "") if help_info else "Setup failed due to an error."
         return ProviderInfo(
             success=False,
             explanation=f"Provider '{provider}' setup failed: {e}",
@@ -453,9 +417,7 @@ def setup_provider(
         )
 
 
-def setup_providers(
-    *, verbose: bool = False, online: bool = False
-) -> dict[str, ProviderInfo]:
+def setup_providers(*, verbose: bool = False, online: bool = False) -> dict[str, ProviderInfo]:
     """
     Check setup status for all providers.
 
@@ -544,11 +506,7 @@ def _try_upload_with_provider(
 
         # Track validation time
         validation_start = time.time()
-        url = (
-            upload_result.url
-            if isinstance(upload_result, UploadResult)
-            else upload_result
-        )
+        url = upload_result.url if isinstance(upload_result, UploadResult) else upload_result
         try:
             response = requests.head(
                 url,

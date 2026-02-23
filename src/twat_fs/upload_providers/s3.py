@@ -52,6 +52,9 @@ PROVIDER_HELP: ProviderHelp = create_provider_help(
    - s3:PutObject
    - s3:GetObject
    - s3:ListBucket""",
+    max_size="Unlimited",
+    retention="Permanent",
+    auth_required="AWS credentials",
 )
 
 
@@ -110,9 +113,7 @@ class S3Provider(BaseProvider):
         if self.credentials.get("AWS_ACCESS_KEY_ID"):
             client_kwargs["aws_access_key_id"] = self.credentials["AWS_ACCESS_KEY_ID"]
         if self.credentials.get("AWS_SECRET_ACCESS_KEY"):
-            client_kwargs["aws_secret_access_key"] = self.credentials[
-                "AWS_SECRET_ACCESS_KEY"
-            ]
+            client_kwargs["aws_secret_access_key"] = self.credentials["AWS_SECRET_ACCESS_KEY"]
         if self.credentials.get("AWS_SESSION_TOKEN"):
             client_kwargs["aws_session_token"] = self.credentials["AWS_SESSION_TOKEN"]
 

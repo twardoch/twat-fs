@@ -159,9 +159,7 @@ class ProviderNameProvider(BaseProvider):
                 raise NonRetryableError(msg, self.provider_name)
             return str(url)
 
-    def upload_file_impl(
-        self, file: BinaryIO, remote_path: Path | None = None
-    ) -> UploadResult:
+    def upload_file_impl(self, file: BinaryIO, remote_path: Path | None = None) -> UploadResult:
         """
         Implement the actual file upload logic.
 

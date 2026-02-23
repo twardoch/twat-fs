@@ -30,6 +30,9 @@ from twat_fs.upload_providers.utils import (
 PROVIDER_HELP: ProviderHelp = create_provider_help(
     setup_instructions="No setup required. Note: Files are deleted after 6 days.",
     dependency_info="Python package: requests",
+    max_size="Unknown",
+    retention="6 days",
+    auth_required="None",
 )
 
 
@@ -52,9 +55,7 @@ class FilebinProvider(BaseProvider):
             str: A unique bin name
         """
         timestamp = int(time.time())
-        suffix = "".join(
-            secrets.choice(string.ascii_lowercase + string.digits) for _ in range(6)
-        )
+        suffix = "".join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         return f"twat-fs-{timestamp}-{suffix}"
 
     def _do_upload(self, file: BinaryIO, filename: str) -> str:

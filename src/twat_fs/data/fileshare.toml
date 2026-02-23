@@ -1,0 +1,808 @@
+title = "Anonymous Programmatic File Upload Services"
+date = "2026-02-21"
+sources = [
+    "01fileshare.md",
+    "02fileshare.md",
+    "03fileshare.md",
+]
+
+[[services]]
+name = "0x0.st"
+rank = 1
+tier = "recommended"
+status = "partial"
+url = "https://0x0.st"
+max_size = "512 MiB"
+max_size_bytes = 536870912
+retention = "30 days to 1 year (inverse of file size, cubic formula)"
+retention_min_days = 30
+retention_max_days = 365
+auth_required = false
+method = "POST"
+upload_curl = "curl -F 'file=@YOURFILE' https://0x0.st"
+upload_curl_info = "POST your file as multipart form data. The @ tells curl to read the file from disk. Replace YOURFILE with your local file path (e.g. photo.png)."
+download_curl = "curl -O RETURNED_URL"
+download_curl_info = "The upload prints a single URL to stdout (e.g. https://0x0.st/AbCd.png). Copy that URL and pass it to curl -O to download. The -O flag saves it with the original filename."
+response_format = "text"
+features = [
+    "open-source",
+    "stdin-pipe",
+    "secret-urls",
+    "custom-expiry",
+]
+caveats = [
+    "Report 01 flagged user-agent restrictions; reports 02 and 03 confirm working",
+    "Retention decreases as file size increases",
+]
+open_source_url = "https://github.com/mia-0/0x0"
+notes = "Gold standard. Widely used in Linux communities, Neovim plugins, Arch diagnostics. Returns bare URL."
+
+[services.test_result]
+tested_at = "2026-02-21 19:47:16 UTC"
+test_file_md5 = "1dcdb15ac643af4d185c301634431633"
+status = "upload_failed"
+upload_url = ""
+download_url = ""
+upload_time_s = 1.985
+download_time_s = 0.0
+upload_http_status = 403
+download_http_status = 0
+integrity_verified = false
+error = "No URL in response (HTTP 403)"
+
+[[services]]
+name = "catbox.moe"
+rank = 2
+tier = "recommended"
+status = "working"
+url = "https://catbox.moe"
+api_endpoint = "https://catbox.moe/user/api.php"
+max_size = "200 MB"
+max_size_bytes = 200000000
+retention = "Permanent (unless removed for abuse)"
+retention_min_days = 99999
+retention_max_days = 99999
+auth_required = false
+method = "POST"
+upload_curl = "curl -F 'reqtype=fileupload' -F 'fileToUpload=@YOURFILE' https://catbox.moe/user/api.php"
+upload_curl_info = "POST with two form fields: reqtype=fileupload tells the API you want to upload, and fileToUpload=@YOURFILE attaches your file. Replace YOURFILE with your local path (e.g. image.png)."
+download_curl = "curl -O RETURNED_URL"
+download_curl_info = "The upload prints a direct-link URL to stdout (e.g. https://files.catbox.moe/abc123.png). That URL is a permanent hotlink — curl -O downloads it, or paste it in a browser."
+response_format = "text"
+features = [
+    "hotlink",
+]
+caveats = [
+    "Has a list of allowed file types (most common types work)",
+    "Run by anonymous admins, donation-funded",
+    "Cloudflare-fronted; docs page may be hard to reach directly",
+]
+notes = "Permanent anonymous hosting. Very popular on imageboards and social media. Large ecosystem of third-party wrappers (Python, Node, Rust, Bash)."
+
+[services.test_result]
+tested_at = "2026-02-21 19:47:16 UTC"
+test_file_md5 = "1dcdb15ac643af4d185c301634431633"
+status = "ok"
+upload_url = "https://files.catbox.moe/g4dgd6.zip"
+download_url = "https://files.catbox.moe/g4dgd6.zip"
+upload_time_s = 1.01
+download_time_s = 1.047
+upload_http_status = 200
+download_http_status = 200
+integrity_verified = true
+
+[[services]]
+name = "litterbox.catbox.moe"
+rank = 3
+tier = "recommended"
+status = "working"
+url = "https://litterbox.catbox.moe"
+api_endpoint = "https://litterbox.catbox.moe/resources/internals/api.php"
+max_size = "1 GB"
+max_size_bytes = 1000000000
+retention = "1h, 12h, 24h, or 72h (user-selected)"
+retention_min_days = 0.04
+retention_max_days = 3
+auth_required = false
+method = "POST"
+upload_curl = "curl -F 'reqtype=fileupload' -F 'time=24h' -F 'fileToUpload=@YOURFILE' https://litterbox.catbox.moe/resources/internals/api.php"
+upload_curl_info = "Same as catbox.moe but adds time=24h to set expiry. Valid time values: 1h, 12h, 24h, 72h. Replace YOURFILE with your local path."
+download_curl = "curl -O RETURNED_URL"
+download_curl_info = "The upload prints a direct-link URL to stdout (e.g. https://litter.catbox.moe/abc123.zip). Download with curl -O or open in browser. Link expires after the chosen time."
+response_format = "text"
+features = [
+    "custom-expiry",
+]
+caveats = []
+notes = "Temporary counterpart to catbox.moe. Same reliable infrastructure. 5x larger size limit than catbox."
+
+[services.test_result]
+tested_at = "2026-02-21 19:47:16 UTC"
+test_file_md5 = "1dcdb15ac643af4d185c301634431633"
+status = "ok"
+upload_url = "https://litter.catbox.moe/kgu04n.zip"
+download_url = "https://litter.catbox.moe/kgu04n.zip"
+upload_time_s = 0.73
+download_time_s = 0.844
+upload_http_status = 200
+download_http_status = 200
+integrity_verified = true
+
+[[services]]
+name = "temp.sh"
+rank = 4
+tier = "recommended"
+status = "partial"
+url = "https://temp.sh"
+max_size = "4 GB"
+max_size_bytes = 4000000000
+retention = "3 days"
+retention_min_days = 3
+retention_max_days = 3
+auth_required = false
+method = "PUT"
+upload_curl = "curl -T YOURFILE https://temp.sh/YOURFILE"
+upload_curl_info = "Uses HTTP PUT (-T flag) which streams the file directly. The filename appears in both places: -T reads it from disk, and the URL path sets the remote name. Replace YOURFILE with your local path (e.g. backup.tar.gz)."
+download_curl = "curl -O RETURNED_URL"
+download_curl_info = "The upload prints a download URL to stdout (e.g. https://temp.sh/AbCdEf/backup.tar.gz). Download with curl -O or wget."
+response_format = "text"
+features = []
+caveats = [
+    "Only reported in 03fileshare.md; single-source verification",
+]
+notes = "Dead simple PUT upload, spiritual successor to transfer.sh. Largest free temporary storage among reliable services."
+
+[services.test_result]
+tested_at = "2026-02-21 19:47:16 UTC"
+test_file_md5 = "1dcdb15ac643af4d185c301634431633"
+status = "upload_failed"
+upload_url = ""
+download_url = ""
+upload_time_s = 0.158
+download_time_s = 0.0
+upload_http_status = 404
+download_http_status = 0
+integrity_verified = false
+error = "No URL in response (HTTP 404)"
+
+[[services]]
+name = "pixeldrain.com"
+rank = 5
+tier = "recommended"
+status = "partial"
+url = "https://pixeldrain.com"
+api_endpoint = "https://pixeldrain.com/api/file/"
+max_size = "20 GB"
+max_size_bytes = 20000000000
+retention = "~90 days after last download"
+retention_min_days = 90
+retention_max_days = 90
+auth_required = false
+method = "PUT"
+upload_curl = "curl -T YOURFILE https://pixeldrain.com/api/file/YOURFILE"
+upload_curl_info = "Uses HTTP PUT to stream the file. Replace YOURFILE with your local path. Returns JSON with an 'id' field you need for downloading."
+download_curl = "curl -OJ https://pixeldrain.com/api/file/FILE_ID"
+download_curl_info = "Extract the 'id' value from the upload JSON response (e.g. {\"id\":\"abc12345\"}). Then download with curl using that id in the URL. The -OJ flags save with the original filename from the server headers."
+response_format = "json"
+features = []
+caveats = [
+    "Only reported in 03fileshare.md; single-source verification",
+    "Download URL requires extracting 'id' from JSON response",
+    "Premium accounts available but not required",
+]
+notes = "Extremely generous limits for anonymous use. 20 GB per file, ~90 day retention. Also supports POST."
+
+[services.test_result]
+tested_at = "2026-02-21 19:47:16 UTC"
+test_file_md5 = "1dcdb15ac643af4d185c301634431633"
+status = "upload_failed"
+upload_url = ""
+download_url = ""
+upload_time_s = 0.175
+download_time_s = 0.0
+upload_http_status = 401
+download_http_status = 0
+integrity_verified = false
+error = "No URL in response (HTTP 401)"
+
+[[services]]
+name = "put.re"
+rank = 6
+tier = "usable"
+status = "partial"
+url = "https://put.re"
+api_endpoint = "https://api.put.re/upload"
+max_size = "100 MB (API) / 200 MB (web)"
+max_size_bytes = 104857600
+retention = "Permanent (unless removed for policy violation)"
+retention_min_days = 99999
+retention_max_days = 99999
+auth_required = false
+method = "POST"
+upload_curl = "curl -F 'file=@YOURFILE' https://api.put.re/upload"
+upload_curl_info = "POST your file as multipart form data to the API endpoint. Replace YOURFILE with your local path. Returns JSON with 'link' (download) and 'deleteLink' (for removal)."
+download_curl = "curl -OJ RETURNED_URL"
+download_curl_info = "Extract the 'link' value from the upload JSON response. That URL is a direct download link. Use curl -OJ or paste in a browser."
+response_format = "json"
+features = [
+    "encryption-at-rest",
+]
+caveats = [
+    "Only reported in 02fileshare.md; single-source verification",
+    "API limit is 100 MB vs 200 MB via web UI",
+]
+notes = "Privacy-focused. Files stored encrypted in AWS S3. JSON response includes deleteLink for removal."
+
+[services.test_result]
+tested_at = "2026-02-21 19:47:16 UTC"
+test_file_md5 = "1dcdb15ac643af4d185c301634431633"
+status = "upload_failed"
+upload_url = ""
+download_url = ""
+upload_time_s = 0.317
+download_time_s = 0.0
+upload_http_status = 503
+download_http_status = 0
+integrity_verified = false
+error = "No URL in response (HTTP 503)"
+
+[[services]]
+name = "x0.at"
+rank = 7
+tier = "usable"
+status = "working"
+url = "https://x0.at"
+max_size = "512 MiB"
+max_size_bytes = 536870912
+retention = "3 to 100 days (quadratic formula, smaller files last longer)"
+retention_min_days = 3
+retention_max_days = 100
+auth_required = false
+method = "POST"
+upload_curl = "curl -F 'file=@YOURFILE' https://x0.at/"
+upload_curl_info = "POST your file as multipart form data. Replace YOURFILE with your local path (e.g. notes.txt). The trailing slash on the URL is required."
+download_curl = "curl -O RETURNED_URL"
+download_curl_info = "The upload prints a short URL to stdout (e.g. https://x0.at/AbCd.txt). Download with curl -O or open in browser."
+response_format = "text"
+features = [
+    "open-source",
+    "stdin-pipe",
+]
+caveats = [
+    "Report 03 lists max size as 'Unknown'; report 02 confirms 512 MiB",
+]
+open_source_url = "https://github.com/x0-at"
+notes = "Austrian 0x0.st-style service. Supports netcat and ssh uploads. Open source."
+
+[services.test_result]
+tested_at = "2026-02-21 19:47:16 UTC"
+test_file_md5 = "1dcdb15ac643af4d185c301634431633"
+status = "ok"
+upload_url = "https://x0.at/dZ9m.zip"
+download_url = "https://x0.at/dZ9m.zip"
+upload_time_s = 0.24
+download_time_s = 0.16
+upload_http_status = 200
+download_http_status = 200
+integrity_verified = true
+
+[[services]]
+name = "uguu.se"
+rank = 8
+tier = "usable"
+status = "partial"
+url = "https://uguu.se"
+api_endpoint = "https://uguu.se/upload"
+max_size = "128 MiB"
+max_size_bytes = 134217728
+retention = "24 hours (report 02 says 3 hours; report 03 says 24 hours)"
+retention_min_days = 0.125
+retention_max_days = 1
+auth_required = false
+method = "POST"
+upload_curl = "curl -F 'files[]=@YOURFILE' https://uguu.se/upload"
+upload_curl_info = "POST your file using the array-style field name files[]. Replace YOURFILE with your local path. Returns JSON with a URL. Note: .zip files are blocked (415 Filetype not allowed)."
+download_curl = "curl -O RETURNED_URL"
+download_curl_info = "Extract the 'url' from the JSON response (a list of objects). That URL is a direct download link. Download with curl -O or open in browser."
+response_format = "json"
+features = [
+    "open-source",
+]
+caveats = [
+    "Conflicting retention info: report 02 says 3h, report 03 says 24h",
+    "Report 03 lists max size as 100 MB; report 02 says 128 MiB",
+    "IP and hash logged until file expiry",
+]
+open_source_url = "https://github.com/nokonoko/Uguu"
+notes = "Pomf-style host run by Pomf AB (Sweden). Supports JSON, CSV, text, HTML output formats."
+
+[services.test_result]
+tested_at = "2026-02-21 19:47:16 UTC"
+test_file_md5 = "1dcdb15ac643af4d185c301634431633"
+status = "upload_failed"
+upload_url = ""
+download_url = ""
+upload_time_s = 0.31
+download_time_s = 0.0
+upload_http_status = 415
+download_http_status = 0
+integrity_verified = false
+error = "No URL in response (HTTP 415)"
+
+[[services]]
+name = "sendit.sh"
+rank = 9
+tier = "usable"
+status = "working"
+url = "https://sendit.sh"
+max_size = "3 GB"
+max_size_bytes = 3000000000
+retention = "1 day, single download only"
+retention_min_days = 1
+retention_max_days = 1
+auth_required = false
+method = "PUT"
+upload_curl = "curl https://sendit.sh -T YOURFILE"
+upload_curl_info = "Uses HTTP PUT (-T) to stream the file to sendit.sh. Replace YOURFILE with your local path. The response text contains a wget command with the download URL."
+download_curl = "wget RETURNED_URL"
+download_curl_info = "The upload response prints a line like 'wget https://sendit.sh/XXXXX/yourfile.ext'. Copy that URL. Note: the file can only be downloaded ONCE — after that the link is dead."
+response_format = "text"
+single_download = true
+features = []
+caveats = [
+    "File deleted after first download",
+    "Only reported in 02fileshare.md; single-source verification",
+]
+notes = "New CLI-first service. Good for one-time transfers. 3 GB is generous but single-download limits reusability."
+
+[services.test_result]
+tested_at = "2026-02-21 19:47:16 UTC"
+test_file_md5 = "1dcdb15ac643af4d185c301634431633"
+status = "ok"
+upload_url = "https://sendit.sh/CV4k9/test.zip"
+download_url = "https://sendit.sh/CV4k9/test.zip"
+upload_time_s = 0.262
+download_time_s = 0.052
+upload_http_status = 200
+download_http_status = 200
+integrity_verified = true
+notes = [
+    "single-download service; verification download will consume the link",
+]
+
+[[services]]
+name = "tempfile.org"
+rank = 10
+tier = "usable"
+status = "partial"
+url = "https://tempfile.org"
+api_endpoint = "https://tempfile.org/api/upload/local"
+max_size = "100 MB"
+max_size_bytes = 100000000
+retention = "1 to 48 hours (user-selected, default 1h)"
+retention_min_days = 0.04
+retention_max_days = 2
+auth_required = false
+method = "POST"
+upload_curl = "curl -X POST -F 'files=@YOURFILE' -F 'expiryHours=24' https://tempfile.org/api/upload/local"
+upload_curl_info = "POST your file with an expiryHours field (valid: 1, 6, 24, 48). Replace YOURFILE with your local path. Returns JSON with a files array containing id, name, url, and expiryTime."
+download_curl = "curl -OJ RETURNED_URL"
+download_curl_info = "Extract the 'url' from files[0] in the JSON response (e.g. https://tempfile.org/XXXX/). The exact direct-download URL format is unclear — the page URL may require a browser. Try appending the filename to the URL."
+response_format = "json"
+features = [
+    "custom-expiry",
+    "malware-scan",
+]
+caveats = [
+    "Rate limit: 200 uploads per hour",
+]
+notes = "Modern API (v2.1). Supports upload-from-URL and malware scanning. Only in report 02."
+
+[services.test_result]
+tested_at = "2026-02-21 19:47:16 UTC"
+test_file_md5 = "1dcdb15ac643af4d185c301634431633"
+status = "download_failed"
+upload_url = "https://tempfile.org/4FkFvDqCwev/"
+download_url = "https://tempfile.org/4FkFvDqCwev/test.zip"
+upload_time_s = 0.448
+download_time_s = 0.497
+upload_http_status = 200
+download_http_status = 404
+integrity_verified = false
+error = "Download HTTP 404"
+
+[[services]]
+name = "tmpfiles.org"
+rank = 11
+tier = "usable"
+status = "working"
+url = "https://tmpfiles.org"
+api_endpoint = "https://tmpfiles.org/api/v1/upload"
+max_size = "unknown"
+retention = "60 minutes"
+retention_min_days = 0.04
+retention_max_days = 0.04
+auth_required = false
+method = "POST"
+upload_curl = "curl -F 'file=@YOURFILE' https://tmpfiles.org/api/v1/upload"
+upload_curl_info = "POST your file as multipart form data. Replace YOURFILE with your local path. Returns JSON like {\"data\":{\"url\":\"http://tmpfiles.org/12345/file.ext\"}}."
+download_curl = "curl -OJ http://tmpfiles.org/dl/12345/YOURFILE"
+download_curl_info = "The upload JSON returns a page URL like http://tmpfiles.org/12345/file.ext. To get a DIRECT download link, insert /dl/ after the domain: http://tmpfiles.org/dl/12345/file.ext. Then curl -OJ that URL."
+response_format = "json"
+features = []
+caveats = [
+    "Direct download URL requires inserting /dl/ into the returned path",
+    "Very short retention (60 min) limits usefulness",
+    "Only reported in 03fileshare.md; single-source verification",
+]
+notes = "Ultra-short retention. Good only for ephemeral sharing where you control both ends."
+
+[services.test_result]
+tested_at = "2026-02-21 19:47:16 UTC"
+test_file_md5 = "1dcdb15ac643af4d185c301634431633"
+status = "ok"
+upload_url = "http://tmpfiles.org/25461270/test.zip"
+download_url = "http://tmpfiles.org/dl/25461270/test.zip"
+upload_time_s = 0.196
+download_time_s = 0.159
+upload_http_status = 200
+download_http_status = 200
+integrity_verified = true
+
+[[services]]
+name = "file.io"
+rank = 12
+tier = "partial"
+status = "partial"
+url = "https://file.io"
+max_size = "2 to 4 GB (reports vary)"
+max_size_bytes = 2000000000
+retention = "Single download or up to 14 days"
+retention_min_days = 0.001
+retention_max_days = 14
+auth_required = false
+method = "POST"
+upload_curl = "curl -F 'file=@YOURFILE' https://file.io"
+upload_curl_info = "POST your file as multipart form data. Replace YOURFILE with your local path. Should return JSON with {\"success\":true,\"link\":\"https://file.io/XXXXX\"}. As of Feb 2026 the API returns HTML instead — the service appears broken for programmatic use."
+download_curl = "curl -LO RETURNED_URL"
+download_curl_info = "If the upload succeeds, extract the 'link' value from the JSON. That link is a ONE-TIME download — the file is deleted after the first download. Use curl -LO (follow redirects) to save it."
+response_format = "json"
+single_download = true
+features = [
+    "custom-expiry",
+]
+caveats = [
+    "Report 01 says broken (redirect loop)",
+    "Report 02 says working",
+    "Report 03 says partial with reliability issues",
+    "May require API key for consistent access",
+]
+notes = "One-time self-destructing links. Conflicting reliability reports. Use with caution."
+
+[services.test_result]
+tested_at = "2026-02-21 19:47:16 UTC"
+test_file_md5 = "1dcdb15ac643af4d185c301634431633"
+status = "upload_failed"
+upload_url = ""
+download_url = ""
+upload_time_s = 2.024
+download_time_s = 0.0
+upload_http_status = 404
+download_http_status = 0
+integrity_verified = false
+error = "No URL in response (HTTP 404)"
+notes = [
+    "single-download service; verification download will consume the link",
+]
+
+[[services]]
+name = "gofile.io"
+rank = 13
+tier = "partial"
+status = "partial"
+url = "https://gofile.io"
+api_endpoint = "https://upload.gofile.io/uploadFile"
+max_size = "10 GB (report 02) / unlimited (report 03)"
+max_size_bytes = 10000000000
+retention = "~10 days (free/guest)"
+retention_min_days = 10
+retention_max_days = 10
+auth_required = false
+method = "two-step"
+upload_curl = "SERVER=$(curl -s https://api.gofile.io/servers | jq -r '.data.servers[0].name') && curl -F 'file=@YOURFILE' https://${SERVER}.gofile.io/uploadFile"
+upload_curl_info = "Two-step process. First, fetch an available upload server name from the /servers endpoint using jq to parse JSON. Then POST your file to that server. Replace YOURFILE with your local path. Requires jq installed."
+download_curl = "# open RETURNED_URL in a browser"
+download_curl_info = "The upload returns JSON with a 'downloadPage' URL (e.g. https://gofile.io/d/AbCdEf). This page REQUIRES JavaScript — there is no direct file download link for anonymous uploads. You must open it in a browser to download."
+response_format = "json"
+features = []
+caveats = [
+    "Two-step upload: must fetch server name first",
+    "Download page requires JavaScript (no direct file link for anon uploads)",
+    "Guest files may move to cold storage after 10 days",
+]
+notes = "Very large size limit but two-step process and JS-only download page reduce usability for automation."
+
+[services.test_result]
+tested_at = "2026-02-21 19:47:16 UTC"
+test_file_md5 = "1dcdb15ac643af4d185c301634431633"
+status = "integrity_failed"
+upload_url = "https://gofile.io/d/PIbu9j"
+download_url = "https://gofile.io/d/PIbu9j"
+upload_time_s = 0.491
+download_time_s = 0.296
+upload_http_status = 200
+download_http_status = 200
+integrity_verified = false
+error = "MD5 mismatch: expected 1dcdb15ac643af4d185c301634431633, got ad98830937258a475eb70549523eb157 (downloaded 8421 bytes)"
+notes = [
+    "download page requires JS; direct file link may not work without token",
+]
+
+[[services]]
+name = "tmpfile.link"
+rank = 14
+tier = "partial"
+status = "working"
+url = "https://tmpfile.link"
+api_endpoint = "https://tmpfile.link/api/upload"
+max_size = "100 MB"
+max_size_bytes = 100000000
+retention = "7 days"
+retention_min_days = 7
+retention_max_days = 7
+auth_required = false
+method = "POST"
+upload_curl = "curl -X POST -F 'file=@YOURFILE' https://tmpfile.link/api/upload"
+upload_curl_info = "POST your file as multipart form data with explicit -X POST. Replace YOURFILE with your local path. Returns JSON with a 'downloadLink' field containing the direct CDN URL."
+download_curl = "curl -OJ RETURNED_URL"
+download_curl_info = "Extract the 'downloadLink' from the JSON response (e.g. https://d8.tfdl.net/public/2026-02-21/uuid/yourfile.ext). That URL is a direct download link hosted on their CDN. Use curl -OJ to save with original filename."
+response_format = "json"
+features = []
+caveats = [
+    "Report 01 says working (no auth)",
+    "Report 02 says API now requires X-User-Id and X-Auth-Token headers",
+    "Report 03 says working (no auth), may route through api.secretme.cn",
+    "Chinese-operated; CDN routing may vary by region",
+]
+notes = "Conflicting auth reports. May work without auth in some regions. Treat as unreliable for automation."
+
+[services.test_result]
+tested_at = "2026-02-21 19:47:16 UTC"
+test_file_md5 = "1dcdb15ac643af4d185c301634431633"
+status = "ok"
+upload_url = "https://d8.tfdl.net/public/2026-02-21/b4c7490f-ac30-45ed-8d51-04a64dfc2791/test.zip"
+download_url = "https://d8.tfdl.net/public/2026-02-21/b4c7490f-ac30-45ed-8d51-04a64dfc2791/test.zip"
+upload_time_s = 1.085
+download_time_s = 0.436
+upload_http_status = 200
+download_http_status = 200
+integrity_verified = true
+
+[[services]]
+name = "anonymousfiles.io"
+rank = 15
+tier = "partial"
+status = "unreliable"
+url = "https://anonymousfiles.io"
+max_size = "5 GB"
+max_size_bytes = 5000000000
+retention = "30 days"
+retention_min_days = 30
+retention_max_days = 30
+auth_required = false
+method = "POST"
+features = []
+caveats = [
+    "Report 01 says browser-only (requires JavaScript)",
+    "Report 03 says has API but unreliable availability",
+]
+notes = "Inconsistent availability. Not recommended for automation."
+
+[[services]]
+name = "anonfiles clones"
+rank = 16
+tier = "partial"
+status = "changed"
+url = "https://anonfilesnew.com"
+max_size = "20 GB"
+max_size_bytes = 20000000000
+retention = "Indefinite (varies by clone)"
+auth_required = true
+method = "POST"
+features = []
+caveats = [
+    "Original AnonFiles went offline mid-2025",
+    "AnonFilesNew now requires API key",
+    "Clone reliability varies wildly",
+    "Rate limits: 500 files/50 GB per hour, 5000 files/100 GB per day (historical)",
+]
+notes = "Ecosystem of clones (BayFiles, OpenLoad, VShare, Lolabits). Most now require API keys. Avoid for anonymous use."
+
+[[services]]
+name = "transfer.sh"
+rank = 17
+tier = "dead"
+status = "down"
+url = "https://transfer.sh"
+max_size = "10 GB (historical)"
+retention = "14 days (historical)"
+auth_required = false
+method = "PUT"
+features = [
+    "open-source",
+]
+caveats = [
+    "Persistent connectivity issues since 2024",
+]
+open_source_url = "https://github.com/dutchcoders/transfer.sh"
+notes = "Legendary service, now unreliable as hosted. Self-hosting the open-source Go code still works."
+
+[[services]]
+name = "oshi.at"
+rank = 18
+tier = "dead"
+status = "dead"
+url = "https://oshi.at"
+max_size = "unknown"
+retention = "unknown"
+auth_required = false
+method = "POST"
+features = []
+caveats = [
+    "Domain is for sale",
+]
+notes = "Completely defunct."
+
+[[services]]
+name = "bashupload.com"
+rank = 19
+tier = "dead"
+status = "down"
+url = "https://bashupload.com"
+max_size = "unknown"
+retention = "unknown"
+auth_required = false
+method = "POST"
+features = [
+    "open-source",
+]
+caveats = [
+    "Returns 404",
+]
+notes = "Open-source code exists but hosted service is dead."
+
+[[services]]
+name = "sprunge.us"
+rank = 20
+tier = "dead"
+status = "dead"
+url = "https://sprunge.us"
+max_size = "text only"
+retention = "unknown"
+auth_required = false
+method = "POST"
+features = []
+caveats = [
+    "Over quota on Google App Engine since ~2023",
+]
+notes = "Text-only pastebin. Dead since ~2023."
+
+[[services]]
+name = "ix.io"
+rank = 21
+tier = "dead"
+status = "dead"
+url = "https://ix.io"
+max_size = "text only"
+retention = "unknown"
+auth_required = false
+method = "POST"
+features = []
+caveats = [
+    "Shows 'Taking a break' since ~2023",
+]
+notes = "Text-only pastebin. On hiatus indefinitely."
+
+[[services]]
+name = "tmpsend.com"
+rank = 22
+tier = "dead"
+status = "changed"
+url = "https://tmpsend.com"
+max_size = "1 GB (historical)"
+retention = "7 days (historical)"
+auth_required = false
+method = "browser-only"
+features = []
+caveats = [
+    "Returns ads instead of API responses",
+]
+notes = "Was browser-only even when functional. Now serves ads."
+
+[[services]]
+name = "wormhole.app"
+rank = 23
+tier = "dead"
+status = "working"
+url = "https://wormhole.app"
+max_size = "10 GB (server) / unlimited (P2P)"
+retention = "24 hours"
+auth_required = false
+method = "browser-only"
+features = [
+    "encryption-at-rest",
+]
+caveats = [
+    "No programmatic API whatsoever",
+    "Browser-only with E2E encryption",
+    "Technically working but excluded from ranking due to no CLI support",
+]
+notes = "Excellent browser-based E2E encrypted sharing. Zero CLI usability. Listed last because this report covers programmatic uploads only."
+
+[[services]]
+name = "dpaste.com"
+rank = 100
+tier = "usable"
+status = "working"
+url = "https://dpaste.com"
+api_endpoint = "https://dpaste.com/api/v2/"
+max_size = "text only"
+retention = "configurable"
+auth_required = false
+method = "POST"
+upload_curl = "cat YOURFILE | curl -s -F 'content=<-' https://dpaste.com/api/v2/"
+upload_curl_info = "Pipe your text file into curl. The '<-' tells curl to read the form field from stdin. Replace YOURFILE with your text file path. Returns a URL to stdout."
+download_curl = "curl RETURNED_URL"
+download_curl_info = "The upload prints a paste URL to stdout (e.g. https://dpaste.com/XXXXX). Append .txt for raw text: curl https://dpaste.com/XXXXX.txt"
+response_format = "text"
+features = []
+caveats = [
+    "Text/code snippets only, not binary files",
+]
+notes = "Pastebin. Text only."
+
+[[services]]
+name = "paste.rs"
+rank = 101
+tier = "usable"
+status = "working"
+url = "https://paste.rs"
+max_size = "text only"
+retention = "unknown"
+auth_required = false
+method = "POST"
+upload_curl = "cat YOURFILE | curl --data-binary @- https://paste.rs"
+upload_curl_info = "Pipe your text into curl. The --data-binary @- reads raw bytes from stdin, preserving newlines. Replace YOURFILE with your text file. Returns a URL to stdout."
+download_curl = "curl RETURNED_URL"
+download_curl_info = "The upload prints a paste URL to stdout (e.g. https://paste.rs/AbC). That URL returns the raw text directly — just curl it."
+response_format = "text"
+features = [
+    "stdin-pipe",
+]
+caveats = [
+    "Text/code snippets only, not binary files",
+]
+notes = "Pastebin. Text only."
+
+[[services]]
+name = "clbin.com"
+rank = 102
+tier = "usable"
+status = "working"
+url = "https://clbin.com"
+max_size = "text only"
+retention = "unknown"
+auth_required = false
+method = "POST"
+upload_curl = "cat YOURFILE | curl -F 'clbin=<-' https://clbin.com"
+upload_curl_info = "Pipe your text into curl. The '<-' reads the form field from stdin. Replace YOURFILE with your text file. Returns a URL to stdout."
+download_curl = "curl RETURNED_URL"
+download_curl_info = "The upload prints a paste URL to stdout (e.g. https://clbin.com/AbCdE). That URL returns the raw text directly — just curl it."
+response_format = "text"
+features = [
+    "stdin-pipe",
+]
+caveats = [
+    "Text/code snippets only, not binary files",
+]
+notes = "Pastebin. Text only."

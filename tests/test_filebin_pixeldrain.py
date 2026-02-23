@@ -29,9 +29,7 @@ def test_filebin_upload_success(test_file: Path) -> None:
     # Mock the filebin.net response with regex pattern for URL
     responses.add(
         responses.PUT,  # Changed from POST to PUT to match the implementation
-        re.compile(
-            r"https://filebin\.net/.*"
-        ),  # Use regex pattern for flexible URL matching
+        re.compile(r"https://filebin\.net/.*"),  # Use regex pattern for flexible URL matching
         status=200,
         body="",  # Filebin returns empty body
         headers={"Location": "https://filebin.net/abc123/test.txt"},
@@ -53,9 +51,7 @@ def test_filebin_upload_failure(test_file: Path) -> None:
     # Mock the filebin.net error response
     responses.add(
         responses.PUT,  # Changed from POST to PUT
-        re.compile(
-            r"https://filebin\.net/.*"
-        ),  # Use regex pattern for flexible URL matching
+        re.compile(r"https://filebin\.net/.*"),  # Use regex pattern for flexible URL matching
         status=500,
         json={"error": "Internal server error"},
     )

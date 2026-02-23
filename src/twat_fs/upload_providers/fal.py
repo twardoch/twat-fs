@@ -39,6 +39,9 @@ PROVIDER_HELP: ProviderHelp = create_provider_help(
     dependency_info="""Additional setup needed:
 1. Install the FAL client: pip install fal-client
 2. Ensure your API key has the necessary permissions""",
+    max_size="Unknown",
+    retention="Unknown",
+    auth_required="FAL_KEY env var",
 )
 
 
@@ -142,7 +145,7 @@ class FalProvider(BaseProvider):
                 file.seek(0)  # Ensure we're at the beginning
                 tmp_file.write(file.read())
                 tmp_file.flush()
-                
+
                 # Upload using the temporary file path
                 result = self.client.upload_file(tmp_file.name)
 

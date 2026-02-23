@@ -7,13 +7,13 @@ license = 'MIT'
 keywords = ['file-upload', 'fal', 'dropbox', 's3', 'twat']
 dynamic = ['version']
 classifiers = [
-  'Development Status :: 4 - Beta',
-  'Programming Language :: Python',
-  'Programming Language :: Python :: 3.10',
-  'Programming Language :: Python :: 3.11',
-  'Programming Language :: Python :: 3.12',
-  'Programming Language :: Python :: Implementation :: CPython',
-  'Programming Language :: Python :: Implementation :: PyPy',
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
   'aiohappyeyeballs>=2.5.0',
@@ -218,47 +218,67 @@ overrides = [
 ]
 
 [tool.ruff]
-line-length = 88
-target-version = 'py310'
+line-length = 120
+target-version = "py310"
 
 [tool.ruff.lint]
-extend-select = [
-  'A',
-  'ARG',
-  'B',
-  'C',
-  'DTZ',
-  'E',
-  'EM',
-  'F',
-  'FBT',
-  'I',
-  'ICN',
-  'ISC',
-  'N',
-  'PLC',
-  'PLE',
-  'PLR',
-  'PLW',
-  'Q',
-  'RUF',
-  'S',
-  'T',
-  'TID',
-  'UP',
-  'W',
-  'YTT',
+select = [
+    "A",
+    "ARG",
+    "B",
+    "C",
+    "DTZ",
+    "E",
+    "EM",
+    "F",
+    "FBT",
+    "I",
+    "ICN",
+    "ISC",
+    "N",
+    "PLC",
+    "PLE",
+    "PLR",
+    "PLW",
+    "Q",
+    "RUF",
+    "S",
+    "T",
+    "TID",
+    "UP",
+    "W",
+    "YTT",
 ]
-ignore = ['ARG001', 'E501', 'I001', 'RUF001', 'PLR2004', 'EXE003', 'ISC001']
-
-[tool.ruff.lint.isort]
-known-first-party = ['twat_fs']
-
-[tool.ruff.lint.flake8-tidy-imports]
-ban-relative-imports = 'all'
+ignore = [
+    "ARG001",
+    "ARG002",
+    "ARG004",
+    "ARG005",
+    "B904",
+    "C901",
+    "DTZ005",
+    "E501",
+    "F401",
+    "F811",
+    "FBT001",
+    "FBT002",
+    "FBT003",
+    "I001",
+    "ISC001",
+    "N803",
+    "PLR0911",
+    "PLR0912",
+    "PLR0913",
+    "PLR0915",
+    "PLR2004",
+    "S311",
+    "S603",
+    "S607",
+    "T201",
+]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ['S101', 'PLR2004', 'TID252']
+"tests/*" = ["S101"]
 
 [tool.coverage.paths]
 tests = ['tests', '*/twat-fs/tests']
@@ -292,12 +312,12 @@ filterwarnings = [
 log_cli = true
 log_cli_level = 'INFO'
 markers = [
-    '''benchmark: marks tests as benchmarks (select with '-m benchmark')''',
-  'unit: mark a test as a unit test',
-  'integration: mark a test as an integration test',
-  'permutation: tests for permutation functionality',
-  'parameter: tests for parameter parsing',
-  'prompt: tests for prompt parsing',
+    "benchmark: marks tests as benchmarks (select with '-m benchmark')",
+    "unit: mark a test as a unit test",
+    "integration: mark a test as an integration test",
+    "slow: marks tests as slow (select with '-m slow')",
+    "online: marks tests that require internet access",
+    "requires_api_key: marks tests that require API keys",
 ]
 norecursedirs = [
   '.*',

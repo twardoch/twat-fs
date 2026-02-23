@@ -17,28 +17,25 @@ from pathlib import Path
 import fire
 from loguru import logger
 from rich.console import Console
-from rich.table import Table  # Moved from UploadProviderCommands.status
+from rich.table import Table
 
 from twat_fs.upload import (
     PROVIDERS_PREFERENCE,
     setup_provider as _setup_provider,
     setup_providers as _setup_providers,
     upload_file as _upload_file,
-    UploadOptions, # Import UploadOptions
+    UploadOptions,
 )
 
-# Configure logging: errors and warnings to stderr, provider info to stdout
-logger.remove()  # Remove default handler
+logger.remove()
 log_level = os.getenv("LOGURU_LEVEL", "INFO").upper()
 
-# All warnings and errors go to stderr
 logger.add(
     sys.stderr,
     level="WARNING",
     format="<red>Error: {message}</red>",
 )
 
-# Info and debug messages go to stdout, but only for non-error records
 logger.add(
     sys.stdout,
     level=log_level,
@@ -60,45 +57,39 @@ def parse_provider_list(provider: str) -> list[str] | None:
 class UploadProviderCommands:
     """Commands for managing upload providers."""
 
-    def _display_single_provider_status(
-        self, provider_id: str, *, online: bool, console: Console
-    ) -> None:
-        """Helper to display status for a single provider."""
+    def _display_single_provider_status(self, provider_id: str, *, online: bool, console: Console) -> None:
         with console.status("[cyan]Testing provider...[/cyan]"):
             result = _setup_provider(provider_id, verbose=True, online=online)
             if result.success:
-                console.print(
-                    f"\n[green]Provider {provider_id} is ready to use[/green]"
-                )
+                console.print(f"\n[green]Provider {provider_id} is ready to use[/green]")
+                if result.help_info.get("max_size"):
+                    console.print(f"  Max Size: {result.help_info['max_size']}")
+                if result.help_info.get("retention"):
+                    console.print(f"  Retention: {result.help_info['retention']}")
+                if result.help_info.get("auth_required") and result.help_info["auth_required"] != "None":
+                    console.print(f"  Auth: {result.help_info['auth_required']}")
                 if online and result.timing:
-                    console.print(
-                        f"\n[cyan]Online test time: {result.timing.get('total_duration', 0.0):.2f}s[/cyan]"
-                    )
+                    console.print(f"\n[cyan]Online test time: {result.timing.get('total_duration', 0.0):.2f}s[/cyan]")
             else:
                 console.print(f"\n[red]Provider {provider_id} is not ready[/red]")
                 console.print(f"\n[yellow]Reason:[/yellow] {result.explanation}")
                 console.print("\n[yellow]Setup Instructions:[/yellow]")
-                console.print(
-                    result.help_info.get("setup", "No setup instructions available")
-                )
+                console.print(result.help_info.get("setup", "No setup instructions available"))
 
-    def _display_all_providers_status_table(
-        self, *, online: bool, console: Console
-    ) -> None:
-        """Helper to display status for all providers in a table."""
+    def _display_all_providers_status_table(self, *, online: bool, console: Console) -> None:
         table = Table(title="Provider Setup Status", show_lines=True)
         table.add_column("Provider", no_wrap=True)
         table.add_column("Status", no_wrap=True)
+        table.add_column("Max Size", no_wrap=True)
+        table.add_column("Retention", no_wrap=True)
+        table.add_column("Auth", no_wrap=True)
         if online:
             table.add_column("Time (s)", justify="right", no_wrap=True)
         table.add_column("Details", width=50)
 
-        with console.status(
-            "[cyan]Testing providers...[/cyan]"
-        ) as _:  # rich_status was unused
+        with console.status("[cyan]Testing providers...[/cyan]") as _:
             results = _setup_providers(verbose=True, online=online)
 
-            # sorted_providers = [] # Unused local variable
             ready_providers = []
             not_ready_providers = []
 
@@ -106,11 +97,7 @@ class UploadProviderCommands:
                 if provider.lower() == "simple":
                     continue
 
-                time_metric = (
-                    info.timing.get("total_duration", float("inf"))
-                    if info.timing
-                    else float("inf")
-                )
+                time_metric = info.timing.get("total_duration", float("inf")) if info.timing else float("inf")
                 if info.success:
                     ready_providers.append((provider, info, time_metric))
                 else:
@@ -124,9 +111,13 @@ class UploadProviderCommands:
             ]
 
             for provider, info in sorted_providers_info:
-                current_status = (  # Renamed status to current_status
-                    "[green]Ready[/green]" if info.success else "[red]Not Ready[/red]"
-                )
+                current_status = "[green]Ready[/green]" if info.success else "[red]Not Ready[/red]"
+                max_size = info.help_info.get("max_size", "")
+                retention = info.help_info.get("retention", "")
+                auth = info.help_info.get("auth_required", "")
+                if auth == "None":
+                    auth = ""
+
                 details = info.explanation
                 if info.help_info.get("setup"):
                     details = f"{details}\n{info.help_info['setup']}"
@@ -135,9 +126,17 @@ class UploadProviderCommands:
                     time_val = ""
                     if info.timing and info.timing.get("total_duration") is not None:
                         time_val = f"{info.timing.get('total_duration', 0.0):.2f}"
-                    row = [provider, current_status, time_val, details]
+                    row = [
+                        provider,
+                        current_status,
+                        max_size,
+                        retention,
+                        auth,
+                        time_val,
+                        details,
+                    ]
                 else:
-                    row = [provider, current_status, details]
+                    row = [provider, current_status, max_size, retention, auth, details]
                 table.add_row(*row)
 
         console.print("\n")
@@ -151,7 +150,7 @@ class UploadProviderCommands:
             provider_id: Optional provider ID to show status info for.
             online: If True, run online tests to verify provider functionality.
         """
-        console = Console(stderr=True)  # Use stderr for error messages
+        console = Console(stderr=True)
 
         if provider_id:
             self._display_single_provider_status(provider_id, console=console, online=online)
@@ -162,7 +161,6 @@ class UploadProviderCommands:
         """List all available (ready) provider IDs, one per line. If --online is provided, run online tests.
         In online mode, reconfigure logger so that info messages are printed to stderr."""
         if online:
-            # Reconfigure logger to send all info messages to stderr
             logger.remove()
             logger.add(sys.stderr, level="INFO", format="{message}")
 
@@ -170,13 +168,10 @@ class UploadProviderCommands:
 
         for provider in PROVIDERS_PREFERENCE:
             if provider.lower() == "simple":
-                continue  # Skip the base provider
+                continue
             result = _setup_provider(provider, verbose=False, online=online)
             if result.success:
                 active_providers.append(provider)
-
-        # The loop "for provider in active_providers: pass" was redundant and has been removed.
-        # If providers should be printed, sys.stdout.write("\n".join(active_providers) + "\n") could be used here.
 
         sys.exit(0)
 
@@ -197,22 +192,23 @@ class TwatFS:
         """Show version information."""
         try:
             from twat_fs.__version__ import __version__
+
             print(f"twat-fs {__version__}")
         except ImportError:
-            # Fallback to importlib.metadata if __version__.py is not available
             from importlib import metadata
+
             try:
                 version = metadata.version("twat-fs")
                 print(f"twat-fs {version}")
             except Exception:
                 print("twat-fs (version unknown)")
 
-    def upload( # noqa: PLR0913 - CLI command gathers multiple options
+    def upload(
         self,
         file_path: str | Path,
         provider: str | list[str] = PROVIDERS_PREFERENCE,
         remote_path: str | None = None,
-        *,  # Make subsequent boolean arguments keyword-only
+        *,
         unique: bool = False,
         force: bool = False,
         fragile: bool = False,
@@ -232,25 +228,20 @@ class TwatFS:
             URL of the uploaded file
         """
         try:
-            # Handle provider list passed as string
             if isinstance(provider, str):
                 providers = parse_provider_list(provider)
                 if providers is not None:
                     provider = providers
 
-            # Verify file exists
             if not Path(file_path).exists():
                 logger.error(f"File not found: {file_path}")
                 sys.exit(1)
 
-            # Create UploadOptions object from CLI arguments
             options = UploadOptions(
-                # remote_path is not directly exposed by this CLI command,
-                # provider-specific remote path/key is usually handled internally by provider
                 remote_path=None,
                 unique=unique,
                 force=force,
-                upload_path=remote_path,  # CLI's remote_path is the base upload directory/prefix
+                upload_path=remote_path,
                 fragile=fragile,
             )
             return _upload_file(
@@ -268,16 +259,14 @@ def main() -> None:
     if __name__ == "__main__":
         fire.Fire(TwatFS)
     else:
-        # When imported as a module
         fire.Fire(TwatFS())
 
 
-# Backwards compatibility for the API
 upload_file = TwatFS().upload
 setup_provider = TwatFS().upload_provider.status
 
 
-def setup_providers() -> None: # Added return type
+def setup_providers() -> None:
     return TwatFS().upload_provider.status(None)
 
 

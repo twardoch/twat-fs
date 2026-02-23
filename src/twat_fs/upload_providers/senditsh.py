@@ -1,19 +1,20 @@
-# this_file: src/twat_fs/upload_providers/uguu.py
+# this_file: src/twat_fs/upload_providers/senditsh.py
 
 """
-Uguu.se upload provider.
-A simple provider that uploads files to uguu.se.
-Files are automatically deleted after 48 hours.
+sendit.sh file upload provider.
+A simple provider that uploads files to sendit.sh using PUT method.
+Max size: 3 GB. Retention: 1 day. SINGLE DOWNLOAD ONLY — file is deleted after first download.
 """
 
 from __future__ import annotations
 
+import re
 import requests
 from pathlib import Path
-from typing import BinaryIO, cast, ClassVar
+from typing import BinaryIO, ClassVar, cast
 
-from twat_fs.upload_providers.provider_types import UploadResult
-from twat_fs.upload_providers.core import RetryableError, NonRetryableError
+from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.core import NonRetryableError
 from twat_fs.upload_providers.simple import BaseProvider
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
 from twat_fs.upload_providers.utils import (
@@ -25,28 +26,36 @@ from twat_fs.upload_providers.utils import (
 
 # Use standardized provider help format
 PROVIDER_HELP: ProviderHelp = create_provider_help(
-    setup_instructions="No setup required. Note: Files are deleted after 48 hours.",
+    setup_instructions=(
+        "No setup required. Max 3 GB. Retention: 1 day. "
+        "WARNING: Single download only — file is deleted after first download."
+    ),
     dependency_info="Python package: requests",
-    max_size="128 MiB",
-    retention="48 hours",
+    max_size="3 GB",
+    retention="1 day (single download only)",
     auth_required="None",
 )
 
+# Regex to extract URL from response text
+_URL_PATTERN = re.compile(r"https?://sendit\.sh/\S+")
 
-class UguuProvider(BaseProvider):
-    """Provider for uguu.se uploads"""
+
+class SenditshProvider(BaseProvider):
+    """Provider for sendit.sh uploads (PUT method, single-download)."""
 
     PROVIDER_HELP: ClassVar[ProviderHelp] = PROVIDER_HELP
-    provider_name: str = "uguu"
-    upload_url: str = "https://uguu.se/upload.php"
+    provider_name: str = "senditsh"
+    upload_url: str = "https://sendit.sh/"
 
     def __init__(self) -> None:
-        """Initialize the Uguu provider."""
-        self.provider_name = "uguu"
+        """Initialize the sendit.sh provider."""
+        self.provider_name = "senditsh"
 
     def _do_upload(self, file: BinaryIO) -> str:
         """
-        Internal implementation of the file upload to uguu.se.
+        Internal implementation of the file upload to sendit.sh.
+
+        Uses PUT method with raw file content.
 
         Args:
             file: Open file handle to upload
@@ -55,22 +64,31 @@ class UguuProvider(BaseProvider):
             str: URL of the uploaded file
 
         Raises:
-            RetryableError: If the upload fails due to rate limiting or temporary issues
-            NonRetryableError: If the upload fails for any other reason
+            NonRetryableError: If the upload fails or response is invalid
         """
-        files = {"files[]": file}
-        response = requests.post(self.upload_url, files=files, timeout=30)
+        filename = Path(file.name).name
+        file_content = file.read()
+
+        response = requests.put(
+            f"{self.upload_url}{filename}",
+            data=file_content,
+            headers={
+                "Content-Type": "application/octet-stream",
+                "User-Agent": "twat-fs/1.0",
+            },
+            timeout=60,
+        )
 
         # Use standardized HTTP response handling
         handle_http_response(response, self.provider_name)
 
-        # Parse the response
-        result = response.json()
-        if not result or "files" not in result:
-            msg = f"Invalid response from uguu.se: {result}"
+        # Parse the response — extract URL with regex
+        match = _URL_PATTERN.search(response.text)
+        if not match:
+            msg = f"Could not find download URL in response: {response.text[:200]}"
             raise NonRetryableError(msg, self.provider_name)
 
-        return cast(str, result["files"][0]["url"])
+        return match.group(0)
 
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """
@@ -83,10 +101,8 @@ class UguuProvider(BaseProvider):
             UploadResult containing the URL and status
         """
         try:
-            # Upload the file
             url = self._do_upload(file)
 
-            # Log successful upload
             log_upload_attempt(
                 provider_name=self.provider_name,
                 file_path=file.name,
@@ -99,13 +115,12 @@ class UguuProvider(BaseProvider):
                     "provider": self.provider_name,
                     "success": True,
                     "raw_url": url,
+                    "single_download": True,
                 },
             )
-        except (RetryableError, NonRetryableError):
-            # Re-raise these errors to allow for retries
+        except NonRetryableError:
             raise
         except Exception as e:
-            # Log failed upload
             log_upload_attempt(
                 provider_name=self.provider_name,
                 file_path=file.name,
@@ -124,7 +139,7 @@ class UguuProvider(BaseProvider):
 
     @classmethod
     def get_credentials(cls) -> None:
-        """Simple providers don't need credentials"""
+        """Simple providers don't need credentials."""
         return None
 
     @classmethod
@@ -135,13 +150,13 @@ class UguuProvider(BaseProvider):
 
 # Module-level functions to implement the Provider protocol
 def get_credentials() -> None:
-    """Simple providers don't need credentials"""
-    return UguuProvider.get_credentials()
+    """Simple providers don't need credentials."""
+    return SenditshProvider.get_credentials()
 
 
 def get_provider() -> ProviderClient | None:
-    """Return an instance of the provider"""
-    return UguuProvider.get_provider()
+    """Return an instance of the provider."""
+    return SenditshProvider.get_provider()
 
 
 def upload_file(
@@ -155,6 +170,8 @@ def upload_file(
     """
     Upload a file and return its URL.
 
+    WARNING: sendit.sh is single-download only. The file is deleted after the first download.
+
     Args:
         local_path: Path to the file to upload
         remote_path: Optional remote path (ignored for simple providers)
@@ -164,16 +181,10 @@ def upload_file(
 
     Returns:
         UploadResult: URL of the uploaded file
-
-    Raises:
-        FileNotFoundError: If the file doesn't exist
-        ValueError: If the path is not a file
-        PermissionError: If the file can't be read
-        RuntimeError: If the upload fails
     """
     return standard_upload_wrapper(
         get_provider(),
-        "uguu",
+        "senditsh",
         local_path,
         remote_path,
         unique=unique,
