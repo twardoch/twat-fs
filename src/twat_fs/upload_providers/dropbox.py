@@ -25,6 +25,7 @@ from twat_cache.decorators import ucache
 from twat_fs.upload_providers.provider_types import UploadResult
 from twat_fs.upload_providers.simple import BaseProvider
 from twat_fs.upload_providers.protocols import ProviderHelp, ProviderClient
+from twat_fs.upload_providers.core import UploadError
 from twat_fs.upload_providers.utils import (
     create_provider_help,
     get_env_credentials,
@@ -436,9 +437,6 @@ def upload_file(
     except Exception as e:
         msg = f"Failed to upload file: {e}"
         raise ValueError(msg) from e
-
-
-from .core import UploadError
 
 
 class DropboxUploadError(UploadError):

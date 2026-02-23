@@ -269,9 +269,6 @@ def async_to_sync(func: AsyncUploadCallable[P, T_co]) -> UploadCallable[P, T_co]
     return wrapper
 
 
-from twat_fs.exceptions import TwatFsError
-
-
 class UploadError(TwatFsError):
     """Base class for upload errors."""
 
