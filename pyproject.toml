@@ -80,6 +80,12 @@ dev = [
   'types-toml',
   'types-tqdm',
 ]
+
+docs = [
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.27.0",
+]
 test = [
   'pytest>=8.3.4',
   'pytest-cov>=6.0.0',
