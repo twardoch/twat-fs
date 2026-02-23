@@ -167,7 +167,7 @@ class DropboxClient(BaseProvider):
             _ensure_upload_directory(self.dbx, actual_upload_path)
 
             # Check if file exists
-            exists, remote_metadata = _check_file_exists(self.dbx, db_path)
+            exists, _remote_metadata = _check_file_exists(self.dbx, db_path)
             if exists and not force:
                 msg = f"File already exists at {db_path}"
                 raise DropboxFileExistsError(msg)

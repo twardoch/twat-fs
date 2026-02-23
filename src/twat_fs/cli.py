@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import sys
+from importlib import metadata
 from pathlib import Path
 
 import fire
@@ -191,17 +192,10 @@ class TwatFS:
     def version(self) -> None:
         """Show version information."""
         try:
-            from twat_fs.__version__ import __version__
-
-            print(f"twat-fs {__version__}")
-        except ImportError:
-            from importlib import metadata
-
-            try:
-                version = metadata.version("twat-fs")
-                print(f"twat-fs {version}")
-            except Exception:
-                print("twat-fs (version unknown)")
+            version = metadata.version("twat-fs")
+            print(f"twat-fs {version}")
+        except metadata.PackageNotFoundError:
+            print("twat-fs (version unknown)")
 
     def upload(
         self,
