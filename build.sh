@@ -13,6 +13,7 @@ echo "Testing..."
 uvx hatch test 2>/dev/null || uv run pytest -xvs 2>/dev/null || echo "No tests configured"
 
 echo "Building..."
+uvx hatch clean 2>/dev/null || true
 uvx hatch build 2>/dev/null || uv build 2>/dev/null || echo "Build skipped"
 
 echo "Done."

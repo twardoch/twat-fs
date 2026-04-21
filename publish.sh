@@ -12,6 +12,7 @@ echo "Tagging next version..."
 uvx gitnextver@latest
 
 echo "Publishing to PyPI..."
+uvx hatch clean
 uvx hatch build
 uv publish
 
