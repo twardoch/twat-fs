@@ -330,7 +330,7 @@ def main() -> None:
 
 def main_2url() -> None:
     """Entry point equivalent to `twat-fs upload` with the same API."""
-    fire.Fire(TwatFS().upload, name="2url")
+    fire.Fire(TwatFS().upload, name="file2url")
 
 
 upload_file = TwatFS().upload

@@ -116,7 +116,7 @@ all = [
 
 [project.scripts]
 twat-fs = 'twat_fs.__main__:main'
-2url = 'twat_fs.cli:main_2url'
+file2url = 'twat_fs.cli:main_file2url'
 
 [project.entry-points."twat.plugins"]
 fs = 'twat_fs'
