@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 # List of available providers in order of preference
 PROVIDERS_PREFERENCE = [
     # Anonymous providers — verified working (sorted by reliability + retention)
-    "catbox",  # Permanent, 200 MB, integrity verified
     "litterbox",  # 1-72h selectable, 1 GB, integrity verified
     "x0at",  # 3-100 days, 512 MiB, integrity verified
     "tmpfilelink",  # 7 days, 100 MB, integrity verified
@@ -33,6 +32,8 @@ PROVIDERS_PREFERENCE = [
     "uguu",  # 24h, blocks .zip files
     "pixeldrain",  # 90 days, 20 GB, needs PUT method fix
     "filebin",  # Unreliable
+    # Deprioritized: catbox intermittently stores empty files (see --check mismatches)
+    "catbox",  # Permanent, 200 MB — deprioritized due to silent corruption
     # Authenticated providers (require setup)
     "fal",
     "s3",

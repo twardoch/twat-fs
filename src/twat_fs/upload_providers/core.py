@@ -22,7 +22,14 @@ from collections.abc import Callable, Awaitable
 import aiohttp
 from loguru import logger
 
-from twat_cache import ucache
+try:
+    from twat_cache import ucache
+except ImportError:
+
+    def ucache(*_args: Any, **_kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        """No-op fallback when twat_cache is not installed."""
+        return lambda fn: fn
+
 
 from twat_fs.upload_providers.provider_types import UploadResult
 from twat_fs.exceptions import TwatFsError

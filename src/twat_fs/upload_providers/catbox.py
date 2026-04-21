@@ -12,6 +12,7 @@ from typing import BinaryIO, ClassVar, cast  # cast is already here
 import aiohttp
 import asyncio
 
+from twat_fs.upload_providers.core import RetryableError
 from twat_fs.upload_providers.protocols import ProviderClient, ProviderHelp
 from twat_fs.upload_providers.provider_types import UploadResult
 from twat_fs.upload_providers.simple import BaseProvider
@@ -72,7 +73,11 @@ class CatboxProvider(BaseProvider):
             async with aiohttp.ClientSession() as session:
                 async with session.post(self.upload_url, data=data) as response:
                     handle_http_response(response, self.provider_name)
-                    return await response.text()
+                    body = (await response.text()).strip()
+                    if not body.startswith(("http://", "https://")):
+                        msg = f"Unexpected response body: {body!r}"
+                        raise RetryableError(msg, self.provider_name)
+                    return body
 
     def upload_file_impl(self, file: BinaryIO) -> UploadResult:
         """

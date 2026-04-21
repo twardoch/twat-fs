@@ -24,14 +24,14 @@ try:
     HAS_BOTOCORE = True
 except ImportError:
 
-    class ClientErrorPlaceholder(Exception):  # Use a different name for placeholder
+    class ClientErrorPlaceholderError(Exception):  # Use a different name for placeholder
         pass
 
-    ClientError = ClientErrorPlaceholder  # Assign placeholder to ClientError
+    ClientError = ClientErrorPlaceholderError  # Assign placeholder to ClientError
     HAS_BOTOCORE = False
 
 
-from twat_fs.upload import (
+from twat_fs.upload import (  # noqa: E402
     PROVIDERS_PREFERENCE,
     setup_provider,
     setup_providers,
@@ -54,7 +54,7 @@ try:
 except ImportError:
     HAS_FAL = False
 
-from twat_fs.upload_providers import (
+from twat_fs.upload_providers import (  # noqa: E402
     catbox,
     litterbox,
     UploadResult,
@@ -67,7 +67,7 @@ try:
 except ImportError:
     HAS_DROPBOX = False
 
-from twat_fs.upload_providers.core import RetryableError, NonRetryableError
+from twat_fs.upload_providers.core import RetryableError, NonRetryableError  # noqa: E402
 
 
 class ProviderSetupResult(NamedTuple):

@@ -8,10 +8,19 @@ This module centralizes the creation of providers and standardizes error handlin
 from __future__ import annotations
 
 import importlib
-from typing import TypeVar, cast, TYPE_CHECKING
+from typing import Any, TypeVar, cast, TYPE_CHECKING
+from collections.abc import Callable
 
 from loguru import logger
-from twat_cache import ucache
+
+try:
+    from twat_cache import ucache
+except ImportError:
+
+    def ucache(*_args: Any, **_kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        """No-op fallback when twat_cache is not installed."""
+        return lambda fn: fn
+
 
 from twat_fs.upload_providers.protocols import Provider, ProviderClient, ProviderHelp
 

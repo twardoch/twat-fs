@@ -25,7 +25,7 @@ from twat_fs.upload_providers.utils import (
 )
 from twat_fs.upload_providers.core import RetryableError, NonRetryableError
 from twat_fs.upload_providers.protocols import ProviderClient, Provider
-from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.provider_types import UploadResult
 
 
 class TestCreateProviderHelp:

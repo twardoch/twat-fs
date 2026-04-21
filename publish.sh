@@ -1,3 +1,18 @@
 #!/usr/bin/env bash
-cd "$(dirname "$0")"
-uvx hatch clean && gitnextver && uvx hatch build && uv publish
+# publish.sh — Build, install, and publish twat-fs to PyPI
+# File system utilities for twat with support for multiple upload providers
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+bash "$SCRIPT_DIR/build.sh"
+bash "$SCRIPT_DIR/install.sh"
+
+echo "Tagging next version..."
+uvx gitnextver@latest
+
+echo "Publishing to PyPI..."
+uvx hatch build
+uv publish
+
+echo "Done."

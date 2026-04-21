@@ -254,7 +254,7 @@ class TestS3MultipartUploads:
 
             # Verify the upload was called correctly
             assert mock_s3.upload_fileobj.call_count == 1
-            args, kwargs = mock_s3.upload_fileobj.call_args
+            args, _kwargs = mock_s3.upload_fileobj.call_args
             assert len(args) == 3  # Should have file object, bucket, and key
             assert args[1] == "test-bucket"  # Check bucket name
             assert hasattr(args[0], "read")  # Check if it's a file-like object
@@ -281,7 +281,7 @@ class TestS3MultipartUploads:
 
             # Verify the upload was attempted
             assert mock_s3.upload_fileobj.call_count == 1
-            args, kwargs = mock_s3.upload_fileobj.call_args
+            args, _kwargs = mock_s3.upload_fileobj.call_args
             assert len(args) == 3  # Should have file object, bucket, and key
             assert args[1] == "test-bucket"  # Check bucket name
             assert hasattr(args[0], "read")  # Check if it's a file-like object

@@ -116,6 +116,7 @@ all = [
 
 [project.scripts]
 twat-fs = 'twat_fs.__main__:main'
+2url = 'twat_fs.cli:main_2url'
 
 [project.entry-points."twat.plugins"]
 fs = 'twat_fs'
@@ -139,6 +140,7 @@ packages = ['src/twat_fs', 'src/twat']
 [tool.hatch.envs.default]
 dependencies = [
   'pytest>=8.3.4',
+  'pytest-asyncio>=0.25.3',
   'pytest-cov>=6.0.0',
   'ruff>=0.9.6',
   'mypy>=1.15.0',
@@ -178,6 +180,7 @@ typing = 'mypy --install-types --non-interactive {args:src/twat_fs tests}'
 [tool.hatch.envs.test]
 dependencies = [
   'pytest>=8.3.4',
+  'pytest-asyncio>=0.25.3',
   'pytest-cov>=6.0.0',
   'boto3>=1.36.22',
   'botocore>=1.36.22',
@@ -185,6 +188,12 @@ dependencies = [
   'fal-client>=0.5.9',
 ]
 python = '3.10'
+
+[tool.hatch.envs.hatch-test]
+extra-dependencies = [
+  'pytest-asyncio>=0.25.3',
+  'responses>=0.25.6',
+]
 
 [tool.hatch.envs.test.scripts]
 bench = 'python -m pytest -v -p no:briefcase tests/test_benchmark.py --benchmark-only'
@@ -285,6 +294,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
+"tests/tools/pastebin_tester.py" = ["S101", "S110", "S112", "S324", "PLC0415"]
 
 [tool.coverage.paths]
 tests = ['tests', '*/twat-fs/tests']

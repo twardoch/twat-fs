@@ -12,7 +12,8 @@ import re
 from pathlib import Path
 
 from twat_fs.upload_providers import filebin, pixeldrain
-from twat_fs.upload_providers.types import UploadResult
+from twat_fs.upload_providers.core import UploadError
+from twat_fs.upload_providers.provider_types import UploadResult
 
 
 @pytest.fixture
@@ -58,7 +59,7 @@ def test_filebin_upload_failure(test_file: Path) -> None:
 
     # Test the upload
     provider = filebin.FilebinProvider()
-    with pytest.raises(RuntimeError, match="Upload failed"):
+    with pytest.raises(UploadError, match="Upload failed"):
         provider.upload_file(test_file)
 
 
@@ -67,8 +68,8 @@ def test_pixeldrain_upload_success(test_file: Path) -> None:
     """Test successful file upload to pixeldrain.com."""
     # Mock the pixeldrain.com response
     responses.add(
-        responses.POST,
-        "https://pixeldrain.com/api/file",
+        responses.PUT,
+        re.compile(r"https://pixeldrain\.com/api/file/.*"),
         status=200,
         json={"id": "abc123", "name": "test.txt", "size": 12},
     )
@@ -87,15 +88,15 @@ def test_pixeldrain_upload_failure(test_file: Path) -> None:
     """Test failed file upload to pixeldrain.com."""
     # Mock the pixeldrain.com error response
     responses.add(
-        responses.POST,
-        "https://pixeldrain.com/api/file",
+        responses.PUT,
+        re.compile(r"https://pixeldrain\.com/api/file/.*"),
         status=500,
         json={"error": "Internal server error"},
     )
 
     # Test the upload
     provider = pixeldrain.PixeldrainProvider()
-    with pytest.raises(RuntimeError, match="Upload failed"):
+    with pytest.raises(UploadError, match="Upload failed"):
         provider.upload_file(test_file)
 
 

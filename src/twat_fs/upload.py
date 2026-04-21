@@ -1,8 +1,37 @@
 # this_file: src/twat_fs/upload.py
 
 """
-Main upload module that provides a unified interface for uploading files
-using different providers.
+Unified file-upload interface with automatic provider fallback.
+
+``twat-fs`` can upload a file to any of its supported storage providers and
+return a public URL.  When a provider fails it automatically tries the next
+one in the preference order.
+
+Provider categories
+-------------------
+*Anonymous* (no credentials needed):
+    catbox, litterbox, x0at, tmpfilelink, tmpfilesorg, senditsh, www0x0,
+    uguu, pixeldrain, filebin
+
+*Authenticated* (require environment variables):
+    fal (``FAL_KEY``), s3 (``AWS_S3_BUCKET`` + AWS credentials),
+    dropbox (``DROPBOX_ACCESS_TOKEN``)
+
+Main entry point
+----------------
+:func:`upload_file` is the only function most callers need::
+
+    from twat_fs.upload import upload_file
+
+    url = upload_file("report.pdf")                  # auto-selects best provider
+    url = upload_file("photo.jpg", provider="catbox") # force a specific provider
+
+Fallback behaviour
+------------------
+On a retryable error (network hiccup) the same provider is retried once with
+exponential back-off.  On a non-retryable error (auth failure, quota) the next
+provider in the preference list is tried.  Pass ``fragile=True`` via
+:class:`UploadOptions` to disable all fallback and fail fast.
 """
 
 from __future__ import annotations
@@ -494,6 +523,7 @@ def _try_upload_with_provider(
         read_duration = time.time() - read_start
 
         # Track upload time
+        logger.info(f"Uploading {file_path} to {provider_name}...")
         upload_start = time.time()
         upload_result = provider.upload_file(
             file_path,
@@ -621,6 +651,13 @@ def _try_next_provider(  # Greatly simplified argument list
                 file_path,
                 options,
             )
+            if not result.url or result.metadata.get("success") is False:
+                err = result.metadata.get("error", "empty URL returned")
+                if options.fragile:
+                    msg = f"Provider {provider} failed: {err}"
+                    raise ValueError(msg)
+                logger.warning(f"Provider {provider} failed: {err}")
+                continue
             return result.url
 
         except ValueError as e:

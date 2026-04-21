@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1771807577016,
+  "lastScanned": 1776780269627,
   "projectRoot": "/Users/adam/Developer/vcs3/github.twardoch/pub/twat/plugins/repos/twat_fs",
   "techStack": {
     "languages": [
@@ -55,16 +55,26 @@
       "path": "__pycache__",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1771807577011,
+      "lastAccessed": 1776780269622,
       "keyFiles": [
         "update_providers.cpython-313.pyc"
+      ]
+    },
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 2,
+      "lastAccessed": 1776780269623,
+      "keyFiles": [
+        "twat_fs-2.7.8-py3-none-any.whl",
+        "twat_fs-2.7.8.tar.gz"
       ]
     },
     "examples": {
       "path": "examples",
       "purpose": "Example code",
       "fileCount": 1,
-      "lastAccessed": 1771807577012,
+      "lastAccessed": 1776780269623,
       "keyFiles": [
         "upload_example.py"
       ]
@@ -73,14 +83,23 @@
       "path": "src",
       "purpose": "Source code",
       "fileCount": 1,
-      "lastAccessed": 1771807577012,
+      "lastAccessed": 1776780269623,
       "keyFiles": []
+    },
+    "src_docs": {
+      "path": "src_docs",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1776780269623,
+      "keyFiles": [
+        "index.md"
+      ]
     },
     "templates": {
       "path": "templates",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1771807577012,
+      "lastAccessed": 1776780269624,
       "keyFiles": [
         "authenticated_provider_template.py",
         "simple_provider_template.py"
@@ -90,7 +109,7 @@
       "path": "tests",
       "purpose": "Test files",
       "fileCount": 10,
-      "lastAccessed": 1771807577013,
+      "lastAccessed": 1776780269624,
       "keyFiles": [
         "__init__.py",
         "test_async_utils.py",
@@ -103,7 +122,7 @@
       "path": "tests/data",
       "purpose": "Data files",
       "fileCount": 1,
-      "lastAccessed": 1771807577013,
+      "lastAccessed": 1776780269624,
       "keyFiles": [
         "test.txt"
       ]

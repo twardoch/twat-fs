@@ -10,12 +10,14 @@ Command-line interface for twat-fs package.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 from importlib import metadata
 from pathlib import Path
 
 import fire
+import requests
 from loguru import logger
 from rich.console import Console
 from rich.table import Table
@@ -29,20 +31,42 @@ from twat_fs.upload import (
 )
 
 logger.remove()
-log_level = os.getenv("LOGURU_LEVEL", "INFO").upper()
+_DEFAULT_LOG_LEVEL = os.getenv("LOGURU_LEVEL", "WARNING").upper()
 
 logger.add(
     sys.stderr,
-    level="WARNING",
+    level=_DEFAULT_LOG_LEVEL,
     format="<red>Error: {message}</red>",
+    filter=lambda record: record["level"].no >= logger.level("WARNING").no,
 )
 
-logger.add(
-    sys.stdout,
-    level=log_level,
-    format="{message}",
-    filter=lambda record: record["level"].no < logger.level("WARNING").no,
-)
+
+def _enable_verbose_logging() -> None:
+    """Enable INFO-level logging to stderr for verbose mode."""
+    logger.add(
+        sys.stderr,
+        level="INFO",
+        format="{message}",
+        filter=lambda record: record["level"].no < logger.level("WARNING").no,
+    )
+
+
+def _verify_download(url: str, local_path: Path) -> None:
+    """Download the file from url and verify it matches local_path by SHA-256.
+
+    Raises RuntimeError on mismatch or download failure.
+    """
+    with open(local_path, "rb") as f:
+        local_hash = hashlib.sha256(f.read()).hexdigest()
+
+    response = requests.get(url, timeout=60, allow_redirects=True, headers={"User-Agent": "twat-fs/1.0"})
+    if response.status_code != 200:
+        msg = f"Download check failed: HTTP {response.status_code}"
+        raise RuntimeError(msg)
+    remote_hash = hashlib.sha256(response.content).hexdigest()
+    if remote_hash != local_hash:
+        msg = f"Download check failed: hash mismatch (local={local_hash}, remote={remote_hash})"
+        raise RuntimeError(msg)
 
 
 def parse_provider_list(provider: str) -> list[str] | None:
@@ -206,6 +230,8 @@ class TwatFS:
         unique: bool = False,
         force: bool = False,
         fragile: bool = False,
+        verbose: bool = False,
+        no_check: bool = False,
     ) -> str:
         """
         Upload a file using the specified provider(s) with automatic fallback.
@@ -217,32 +243,78 @@ class TwatFS:
             force: Overwrite existing files if they exist
             remote_path: Custom remote path/prefix (provider-specific)
             fragile: If True, fail immediately without trying fallback providers
+            verbose: If True, emit progress/timing info to stderr
+            no_check: If True, skip the post-upload SHA-256 download verification
 
         Returns:
             URL of the uploaded file
         """
+        if verbose:
+            _enable_verbose_logging()
+
         try:
             if isinstance(provider, str):
                 providers = parse_provider_list(provider)
                 if providers is not None:
                     provider = providers
 
-            if not Path(file_path).exists():
+            path = Path(file_path)
+            if not path.exists():
                 logger.error(f"File not found: {file_path}")
                 sys.exit(1)
 
-            options = UploadOptions(
-                remote_path=None,
-                unique=unique,
-                force=force,
-                upload_path=remote_path,
-                fragile=fragile,
-            )
-            return _upload_file(
-                file_path,
-                provider=provider,
-                options=options,
-            )
+            provider_list = [provider] if isinstance(provider, str) else list(provider)
+
+            if verbose:
+                size = path.stat().st_size
+                print(
+                    f"Uploading {path} ({size:,} bytes) via {','.join(provider_list)}...",
+                    file=sys.stderr,
+                    flush=True,
+                )
+
+            if no_check:
+                options = UploadOptions(
+                    remote_path=None,
+                    unique=unique,
+                    force=force,
+                    upload_path=remote_path,
+                    fragile=fragile,
+                )
+                return _upload_file(file_path, provider=provider, options=options)
+
+            # default: try providers one-by-one, verify each, fall through on mismatch
+            last_error: str = "no providers attempted"
+            for single in provider_list:
+                try:
+                    single_options = UploadOptions(
+                        remote_path=None,
+                        unique=unique,
+                        force=force,
+                        upload_path=remote_path,
+                        fragile=True,
+                    )
+                    url = _upload_file(file_path, provider=[single], options=single_options)
+                except Exception as e:
+                    last_error = f"{single}: upload failed: {e}"
+                    logger.warning(last_error)
+                    if fragile:
+                        break
+                    continue
+                logger.info(f"Verifying download from {url}...")
+                try:
+                    _verify_download(url, path)
+                except Exception as e:
+                    last_error = f"{single}: {e}"
+                    logger.warning(f"Verification failed for {single}, trying next provider: {e}")
+                    if fragile:
+                        break
+                    continue
+                logger.info(f"Verification OK for {single}: SHA-256 matches")
+                return url
+
+            logger.error(f"Upload with verification failed: {last_error}")
+            sys.exit(1)
         except Exception as e:
             logger.error(f"Upload failed: {e}")
             sys.exit(1)
@@ -254,6 +326,11 @@ def main() -> None:
         fire.Fire(TwatFS)
     else:
         fire.Fire(TwatFS())
+
+
+def main_2url() -> None:
+    """Entry point equivalent to `twat-fs upload` with the same API."""
+    fire.Fire(TwatFS().upload, name="2url")
 
 
 upload_file = TwatFS().upload
