@@ -1,15 +1,11 @@
 # this_file: src/twat_fs/__init__.py
 
+from .__version__ import __version__  # noqa: F401
+
 """twat-fs: File system utilities for twat."""
 
 from __future__ import annotations
 
-from importlib.metadata import PackageNotFoundError, version
-
-try:
-    __version__ = version("twat-fs")
-except PackageNotFoundError:
-    __version__ = "0.0.0-dev"
 
 try:
     import twat_cache
