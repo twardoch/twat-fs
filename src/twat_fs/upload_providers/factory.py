@@ -13,13 +13,7 @@ from collections.abc import Callable
 
 from loguru import logger
 
-try:
-    from twat_cache import ucache
-except ImportError:
-
-    def ucache(*_args: Any, **_kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-        """No-op fallback when twat_cache is not installed."""
-        return lambda fn: fn
+from twat_fs.upload_providers.core import ucache
 
 
 from twat_fs.upload_providers.protocols import Provider, ProviderClient, ProviderHelp

@@ -23,7 +23,25 @@ import aiohttp
 from loguru import logger
 
 try:
-    from twat_cache import ucache
+    from twat_cache import ucache as _ucache_impl
+
+    def ucache(*args: Any, **kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        """Apply ucache, falling back to no-op if cache backend factory OR decoration fails."""
+        try:
+            inner = _ucache_impl(*args, **kwargs)
+        except Exception as exc:
+            logger.debug(f"ucache factory unavailable: {exc}")
+            return lambda fn: fn
+
+        def safe_decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+            try:
+                return inner(fn)
+            except Exception as exc:
+                logger.debug(f"ucache decoration failed for {getattr(fn, '__name__', '<fn>')}: {exc}")
+                return fn
+
+        return safe_decorator
+
 except ImportError:
 
     def ucache(*_args: Any, **_kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:

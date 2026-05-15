@@ -159,14 +159,19 @@ finally:
 
 `twat-fs` can be invoked directly from the command line. The main entry point is `python -m twat_fs` or the `twat-fs` script if your PATH is configured.
 
+When installed with the `twat` host package, the plugin entry point is `fs`, so the same CLI can be dispatched through `twat fs ...`.
+
 **Upload a file:**
 
 ```bash
 # Simple upload (uses default provider preference)
 python -m twat_fs upload path/to/your/file.jpg
+twat-fs upload path/to/your/file.jpg
+twat fs upload path/to/your/file.jpg
 
 # Specify a provider
 python -m twat_fs upload path/to/your/file.jpg --provider s3
+twat fs upload path/to/your/file.jpg --provider s3
 
 # Specify multiple providers for fallback (comma-separated, no spaces, in brackets)
 python -m twat_fs upload path/to/your/file.jpg --provider "[s3,dropbox,catbox]"
@@ -186,6 +191,7 @@ python -m twat_fs upload path/to/your/file.jpg --provider s3 --remote_path "my_u
 ```bash
 # Check status of a specific provider (e.g., s3)
 python -m twat_fs upload_provider status s3
+twat fs upload_provider status s3
 
 # Check status and run an online test for a specific provider
 python -m twat_fs upload_provider status s3 --online
@@ -198,6 +204,7 @@ python -m twat_fs upload_provider status --online
 
 # List available (ready) providers
 python -m twat_fs upload_provider list
+twat fs upload_provider list
 ```
 
 ## Provider Configuration

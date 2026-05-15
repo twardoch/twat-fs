@@ -20,7 +20,7 @@ from dropbox.exceptions import AuthError
 from dotenv import load_dotenv
 from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
-from twat_cache.decorators import ucache
+from twat_fs.upload_providers.core import ucache
 
 from twat_fs.upload_providers.provider_types import UploadResult
 from twat_fs.upload_providers.simple import BaseProvider
