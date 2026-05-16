@@ -116,6 +116,9 @@ all = [
 
 [project.scripts]
 twat-fs = 'twat_fs:main'
+twat-fs-version = 'twat_fs.cli:cmd_version'
+twat-fs-upload = 'twat_fs.cli:cmd_upload'
+twat-fs-upload-provider = 'twat_fs.cli:cmd_upload_provider'
 file2url = 'twat_fs.cli:main_file2url'
 
 [project.entry-points."twat.plugins"]

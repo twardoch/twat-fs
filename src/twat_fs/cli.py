@@ -341,5 +341,19 @@ def setup_providers() -> None:
     return TwatFS().upload_provider.status(None)
 
 
+# Dashed-entry helpers: each leaf/group gets its own console_scripts entry
+# so that shell completion (twat-fs-<TAB>) surfaces individual commands.
+def cmd_version() -> None:
+    fire.Fire(TwatFS().version, name="twat-fs-version")
+
+
+def cmd_upload() -> None:
+    fire.Fire(TwatFS().upload, name="twat-fs-upload")
+
+
+def cmd_upload_provider() -> None:
+    fire.Fire(TwatFS().upload_provider, name="twat-fs-upload-provider")
+
+
 if __name__ == "__main__":
     main()
