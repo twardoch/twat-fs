@@ -1,10 +1,9 @@
 # this_file: src/twat_fs/__init__.py
-
-from .__version__ import __version__  # noqa: F401
-
 """twat-fs: File system utilities for twat."""
 
 from __future__ import annotations
+
+from .__version__ import __version__  # noqa: F401
 
 
 try:
