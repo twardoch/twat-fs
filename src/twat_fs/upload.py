@@ -584,6 +584,8 @@ def _try_upload_with_provider(
         )
 
         return result
+    except PermissionError:
+        raise
     except Exception as e:
         end_time = time.time()
         total_duration = end_time - start_time
@@ -729,11 +731,9 @@ def upload_file(
 
     try:
         # Try first provider with retry
-        return _try_upload_with_provider(
-            providers[0],
-            file_path,
-            current_options,
-        ).url
+        result = _try_upload_with_provider(providers[0], file_path, current_options)
+    except PermissionError:
+        raise
     except (RetryableError, NonRetryableError) as e:
         if current_options.fragile or len(providers) == 1:
             msg = f"Provider {providers[0]} failed: {e}"
@@ -741,12 +741,36 @@ def upload_file(
 
         # Try remaining providers with circular fallback
         logger.info(f"Provider {providers[0]} failed, trying alternatives")
+        try:
+            return _try_next_provider(
+                providers[1:],
+                file_path,
+                current_options,
+                tried_providers={providers[0]},
+            )
+        except ValueError as ve:
+            msg = "No provider available or all providers failed"
+            raise ValueError(msg) from ve
+
+    if result.url:
+        return result.url
+
+    # Soft failure: provider returned empty URL without raising an exception
+    if current_options.fragile or len(providers) == 1:
+        msg = "No provider available or all providers failed"
+        raise ValueError(msg)
+
+    logger.info(f"Provider {providers[0]} returned empty URL, trying alternatives")
+    try:
         return _try_next_provider(
             providers[1:],
             file_path,
             current_options,
             tried_providers={providers[0]},
         )
+    except ValueError as ve:
+        msg = "No provider available or all providers failed"
+        raise ValueError(msg) from ve
 
 
 # Removed _try_upload_with_fallback as it appears to be an orphaned/redundant

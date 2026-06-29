@@ -62,7 +62,7 @@ class PixeldrainProvider(BaseProvider):
         if not data or "id" not in data:
             msg = f"Invalid response from pixeldrain: {data}"
             raise ValueError(msg)
-        return f"https://pixeldrain.com/api/file/{data['id']}"
+        return f"https://pixeldrain.com/u/{data['id']}"
 
     def _upload_with_retry(self, file: BinaryIO) -> str:
         """Upload a file with retry mechanism using PUT method."""

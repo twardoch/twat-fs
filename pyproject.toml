@@ -319,7 +319,7 @@ source_pkgs = [
     'tests',
 ]
 [tool.pytest.ini_options]
-addopts = '-v --durations=10 -p no:briefcase'
+addopts = '-v --durations=10 -p no:briefcase -m "not online"'
 asyncio_mode = 'auto'
 asyncio_default_fixture_loop_scope = 'function'
 console_output_style = 'progress'

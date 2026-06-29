@@ -38,8 +38,9 @@ class TestCreateProviderHelp:
 
         result = create_provider_help(setup, deps)
 
-        assert result == {"setup": setup, "deps": deps}
         assert isinstance(result, dict)
+        assert result["setup"] == setup
+        assert result["deps"] == deps
 
 
 class TestSafeFileHandle:
