@@ -21,19 +21,22 @@ from twat_fs.upload_providers import (
 
 # Conditionally import optional provider packages
 try:
-    from twat_fs.upload_providers import fal  # noqa: F401
+    from twat_fs.upload_providers import fal
+
     HAS_FAL = True
 except ImportError:
     HAS_FAL = False
 
 try:
-    from twat_fs.upload_providers import s3  # noqa: F401
+    from twat_fs.upload_providers import s3
+
     HAS_S3 = True
 except ImportError:
     HAS_S3 = False
 
 try:
-    from twat_fs.upload_providers import dropbox  # noqa: F401
+    from twat_fs.upload_providers import dropbox
+
     HAS_DROPBOX = True
 except ImportError:
     HAS_DROPBOX = False
